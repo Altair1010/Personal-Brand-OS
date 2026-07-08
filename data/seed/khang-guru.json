@@ -1,0 +1,36 @@
+{
+  "domain": "khang-guru",
+  "profile": {
+    "name": "Khang Guru",
+    "headline": "Chuyên gia phân tích vàng XAUUSD — dạy giao dịch kỷ luật",
+    "bio": "Trader vàng hơn 8 năm kinh nghiệm. Chia sẻ phương pháp phân tích XAUUSD theo dòng tiền và quản trị rủi ro cho nhà đầu tư cá nhân."
+  },
+  "brandDna": {
+    "whoAmI": "Khang Guru — nhà phân tích và huấn luyện giao dịch vàng XAUUSD, tập trung vào tư duy kỷ luật thay vì mẹo lướt sóng.",
+    "field": "Giao dịch vàng XAUUSD, phân tích kỹ thuật và quản trị vốn.",
+    "threeWords": ["Kỷ luật", "Minh bạch", "Bền vững"],
+    "coreBeliefs": "Giao dịch là trò chơi xác suất và quản trị rủi ro, không phải cờ bạc. Bảo toàn vốn quan trọng hơn lợi nhuận nhanh.",
+    "differentiation": "Không bán tín hiệu ăn xổi. Dạy học viên tự đọc thị trường, có nhật ký giao dịch minh bạch cả lệnh thắng lẫn thua.",
+    "personalStory": "Từng cháy tài khoản 3 lần vì FOMO trước khi xây được hệ thống giao dịch kỷ luật, nay giúp người mới tránh vết xe đổ đó.",
+    "expertise": "Phân tích XAUUSD theo dòng tiền, price action, quản trị vốn, kiểm soát tâm lý giao dịch.",
+    "customerProfile": "Nhà đầu tư cá nhân 25-45 tuổi, đã hoặc đang giao dịch vàng nhưng thua lỗ vì thiếu hệ thống và kỷ luật.",
+    "customerPain": "Thua lỗ liên tục, gồng lỗ, vào lệnh theo cảm tính, mất niềm tin sau nhiều lần cháy tài khoản.",
+    "customerMisunderstanding": "Tin rằng chỉ cần tín hiệu chuẩn hoặc indicator xịn là thắng, xem nhẹ quản trị vốn và tâm lý.",
+    "marketEducationGoal": "Giúp cộng đồng hiểu giao dịch vàng bền vững dựa trên xác suất và kỷ luật, không phải làm giàu nhanh.",
+    "companyName": "Khang Guru Trading Academy",
+    "offers": [
+      "Khóa học XAUUSD Foundation",
+      "Chương trình mentor 1-1",
+      "Cộng đồng nhật ký giao dịch"
+    ],
+    "usp": "Phương pháp giao dịch vàng minh bạch, có nhật ký thực chiến và cam kết dạy tư duy quản trị rủi ro.",
+    "region": "Việt Nam"
+  },
+  "goal": {
+    "name": "Xây thương hiệu chuyên gia vàng XAUUSD trong 30 ngày",
+    "goalType": "authority",
+    "targetAudience": "Nhà đầu tư cá nhân đang giao dịch vàng nhưng thiếu hệ thống.",
+    "mainOffer": "Khóa học XAUUSD Foundation",
+    "mainMessage": "Giao dịch vàng bền vững nhờ kỷ luật và quản trị rủi ro, không phải mẹo làm giàu nhanh."
+  }
+}

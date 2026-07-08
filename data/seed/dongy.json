@@ -1,0 +1,36 @@
+{
+  "domain": "dongy",
+  "profile": {
+    "name": "Lương y An",
+    "headline": "Đông y gia truyền — chăm sóc sức khỏe từ gốc",
+    "bio": "Lương y với 15 năm khám và điều trị bằng Đông y. Chia sẻ kiến thức dưỡng sinh, điều trị bệnh mạn tính an toàn từ thảo dược."
+  },
+  "brandDna": {
+    "whoAmI": "Lương y An — thầy thuốc Đông y gia truyền, chú trọng điều trị tận gốc và dưỡng sinh phòng bệnh.",
+    "field": "Đông y, dưỡng sinh, điều trị bệnh mạn tính bằng thảo dược.",
+    "threeWords": ["Tận tâm", "An toàn", "Từ gốc"],
+    "coreBeliefs": "Chữa bệnh phải chữa từ gốc, cân bằng cơ thể; phòng bệnh hơn chữa bệnh.",
+    "differentiation": "Kết hợp y lý gia truyền với tư vấn lối sống, không lạm dụng thuốc, minh bạch thành phần thảo dược.",
+    "personalStory": "Nối nghiệp ba đời làm thuốc, chứng kiến nhiều bệnh nhân khỏi bệnh mạn tính nhờ kiên trì điều trị đúng cách.",
+    "expertise": "Điều trị bệnh mạn tính, châm cứu, bốc thuốc thang, tư vấn dưỡng sinh theo thể trạng.",
+    "customerProfile": "Người 35-60 tuổi mắc bệnh mạn tính, mệt mỏi với thuốc tây, muốn phương pháp an toàn lâu dài.",
+    "customerPain": "Uống thuốc tây kéo dài nhưng bệnh tái đi tái lại, lo tác dụng phụ, mất niềm tin vào điều trị.",
+    "customerMisunderstanding": "Nghĩ Đông y chậm và không khoa học, hoặc kỳ vọng khỏi ngay sau vài thang thuốc.",
+    "marketEducationGoal": "Giúp cộng đồng hiểu Đông y điều trị tận gốc cần đúng phương pháp và kiên trì, không phải mê tín.",
+    "companyName": "Nhà thuốc Đông y An Khang",
+    "offers": [
+      "Khám và bốc thuốc theo thể trạng",
+      "Liệu trình điều trị bệnh mạn tính",
+      "Tư vấn dưỡng sinh"
+    ],
+    "usp": "Đông y gia truyền minh bạch thành phần, điều trị từ gốc kèm tư vấn lối sống cá nhân hóa.",
+    "region": "Việt Nam"
+  },
+  "goal": {
+    "name": "Xây thương hiệu lương y uy tín trong 30 ngày",
+    "goalType": "authority",
+    "targetAudience": "Người mắc bệnh mạn tính muốn điều trị an toàn bằng Đông y.",
+    "mainOffer": "Liệu trình điều trị bệnh mạn tính",
+    "mainMessage": "Đông y chữa từ gốc, an toàn và bền vững khi điều trị đúng phương pháp."
+  }
+}

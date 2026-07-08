@@ -18,7 +18,8 @@
   to when it must be updated. In plan mode, plans go to plan.md by path — never pasted
   into CLAUDE.md/chat.
 
-- [2026-07-08] **M1 PASS** (verified, commit pending — repo not git-init yet). Scaffold =
+- [2026-07-08] **M1 PASS** (committed `2194aea`, master; repo git-init'd, local identity
+  minhkhang.guru, no remote). Scaffold =
   Next.js 15 App Router + TS, **Tailwind v3** (config file, not v4 CSS), shadcn primitives
   authored by hand (button/card/badge) to avoid network dep at build. **Prisma NOT installed
   in M1** (deferred to M2 — pin prisma@6 then). `lib/constants.ts` = sole enum source (5
@@ -26,6 +27,15 @@
   Studio+Calendar one group)+Topbar+PageContainer in `app/layout.tsx`. Build 12/12 static, 0
   type errors. QA gate run via pbos-scope-guard (0 violations) + agent-skills:code-reviewer
   (APPROVE, 0 critical) + pbos-milestone-verifier (5/5 M1 gates PASS).
+
+- [2026-07-08] **M2 PASS** (committed master). prisma@6.19.3 + tsx. Seed pattern =
+  **upsert on fixed id/key/slug** for idempotency (UserProfile "local", Goal "goal-default",
+  AppState "singleton", ContentObjective keyed by `OBJECTIVES`, Framework by slug). `--domain`
+  arg reads `data/seed/<domain>.json` (khang-guru default, dongy alt) — domains share the same
+  fixed ids so switching overwrites, never duplicates. `AIModelConfig.model=""` (never hardcode).
+  `lib/db.ts` = globalThis-guarded Prisma singleton. **Run prisma via `node
+  node_modules/prisma/build/index.js <args>`** and seed via `node node_modules/tsx/dist/cli.mjs
+  prisma/seed.ts` — rtk hook + PATH break `npx prisma`/`tsx` ("Binary not found on PATH").
 
 ## Convention tracker
 <!-- naming, structure, style rules discovered in this repo -->

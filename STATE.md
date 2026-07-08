@@ -8,12 +8,24 @@
   `/clear` session, VERIFY-gated.
 
 ## In-progress
-- (empty — M1 verified done; M2 next). NOTE: repo not git-init → M1 commit pending.
+- (empty — M2 done + committed on master; M3 next).
 
 ## Blocked
 - (none)
 
 ## Completed this session
+- **M2 — Database + Seed PASS.** prisma@6.19.3 + @prisma/client@6 + tsx installed; `.env`
+  created (`DATABASE_URL="file:./dev.db"`, gitignored). `migrate dev --name init` →
+  `prisma/migrations/20260708120843_init` + `dev.db`. `lib/db.ts` = Prisma singleton
+  (globalThis guard, exports `db`+`prisma`). `prisma/seed.ts` (tsx) idempotent via upsert on
+  fixed id/key/slug; `--domain` arg (khang-guru default / dongy). Seeds: UserProfile id="local",
+  BrandDNA(+company), 1 Goal id="goal-default", AppState{singleton, activeGoalId=goal-default},
+  6 ContentObjective (keys from `OBJECTIVES`), 4 Framework (aida/pas/bab/storybrand), 5
+  ContentTemplate, AIModelConfig{provider:anthropic, model:""}. Seed x2 → counts identical.
+  `npm run build` 12/12 static, 0 type errors. QA: scope-guard 0 violations · verifier 6/6
+  gates PASS. Impl delegated to pbos-data-modeler. NOTE: `package.json#prisma` deprecated in
+  Prisma 7 (warning only) — defer.
+
 - **M1 — Foundation + Constants + AppShell PASS.** Next.js 15 App Router + TS + Tailwind v3
   + shadcn (hand-authored button/card/badge) + AppShell (Sidebar 8 mục/Studio+Calendar 1
   group, Topbar, PageContainer, PageHeader) + shared states (EmptyState/ErrorState/AiLoading)
@@ -35,7 +47,7 @@
   folder `{docs,prisma,data\seed}`. Docs content now internally consistent.
 
 ## Next
-- Run **M2 — Database + Seed**: SQLite migrate, `lib/db.ts` singleton, seed "Khang Guru"
-  idempotent, AppState singleton. **Pin prisma@6** (schema uses v6 syntax; v7 rejects
-  `datasource.url` → P1012). `.env` needs `DATABASE_URL`. Fresh `/clear` session recommended.
-- Optional: `git init` + commit `M1: Foundation + Constants + AppShell` before M2.
+- Run **M3 — Onboarding Wizard (Brand+Company → Goal)**: linear wizard saving BrandDNA(+company)
+  + Goal, set `activeGoalId`; docx/pdf upload → text extract (mammoth/pdf-parse). "Phân tích AI"
+  button placeholder disabled (enabled in M4). Fresh `/clear` session recommended.
+- Git: repo init'd, `master` branch, identity = minhkhang.guru (local config). No remote yet.
