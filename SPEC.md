@@ -30,6 +30,12 @@ insight + adjustment with no manual editing.
 Company tab, time-series metrics, sentiment, image generation, multi-user/auth/cloud,
 multi-platform, TipTap/rich text.
 
+**Approved exception — Desktop wrapper (Electron), milestone M11 (post-M10):** wrap the
+existing Next.js localhost app in an Electron window (icon + own window, no browser). It
+boots the same Next server + Prisma — no feature/entity change. Phase A = dev window (now);
+Phase B = production installer + Prisma engine bundling (later). See RULES.md > "Approved
+scope exceptions".
+
 ## Constraints (hard — full list in RULES.md)
 - Stack: Next.js App Router + TS + Tailwind + shadcn/ui + Prisma + SQLite + Recharts +
   Zustand + TanStack Query. Node ≥ 20, Next ≥ 15. Plain structured editor, no rich text.

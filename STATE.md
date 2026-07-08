@@ -15,6 +15,13 @@
 - (none)
 
 ## Completed this session
+- **M11 Phase A — Electron desktop shell (dev window).** APPROVED scope exception (user wants
+  a real local desktop app, not `npm run dev`). `electron/main.js` spawns Next dev on PORT
+  3005, polls until ready, opens a 1400×900 BrowserWindow at localhost:3005; taskkill tree on
+  quit. Scripts: `npm run app` (+ `main` field). No web behavior/entity change. Verified:
+  `node --check` OK + Next boots on 3005 (onboarding 200). GUI launch is user-side (no display
+  here). Phase B (installer + Prisma engine bundling) deferred to after M10. Logged in
+  RULES.md + SPEC.md exception sections.
 - **M3 — Onboarding Wizard PASS.** 2-step wizard (Brand DNA+company → Goal). Deps: zod,
   zustand, @tanstack/react-query, mammoth, pdf-parse@2. Persistence = server actions
   (`onboarding/actions.ts` save/get, upsert userId="local", setActive AppState singleton);

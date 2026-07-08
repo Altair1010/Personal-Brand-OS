@@ -42,3 +42,8 @@ dev.db-journal
 # tooling artifacts
 .playwright-mcp/
 dev.log
+next*.log
+
+# electron packaging output (Phase B)
+/release
+/dist-electron

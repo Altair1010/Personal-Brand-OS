@@ -66,3 +66,12 @@
 8. **One milestone per `/clear` session.** A milestone is Done only when `npm run build`
    passes with no type errors, the milestone VERIFY passes, feature-spec acceptance is
    met, and the seed stays idempotent. Do not create files outside the current milestone.
+
+## Approved scope exceptions (explicit user authorization — logged, not drift)
+- **[2026-07-08] Desktop app wrapper (Electron) = new milestone M11**, done AFTER the web
+  MVP (M4→M10). User wants a real local desktop app (icon/window), not just `npm run dev`.
+  Rationale: single-user localhost app is more usable as a windowed desktop shell. Wrapper
+  lives under `electron/` and MUST NOT change any web behavior, entity, or feature scope —
+  it only boots the existing Next server and points a window at it. Phase A (now) = dev
+  window; Phase B (post-M10) = production installer + Prisma engine bundling. scope-guard:
+  treat `electron/` + electron devDeps as authorized; still flag any feature/entity creep.
