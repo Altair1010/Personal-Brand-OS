@@ -6,7 +6,9 @@
 
 ## Overview
 
-This directory contains guidelines for frontend development. Fill in each file with your project's specific conventions.
+This directory contains frontend guidelines for **Personal Brand OS** — a Next.js 15
+(App Router) + React 19 + Tailwind/shadcn desktop app (Electron shell). Conventions below
+are drawn from the actual codebase.
 
 ---
 
@@ -14,12 +16,12 @@ This directory contains guidelines for frontend development. Fill in each file w
 
 | Guide | Description | Status |
 |-------|-------------|--------|
-| [Directory Structure](./directory-structure.md) | Module organization and file layout | To fill |
-| [Component Guidelines](./component-guidelines.md) | Component patterns, props, composition | To fill |
-| [Hook Guidelines](./hook-guidelines.md) | Custom hooks, data fetching patterns | To fill |
-| [State Management](./state-management.md) | Local state, global state, server state | To fill |
-| [Quality Guidelines](./quality-guidelines.md) | Code standards, forbidden patterns | To fill |
-| [Type Safety](./type-safety.md) | Type patterns, validation | To fill |
+| [Directory Structure](./directory-structure.md) | Module organization and file layout | Filled |
+| [Component Guidelines](./component-guidelines.md) | Server/client split, shadcn+cva, required states | Filled |
+| [Hook Guidelines](./hook-guidelines.md) | TanStack Query, custom hooks, Zustand selectors | Filled |
+| [State Management](./state-management.md) | Server (Query) vs UI (Zustand) split | Filled |
+| [Quality Guidelines](./quality-guidelines.md) | Required/forbidden patterns, review checklist | Filled |
+| [Type Safety](./type-safety.md) | zod schema-first, enum-from-constants, no `any` | Filled |
 
 ---
 

@@ -6,7 +6,9 @@
 
 ## Overview
 
-This directory contains guidelines for backend development. Fill in each file with your project's specific conventions.
+"Backend" here = the **server side of Next.js** for **Personal Brand OS**: server actions,
+route handlers, Prisma/SQLite data access, and server-only libs (single-user local app).
+Conventions below are drawn from the actual codebase.
 
 ---
 
@@ -14,11 +16,11 @@ This directory contains guidelines for backend development. Fill in each file wi
 
 | Guide | Description | Status |
 |-------|-------------|--------|
-| [Directory Structure](./directory-structure.md) | Module organization and file layout | To fill |
-| [Database Guidelines](./database-guidelines.md) | ORM patterns, queries, migrations | To fill |
-| [Error Handling](./error-handling.md) | Error types, handling strategies | To fill |
-| [Quality Guidelines](./quality-guidelines.md) | Code standards, forbidden patterns | To fill |
-| [Logging Guidelines](./logging-guidelines.md) | Structured logging, log levels | To fill |
+| [Directory Structure](./directory-structure.md) | Server actions, route handlers, lib layout | Filled |
+| [Database Guidelines](./database-guidelines.md) | Prisma singleton, upsert, invariants, seed | Filled |
+| [Error Handling](./error-handling.md) | Typed action results, route status codes, AI repair | Filled |
+| [Quality Guidelines](./quality-guidelines.md) | AI pipeline, forbidden patterns, review checklist | Filled |
+| [Logging Guidelines](./logging-guidelines.md) | Prisma log levels, savePromptRun, secrets | Filled |
 
 ---
 

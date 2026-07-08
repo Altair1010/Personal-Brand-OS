@@ -1,51 +1,64 @@
 # Hook Guidelines
 
-> How hooks are used in this project.
+> Hooks and data-fetching conventions in Personal Brand OS.
 
 ---
 
-## Overview
+## Data Fetching = TanStack Query
 
-<!--
-Document your project's hook conventions here.
+Server state is fetched and cached with **TanStack Query** (`@tanstack/react-query`), not
+raw `fetch` + `useEffect`.
 
-Questions to answer:
-- What custom hooks do you have?
-- How do you handle data fetching?
-- What are the naming conventions?
-- How do you share stateful logic?
--->
+- The `QueryClient` is created once in `components/Providers.tsx` (client) with project
+  defaults: `staleTime: 30_000`, `refetchOnWindowFocus: false`.
+- Mutations that write go through **server actions** (`"use server"`); on success,
+  invalidate the affected query keys (or rely on the action's `revalidatePath`).
+- Do NOT keep server data in a Zustand store or component state — that's TanStack Query's
+  job (see state-management.md for the split).
 
-(To be filled by the team)
-
----
-
-## Custom Hook Patterns
-
-<!-- How to create and structure custom hooks -->
-
-(To be filled by the team)
+```tsx
+const { data, isLoading, error } = useQuery({
+  queryKey: ["strategy", goalId],
+  queryFn: () => getStrategy(goalId),  // server action
+});
+```
 
 ---
 
-## Data Fetching
+## Custom Hooks
 
-<!-- How data fetching is handled (React Query, SWR, etc.) -->
-
-(To be filled by the team)
+- Extract stateful logic into a `use*` hook only when it is **reused** or when it
+  meaningfully declutters a component. No speculative hooks for single use.
+- A custom hook is a client concern — the file (or the hook's consumer) is `"use client"`.
+- Keep hooks pure of side effects beyond their stated job; return a stable shape.
 
 ---
 
 ## Naming Conventions
 
-<!-- Hook naming rules (use*, etc.) -->
+- Hooks start with `use` (`useOnboardingStore`, `useStrategy`).
+- Query hooks that wrap TanStack Query read as `useX` returning `{ data, isLoading, error }`.
+- Zustand store hooks are named `useXStore` (`useOnboardingStore` in `lib/stores/onboarding.ts`).
 
-(To be filled by the team)
+---
+
+## Zustand Selector Pattern
+
+Select the **narrowest slice** to avoid needless re-renders — one selector per value:
+
+```tsx
+const brand = useOnboardingStore((s) => s.brand);
+const patchBrand = useOnboardingStore((s) => s.patchBrand);
+```
+
+Do NOT destructure the whole store (`const { brand, patchBrand } = useOnboardingStore()`) —
+that subscribes the component to every state change.
 
 ---
 
 ## Common Mistakes
 
-<!-- Hook-related mistakes your team has made -->
-
-(To be filled by the team)
+- Fetching in `useEffect` and storing in `useState` instead of `useQuery`.
+- Putting server data into Zustand (staleness + double source of truth).
+- Selecting the entire store object → re-renders on unrelated updates.
+- Forgetting to invalidate / revalidate after a mutating server action.
