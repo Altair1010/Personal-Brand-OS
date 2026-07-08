@@ -1,0 +1,449 @@
+// Personal Brand Strategy OS — Prisma schema (SQLite) — MVP LOCKED
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model AppState {
+  id               String   @id @default("singleton")
+  activeGoalId     String?
+  activeStrategyId String?
+  updatedAt        DateTime @updatedAt
+}
+
+model UserProfile {
+  id        String   @id @default(cuid())
+  name      String
+  headline  String?
+  bio       String?
+  avatarUrl String?
+  locale    String   @default("vi")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  brandDna   BrandDNA?
+  goals      Goal[]
+  segments   AudienceSegment[]
+  pillars    ContentPillar[]
+  templates  ContentTemplate[]
+  frameworks Framework[]
+  strategies Strategy[]
+  ideas      ContentIdea[]
+  drafts     ContentDraft[]
+  posts      Post[]
+  insights   PerformanceInsight[]
+  exports    ExportHistory[]
+}
+
+// BrandDNA đã GỘP CompanyProfile (companyName/offers/usp/region)
+model BrandDNA {
+  id                       String      @id @default(cuid())
+  userId                   String      @unique
+  // --- lõi cá nhân ---
+  whoAmI                   String?
+  field                    String?
+  threeWords               Json?
+  coreBeliefs              String?
+  differentiation          String?
+  personalStory            String?
+  expertise                String?
+  customerProfile          String?
+  customerPain             String?
+  customerMisunderstanding String?
+  marketEducationGoal      String?
+  // --- bối cảnh doanh nghiệp (gộp từ CompanyProfile) ---
+  companyName              String?
+  offers                   Json?
+  usp                      String?
+  region                   String?
+  // --- meta ---
+  sourceFiles              Json?
+  aiPositioning            String?
+  aiSuggestions            Json?
+  version                  Int         @default(1)
+  createdAt                DateTime    @default(now())
+  updatedAt                DateTime    @updatedAt
+  user                     UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Goal {
+  id                String      @id @default(cuid())
+  userId            String
+  name              String
+  goalType          String
+  timeRangeStart    DateTime?
+  timeRangeEnd      DateTime?
+  targetAudience    String?
+  mainOffer         String?
+  mainMessage       String?
+  kpi               Json?
+  contentRatio      Json?
+  risk              String?
+  successDefinition String?
+  status            String      @default("active")
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  user              UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  strategies Strategy[]
+  segments   AudienceSegment[]
+  pillars    ContentPillar[]
+
+  @@index([userId, status])
+}
+
+// pain/falseBelief/... gộp thẳng vào persona (bỏ bảng PainPoint)
+model AudienceSegment {
+  id           String      @id @default(cuid())
+  userId       String
+  goalId       String?
+  name         String
+  pain         String?
+  falseBelief  String?
+  fear         String?
+  desire       String?
+  language     String?
+  contentAngle String?
+  cta          String?
+  offer        String?
+  source       String      @default("ai")
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  user         UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal         Goal?       @relation(fields: [goalId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+}
+
+model ContentPillar {
+  id           String      @id @default(cuid())
+  userId       String
+  goalId       String?
+  name         String
+  description  String?
+  ratioPercent Int         @default(0)
+  objectiveMix Json?
+  status       String      @default("active")
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  user         UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal         Goal?       @relation(fields: [goalId], references: [id], onDelete: SetNull)
+
+  dailyPlans DailyPlan[]
+  ideas      ContentIdea[]
+  drafts     ContentDraft[]
+
+  @@index([userId])
+}
+
+model ContentObjective {
+  id          String            @id @default(cuid())
+  key         String            @unique // seo|educate|trust|conversion|story|community
+  label       String
+  description String?
+  color       String?
+  templates   ContentTemplate[]
+}
+
+// Seed cứng ở MVP (không có editor CRUD — read-only)
+model ContentTemplate {
+  id            String           @id @default(cuid())
+  userId        String?
+  name          String
+  objectiveKey  String
+  structure     Json
+  description   String?
+  exampleOutput String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  user          UserProfile?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  objective     ContentObjective @relation(fields: [objectiveKey], references: [key])
+
+  @@index([objectiveKey])
+}
+
+// Seed cứng ở MVP (read-only)
+model Framework {
+  id         String       @id @default(cuid())
+  userId     String?
+  name       String
+  slug       String       @unique
+  summary    String?
+  steps      Json?
+  whenToUse  String?
+  example    String?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  user       UserProfile? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  strategies Strategy[]
+}
+
+model Strategy {
+  id            String            @id @default(cuid())
+  userId        String
+  goalId        String
+  name          String
+  timeframeDays Int               @default(30) // MVP: chỉ 30
+  frameworkSlug String?
+  status        String            @default("active")
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  user          UserProfile       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal          Goal              @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  framework     Framework?        @relation(fields: [frameworkSlug], references: [slug], onDelete: SetNull)
+  versions      StrategyVersion[]
+
+  @@index([userId, goalId])
+}
+
+model StrategyVersion {
+  id                   String       @id @default(cuid())
+  strategyId           String
+  version              Int
+  reason               String // BẮT BUỘC: lý do đổi hướng
+  assumptions          Json?
+  contentRatio         Json?
+  weeklyThemes         Json?
+  dailyPlanOutline     Json?
+  ctaPlan              Json?
+  topicMap             Json?
+  recommendedTemplates Json?
+  kpiToTrack           Json?
+  doNotList            Json?
+  aiPromptRunId        String?
+  createdAt            DateTime     @default(now())
+  strategy             Strategy     @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+  promptRun            PromptRun?   @relation(fields: [aiPromptRunId], references: [id], onDelete: SetNull)
+  weeklyPlans          WeeklyPlan[]
+  posts                Post[]
+
+  @@unique([strategyId, version])
+  @@index([strategyId, version])
+}
+
+// campaignId đã BỎ — WeeklyPlan link thẳng StrategyVersion
+model WeeklyPlan {
+  id                String          @id @default(cuid())
+  strategyVersionId String
+  weekIndex         Int
+  theme             String?
+  focusPillarId     String?
+  objectivesMix     Json?
+  notes             String?
+  createdAt         DateTime        @default(now())
+  strategyVersion   StrategyVersion @relation(fields: [strategyVersionId], references: [id], onDelete: Cascade)
+  dailyPlans        DailyPlan[]
+
+  @@index([strategyVersionId])
+}
+
+model DailyPlan {
+  id               String         @id @default(cuid())
+  weeklyPlanId     String
+  date             DateTime?
+  dayIndex         Int
+  plannedObjective String?
+  plannedPillarId  String?
+  suggestedTopic   String?
+  suggestedCta     String?
+  status           String         @default("planned")
+  createdAt        DateTime       @default(now())
+  weeklyPlan       WeeklyPlan     @relation(fields: [weeklyPlanId], references: [id], onDelete: Cascade)
+  plannedPillar    ContentPillar? @relation(fields: [plannedPillarId], references: [id], onDelete: SetNull)
+  ideas            ContentIdea[]
+  posts            Post[]
+
+  @@index([weeklyPlanId])
+}
+
+model ContentIdea {
+  id           String         @id @default(cuid())
+  dailyPlanId  String?
+  userId       String
+  title        String
+  objectiveKey String?
+  pillarId     String?
+  angle        String?
+  hookSeed     String?
+  notes        String?
+  source       String         @default("ai")
+  status       String         @default("idea")
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  dailyPlan    DailyPlan?     @relation(fields: [dailyPlanId], references: [id], onDelete: SetNull)
+  user         UserProfile    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pillar       ContentPillar? @relation(fields: [pillarId], references: [id], onDelete: SetNull)
+  drafts       ContentDraft[]
+
+  @@index([userId, status])
+}
+
+// contentJson (TipTap) đã BỎ. Thêm analytic fields để Performance group-by được.
+model ContentDraft {
+  id              String         @id @default(cuid())
+  contentIdeaId   String?
+  userId          String
+  version         Int            @default(1)
+  objectiveKey    String?
+  pillarId        String?
+  framework       String?
+  tone            String?
+  length          String?
+  // --- analytic dimensions (bắt buộc cho Performance/Revision) ---
+  hookStyle       String? // question|contrarian|story|curiosity|pain
+  ctaIntensity    String? // soft|medium|hard
+  format          String? // text|image|carousel|video|reel
+  topic           String?
+  // --- nội dung (plain text FB) ---
+  hook            String?
+  body            String?
+  ending          String?
+  hashtags        Json?
+  imageSuggestion String?
+  contentMarkdown String?
+  aiPromptRunId   String?
+  status          String         @default("draft")
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  contentIdea     ContentIdea?   @relation(fields: [contentIdeaId], references: [id], onDelete: SetNull)
+  user            UserProfile    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pillar          ContentPillar? @relation(fields: [pillarId], references: [id], onDelete: SetNull)
+  promptRun       PromptRun?     @relation(fields: [aiPromptRunId], references: [id], onDelete: SetNull)
+  post            Post?
+}
+
+// Mirror analytic dims + attribution (strategyVersionId, dailyPlanId)
+model Post {
+  id                String           @id @default(cuid())
+  contentDraftId    String           @unique
+  userId            String
+  strategyVersionId String?
+  dailyPlanId       String?
+  publishedAt       DateTime?
+  platform          String           @default("facebook")
+  permalink         String?
+  finalText         String?
+  // mirror để group-by nhanh (không cần join qua draft)
+  objectiveKey      String?
+  pillarId          String?
+  hookStyle         String?
+  ctaIntensity      String?
+  format            String?
+  topic             String?
+  status            String           @default("posted")
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  contentDraft      ContentDraft     @relation(fields: [contentDraftId], references: [id], onDelete: Cascade)
+  user              UserProfile      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  strategyVersion   StrategyVersion? @relation(fields: [strategyVersionId], references: [id], onDelete: SetNull)
+  dailyPlan         DailyPlan?       @relation(fields: [dailyPlanId], references: [id], onDelete: SetNull)
+  metrics           MetricSnapshot[]
+
+  @@index([userId])
+  @@index([strategyVersionId])
+}
+
+// MVP: 1 bản/Post (@@unique). daysSincePost để chuẩn hóa so sánh. Bỏ sentiment.
+model MetricSnapshot {
+  id             String   @id @default(cuid())
+  postId         String   @unique
+  capturedAt     DateTime @default(now())
+  daysSincePost  Int?
+  reach          Int?
+  engagement     Int?
+  comments       Int?
+  shares         Int?
+  saves          Int?
+  inboxNote      String?
+  conversionNote String?
+  source         String   @default("manual")
+  post           Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+}
+
+model PerformanceInsight {
+  id             String      @id @default(cuid())
+  userId         String
+  scope          String // post|pillar|hook|cta|format|weekly
+  refId          String?
+  period         String?
+  finding        String
+  evidence       Json?
+  recommendation String?
+  confidence     String      @default("normal") // low|normal
+  aiPromptRunId  String?
+  createdAt      DateTime    @default(now())
+  user           UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  promptRun      PromptRun?  @relation(fields: [aiPromptRunId], references: [id], onDelete: SetNull)
+
+  @@index([userId, scope])
+}
+
+model PromptTemplate {
+  id                String      @id @default(cuid())
+  moduleKey         String
+  name              String
+  version           Int         @default(1)
+  systemInstruction String
+  userTemplate      String
+  inputSchema       Json?
+  outputSchema      Json?
+  validationNotes   String?
+  isActive          Boolean     @default(true)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  runs              PromptRun[]
+
+  @@unique([moduleKey, version])
+}
+
+model PromptRun {
+  id               String          @id @default(cuid())
+  promptTemplateId String?
+  moduleKey        String
+  provider         String
+  model            String
+  input            Json?
+  rawOutput        String?
+  parsedOutput     Json?
+  status           String          @default("ok") // ok|invalid_json|error
+  latencyMs        Int?
+  tokensIn         Int?
+  tokensOut        Int?
+  error            String?
+  createdAt        DateTime        @default(now())
+  promptTemplate   PromptTemplate? @relation(fields: [promptTemplateId], references: [id], onDelete: SetNull)
+
+  strategyVersions StrategyVersion[]
+  drafts           ContentDraft[]
+  insights         PerformanceInsight[]
+
+  @@index([moduleKey, status, createdAt])
+}
+
+model AIModelConfig {
+  id          String   @id @default(cuid())
+  provider    String
+  model       String
+  label       String?
+  temperature Float?
+  maxTokens   Int?
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model ExportHistory {
+  id        String      @id @default(cuid())
+  userId    String
+  kind      String // markdown|csv|backup
+  scope     String?
+  filename  String
+  createdAt DateTime    @default(now())
+  user      UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}

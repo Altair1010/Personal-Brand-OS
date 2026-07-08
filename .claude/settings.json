@@ -1,0 +1,154 @@
+{
+    "permissions":  {
+                        "allow":  [
+                                      "Bash(rtk:*)",
+                                      "mcp__codegraph__*",
+                                      "mcp__context7__*",
+                                      "mcp__playwright__*",
+                                      "mcp__codebase-memory-mcp__*",
+                                      "mcp__token-optimizer-mcp__*",
+                                      "mcp__headroom__*"
+                                  ],
+                        "deny":  [
+                                     "Bash(rm -rf /:*)",
+                                     "Bash(rm -fr /:*)",
+                                     "Bash(rm -rf ~:*)",
+                                     "Bash(rtk rm -rf /:*)",
+                                     "Bash(rtk rm -fr /:*)",
+                                     "Bash(rtk rm -rf ~:*)",
+                                     "Bash(dd:*)",
+                                     "Bash(rtk dd:*)",
+                                     "Bash(mkfs:*)",
+                                     "Bash(rtk mkfs:*)",
+                                     "Bash(sudo:*)",
+                                     "Bash(rtk sudo:*)",
+                                     "Bash(shutdown:*)",
+                                     "Bash(reboot:*)",
+                                     "Bash(rtk shutdown:*)",
+                                     "Bash(rtk reboot:*)",
+                                     "Bash(mkfs.ext4:*)",
+                                     "Bash(mkfs.xfs:*)",
+                                     "Bash(halt:*)",
+                                     "Bash(poweroff:*)",
+                                     "Bash(init 0:*)",
+                                     "Bash(init 6:*)",
+                                     "PowerShell(Format-Volume:*)",
+                                     "PowerShell(Format-Disk:*)",
+                                     "PowerShell(Clear-Disk:*)",
+                                     "PowerShell(Initialize-Disk:*)",
+                                     "PowerShell(diskpart:*)",
+                                     "PowerShell(Stop-Computer:*)",
+                                     "PowerShell(Restart-Computer:*)",
+                                     "PowerShell(Remove-Item C:\\ *)",
+                                     "PowerShell(Remove-Item -Path C:\\ *)",
+                                     "PowerShell(rd /s /q C:\\ *)"
+                                 ],
+                        "ask":  [
+                                    "Bash(rm:*)",
+                                    "Bash(rtk rm:*)",
+                                    "Bash(rmdir:*)",
+                                    "Bash(rtk rmdir:*)",
+                                    "Bash(git push --force:*)",
+                                    "Bash(git push -f:*)",
+                                    "Bash(rtk git push --force:*)",
+                                    "Bash(rtk git push -f:*)",
+                                    "Bash(git reset --hard:*)",
+                                    "Bash(rtk git reset --hard:*)",
+                                    "Bash(git clean:*)",
+                                    "Bash(rtk git clean:*)",
+                                    "Bash(chmod -R:*)",
+                                    "Bash(rtk chmod -R:*)",
+                                    "Bash(chmod 777:*)",
+                                    "Bash(rtk chmod 777:*)",
+                                    "Bash(git checkout --:*)",
+                                    "Bash(rtk git checkout --:*)",
+                                    "Bash(git push:*)",
+                                    "Bash(rtk git push:*)",
+                                    "Bash(curl * | sh)",
+                                    "Bash(curl * | bash)",
+                                    "Bash(wget * | sh)",
+                                    "Bash(wget * | bash)",
+                                    "Bash(chown -R:*)",
+                                    "Bash(rtk chown -R:*)",
+                                    "Bash(mv:*)",
+                                    "Bash(rtk mv:*)",
+                                    "Bash(truncate:*)",
+                                    "Bash(rtk truncate:*)",
+                                    "PowerShell(Remove-Item:*)",
+                                    "PowerShell(rm:*)",
+                                    "PowerShell(del:*)",
+                                    "PowerShell(rmdir:*)",
+                                    "PowerShell(rd:*)",
+                                    "PowerShell(erase:*)",
+                                    "PowerShell(Clear-Content:*)",
+                                    "PowerShell(Clear-Item:*)",
+                                    "PowerShell(Stop-Process:*)",
+                                    "PowerShell(Set-ExecutionPolicy:*)",
+                                    "PowerShell(Remove-ItemProperty:*)",
+                                    "PowerShell(git push:*)",
+                                    "PowerShell(git reset --hard:*)",
+                                    "PowerShell(git clean:*)",
+                                    "PowerShell(git checkout --:*)",
+                                    "PowerShell(Move-Item:*)",
+                                    "PowerShell(Invoke-Expression:*)",
+                                    "PowerShell(iex:*)"
+                                ]
+                    },
+    "hooks":  {
+                  "PreToolUse":  [
+                                     {
+                                         "matcher":  "Bash|PowerShell",
+                                         "hooks":  [
+                                                       {
+                                                           "type":  "command",
+                                                           "command":  "C:/Users/MCBAu/.cargo/bin/rtk.exe hook claude"
+                                                       }
+                                                   ]
+                                     },
+                                     {
+                                         "matcher":  "Grep|Glob",
+                                         "hooks":  [
+                                                       {
+                                                           "type":  "command",
+                                                           "command":  "powershell -NoProfile -File .claude/hooks/cbm-discovery.ps1",
+                                                           "timeout":  3
+                                                       }
+                                                   ]
+                                     }
+                                 ],
+                  "PostToolUse":  [
+                                      {
+                                          "matcher":  "Bash|Agent|Write",
+                                          "hooks":  [
+                                                        {
+                                                            "type":  "command",
+                                                            "command":  "py -3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/context-counter.py\"",
+                                                            "timeout":  3
+                                                        }
+                                                    ]
+                                      }
+                                  ],
+                  "SessionEnd":  [
+                                     {
+                                         "hooks":  [
+                                                       {
+                                                           "type":  "command",
+                                                           "command":  "powershell -NoProfile -File .claude/hooks/session-learner.ps1",
+                                                           "timeout":  30
+                                                       }
+                                                   ]
+                                     }
+                                 ]
+              },
+    "statusLine":  {
+                       "type":  "command",
+                       "command":  "powershell -ExecutionPolicy Bypass -File \"C:\\Users\\MCBAu\\.claude\\plugins\\cache\\caveman\\caveman\\0d95a81d35a9\\src\\hooks\\caveman-statusline.ps1\""
+                   },
+    "enabledMcpjsonServers":  [
+                                  "codegraph",
+                                  "context7",
+                                  "playwright",
+                                  "codebase-memory-mcp",
+                                  "token-optimizer-mcp"
+                              ]
+}
