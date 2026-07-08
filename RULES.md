@@ -40,6 +40,15 @@
 - **Delete when done**: once the Done criteria are verified, remove plan.md and todo.md;
   promote any lasting decision into MEMORY.md.
 
+## ToFill.md — user manual pre-launch actions
+- The moment a milestone introduces something the USER must do by hand before the app can
+  run for real (fill an API key/secret, choose a config value that isn't hardcodable, run a
+  live smoke-test that needs a key), **append one line to `ToFill.md`** — grouped by category,
+  with what / where / why / milestone. Tick items when the user confirms them done.
+- `ToFill.md` is the single home for these; do not scatter them across STATE.md/MEMORY.md.
+- NEVER write an actual secret value into `ToFill.md` (it is tracked) — reference the env key
+  name only, per "Secrets & API keys" above.
+
 ## Agent escalation
 - Same step fails twice in a row -> stop and ask the user.
 

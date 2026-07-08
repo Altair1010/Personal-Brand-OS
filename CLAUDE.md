@@ -64,6 +64,11 @@ Seed mặc định brand trading "Khang Guru" (XAUUSD). Đổi: `npx prisma db s
 ### Định nghĩa "Done" một mốc
 `npm run build` pass, không lỗi type · VERIFY trong milestone pass · acceptance trong feature-spec đạt · seed idempotent, không phá dữ liệu.
 
+### Việc user phải tự làm (ToFill.md)
+Nếu một mốc tạo ra hành động THỦ CÔNG của user trước khi vận hành (điền API key/secret, chọn
+model/config, chạy smoke-test live cần key) → **append vào `ToFill.md`** (không rải trong
+STATE/MEMORY). Không bao giờ ghi giá trị bí mật vào file này.
+
 ---
 
 # PHẦN B — PHƯƠNG PHÁP LÀM VIỆC (engine, mọi task)
@@ -122,6 +127,11 @@ Files live in the project root (`F:\Codex\Personal Brand OS\<file>`).
 - **`SPEC.md`** — keep the Trellis spec (Goal / Scope / Acceptance) in sync when scope
   changes.
 - **`STATE.md`** — sprint-level view; agent-managed. Update at session start/end.
+- **`ToFill.md`** — the moment a milestone introduces anything the USER must do by hand
+  before go-live (fill an API key/secret, pick a config value, run a live smoke-test that
+  needs a key), append it there — one line per item, grouped by category. It is the single
+  home for manual pre-launch actions; never scatter them across STATE/MEMORY. Tick items as
+  the user reports them done. Secrets themselves never go in the file (RULES.md > Secrets).
 
 ## 4. Karpathy Guidelines (VERBATIM — do not summarize)
 
