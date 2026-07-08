@@ -75,3 +75,18 @@
   it only boots the existing Next server and points a window at it. Phase A (now) = dev
   window; Phase B (post-M10) = production installer + Prisma engine bundling. scope-guard:
   treat `electron/` + electron devDeps as authorized; still flag any feature/entity creep.
+  - **Packaging-friendly constraints for M4–M10 (enforce now so Phase B is just wrapping,
+    not rework):**
+    1. **No hardcoded absolute paths.** Uploads, backup files, DB, exports must resolve from
+       a configurable base, never assume cwd == repo root. Packaged app cwd differs.
+    2. **DB path relocatable.** Packaged app cannot write into its install dir — Phase B moves
+       SQLite to the OS user-data dir. Don't bake `./dev.db` assumptions into runtime logic;
+       keep it behind `DATABASE_URL` (already so). No code hardcoding `prisma/dev.db`.
+    3. **API key from runtime, not repo `.env`.** Packaged app ships no repo `.env`. The
+       Anthropic key must be user-provided at runtime (Settings/AIModelConfig, M10) or an env
+       the desktop shell injects — never read a repo-relative `.env` path in app code. Key
+       stays server-side (project rule 3).
+    4. **Backup/restore uses a user-chosen location (M10).** Export/import JSON must go through
+       a path the user picks (file dialog), not a fixed cwd-relative file.
+    5. **Node-only deps stay externalized.** `serverExternalPackages` (pdf-parse/pdfjs-dist/
+       mammoth) — Phase B `asarUnpack`s them. Don't move these into client bundles.
