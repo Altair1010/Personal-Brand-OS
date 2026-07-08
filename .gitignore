@@ -38,3 +38,7 @@ next-env.d.ts
 dev.db
 dev.db-journal
 *.db
+
+# tooling artifacts
+.playwright-mcp/
+dev.log

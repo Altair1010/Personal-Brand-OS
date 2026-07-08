@@ -8,12 +8,26 @@
   `/clear` session, VERIFY-gated.
 
 ## In-progress
-- (empty — M2 done + committed on master; M3 next).
+- (empty — M3 done + committed on master; M4 next: AI Layer + Guard + Brand Analyzer.
+  Needs ANTHROPIC_API_KEY in .env. AiSuggestionPanel placeholder gets wired live in M4.)
 
 ## Blocked
 - (none)
 
 ## Completed this session
+- **M3 — Onboarding Wizard PASS.** 2-step wizard (Brand DNA+company → Goal). Deps: zod,
+  zustand, @tanstack/react-query, mammoth, pdf-parse@2. Persistence = server actions
+  (`onboarding/actions.ts` save/get, upsert userId="local", setActive AppState singleton);
+  `/api/upload` route (mammoth docx / pdf-parse pdf / image→415). pdfjs bundling fix via
+  `serverExternalPackages`. Zustand wizard draft hydrated from server; page `force-dynamic`
+  for reload persistence. Components: brand/{OnboardingWizard,BrandDnaForm,FileDropzone,
+  AiSuggestionPanel(disabled)}, forms/{GoalForm,KpiEditor,ContentRatioSlider}, ui/{input,
+  textarea,label}, Providers (QueryClient). Verified live: Playwright walk (hydrate seeded →
+  finish → DB goal.name updated, activeGoalId set, count 1/1) + curl upload 400/415/200.
+  QA: scope-guard 0 violations · verifier M3 DONE (build 0 err, seed idempotent 2x). No test
+  files (M3 lists none; tests start M4).
+
+## Completed prior session
 - **M2 — Database + Seed PASS.** prisma@6.19.3 + @prisma/client@6 + tsx installed; `.env`
   created (`DATABASE_URL="file:./dev.db"`, gitignored). `migrate dev --name init` →
   `prisma/migrations/20260708120843_init` + `dev.db`. `lib/db.ts` = Prisma singleton

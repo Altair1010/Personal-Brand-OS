@@ -37,6 +37,24 @@
   node_modules/prisma/build/index.js <args>`** and seed via `node node_modules/tsx/dist/cli.mjs
   prisma/seed.ts` — rtk hook + PATH break `npx prisma`/`tsx` ("Binary not found on PATH").
 
+- [2026-07-08] **M3 PASS** (Onboarding Wizard). Stack adds: zod, zustand,
+  @tanstack/react-query, mammoth, **pdf-parse@2** (rewrite over pdfjs-dist — API
+  `new PDFParse({data:Uint8Array}).getText()→TextResult.text`; ships own types so NO
+  `@types/pdf-parse`; getText appends a `-- N of M --` page footer). **pdfjs-dist breaks
+  under webpack RSC bundling** ("Object.defineProperty called on non-object") → fixed via
+  `next.config.ts` `serverExternalPackages:["pdf-parse","pdfjs-dist","mammoth"]`. Pattern:
+  persistence = **Next server actions** (`saveBrandDna`/`saveGoal`/`getOnboardingData` in
+  `app/(dashboard)/onboarding/actions.ts`), only `/api/upload` is a route (multipart).
+  Wizard = Zustand transient draft (`lib/stores/onboarding.ts`) hydrated from server data;
+  reload persistence is server-side (page `force-dynamic` + getOnboardingData), not
+  localStorage. `saveGoal` routes update-vs-create off `AppState.activeGoalId` (not a Prisma
+  upsert on goal unique) — correct for single-active-goal, but would create dup goals if
+  activeGoalId is ever cleared (revisit M6). Company gộp into BrandDnaForm (no Company tab).
+  AiSuggestionPanel = disabled placeholder (AI arrives M4). Added ui primitives
+  input/textarea/label. **No test files** — M3 lists none + no runner yet (tests start M4);
+  verified live (Playwright walk + DB check + curl 400/415/200). QA: scope-guard 0 violations
+  · milestone-verifier M3 DONE (build 0 err, seed idempotent 2x).
+
 ## Convention tracker
 <!-- naming, structure, style rules discovered in this repo -->
 - Project docs are staged in `Z-NeededUpdate/docs/` until M0 promotes them to `docs/`.
