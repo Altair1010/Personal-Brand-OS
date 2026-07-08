@@ -8,13 +8,24 @@
   `/clear` session, VERIFY-gated.
 
 ## In-progress
-- (empty — M3 done + committed on master; M4 next: AI Layer + Guard + Brand Analyzer.
-  Needs ANTHROPIC_API_KEY in .env. AiSuggestionPanel placeholder gets wired live in M4.)
+- (empty — M4 done on master; M5 next: Audience & Pillars + REVIEW GATE.)
 
 ## Blocked
 - (none)
 
 ## Completed this session
+- **M4 — AI Layer + Guard + Brand Analyzer (D.1) PASS.** Shared `lib/ai/*` pipeline (P0.3) +
+  D.1 wired into onboarding. Raw-fetch adapter (no SDK) to Anthropic Messages API + OpenAI
+  chat/completions; **temperature capability guard** (omit for opus-4-7/4-8/fable-5, else 400);
+  model from AIModelConfig || env AI_DEFAULT_MODEL (no hardcode). `runModule` = validateInput →
+  sanitizeExternal(<<DATA>> injection guard) → GLOBAL_CONTRACT+system → call → safeJsonParse →
+  zod validate → repairOnce → savePromptRun (try/catch, never throws). D.1 brand-dna module
+  (temp 0.2, threeWords tuple[3]); route `runtime=nodejs`; `AiSuggestionPanel` enabled (fetch
+  route only, apply threeWords). Seed +PromptTemplate(brand-dna) idempotent. Added vitest +
+  `tests/prompts/brand-dna.test.ts` (4 cases: ok/repair/invalid_json/sanitize). Verified: build
+  0 err · npm test 4/4 · seed 2× identical (PromptTemplate=1). QA: scope-guard 0 violations ·
+  milestone-verifier M4 all-PASS. Impl via pbos-prompt-engineer + pbos-data-modeler (seed).
+  Live real-API smoke deferred (no key here) — set AI_DEFAULT_MODEL in .env to run D.1 live.
 - **M11 Phase A — Electron desktop shell (dev window).** APPROVED scope exception (user wants
   a real local desktop app, not `npm run dev`). `electron/main.js` spawns Next dev on PORT
   3005, polls until ready, opens a 1400×900 BrowserWindow at localhost:3005; taskkill tree on

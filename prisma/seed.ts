@@ -356,6 +356,22 @@ async function main() {
     },
   });
 
+  // 9. PromptTemplate — D.1 brand-dna only (canonical prompt lives in code).
+  //    Upsert on compound unique @@unique([moduleKey, version]) → moduleKey_version.
+  await db.promptTemplate.upsert({
+    where: { moduleKey_version: { moduleKey: "brand-dna", version: 1 } },
+    update: {},
+    create: {
+      moduleKey: "brand-dna",
+      version: 1,
+      name: "Brand DNA Analyzer",
+      isActive: true,
+      systemInstruction:
+        "D.1 Brand DNA Analyzer — canonical prompt lives in lib/prompts/brand-dna.ts (source of truth); this row exists so PromptRun can reference a template.",
+      userTemplate: "",
+    },
+  });
+
   // --- count table ---
   const counts = {
     UserProfile: await db.userProfile.count(),
@@ -366,6 +382,7 @@ async function main() {
     Framework: await db.framework.count(),
     ContentTemplate: await db.contentTemplate.count(),
     AIModelConfig: await db.aIModelConfig.count(),
+    PromptTemplate: await db.promptTemplate.count(),
   };
   console.log("Row counts after seed:");
   console.table(counts);

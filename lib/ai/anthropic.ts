@@ -1,0 +1,60 @@
+// Anthropic Messages API via raw fetch (no SDK — zero-dep, Electron-friendly).
+// Server-only: reads ANTHROPIC_API_KEY from process.env. Never import from a client.
+
+import type { AIAdapter } from "./adapter";
+
+const ENDPOINT = "https://api.anthropic.com/v1/messages";
+const ANTHROPIC_VERSION = "2023-06-01";
+
+// Capability guard: these models REJECT the `temperature` param with HTTP 400.
+// Omit temperature entirely for them. NOT a default-model choice.
+const NO_TEMPERATURE = /(?:opus-4-(?:7|8)|fable-5)/;
+
+export function createAnthropicAdapter(model: string): AIAdapter {
+  return {
+    async call(req) {
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+      if (!apiKey) {
+        throw new Error(
+          "Thiếu ANTHROPIC_API_KEY — đặt biến môi trường trước khi gọi AI.",
+        );
+      }
+
+      const body: Record<string, unknown> = {
+        model,
+        max_tokens: req.maxTokens ?? 2048,
+        system: req.system,
+        messages: [{ role: "user", content: req.user }],
+      };
+      if (req.temperature !== undefined && !NO_TEMPERATURE.test(model)) {
+        body.temperature = req.temperature;
+      }
+
+      const res = await fetch(ENDPOINT, {
+        method: "POST",
+        headers: {
+          "x-api-key": apiKey,
+          "anthropic-version": ANTHROPIC_VERSION,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const detail = await res.text().catch(() => "");
+        throw new Error(`Anthropic API ${res.status}: ${detail}`);
+      }
+
+      const json = (await res.json()) as {
+        content?: { text?: string }[];
+        usage?: { input_tokens?: number; output_tokens?: number };
+      };
+
+      return {
+        text: json.content?.[0]?.text ?? "",
+        tokensIn: json.usage?.input_tokens,
+        tokensOut: json.usage?.output_tokens,
+      };
+    },
+  };
+}

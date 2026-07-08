@@ -55,6 +55,30 @@
   verified live (Playwright walk + DB check + curl 400/415/200). QA: scope-guard 0 violations
   · milestone-verifier M3 DONE (build 0 err, seed idempotent 2x).
 
+- [2026-07-09] **M4 PASS** (AI Layer + Guard + Brand Analyzer D.1). Stack adds: **vitest** (devDep,
+  `npm test`="vitest run", `vitest.config.ts` node env + `@` alias). **AI transport = raw fetch**
+  (no SDK) — `lib/ai/anthropic.ts` POSTs `https://api.anthropic.com/v1/messages` (headers `x-api-key`
+  + `anthropic-version: 2023-06-01`), parses `content[0].text` + `usage.input_tokens/output_tokens`;
+  `lib/ai/openai.ts` = chat/completions parallel. **temperature capability guard:** Anthropic
+  opus-4-7/opus-4-8/fable-5 return 400 if `temperature` sent → adapter OMITS it via
+  `NO_TEMPERATURE=/(?:opus-4-(?:7|8)|fable-5)/`; kept for haiku-4-5/sonnet-4-6/opus-4-6 & older.
+  **Model resolution (no hardcode):** `resolveModelConfig()` = AIModelConfig(isDefault).model ||
+  `env AI_DEFAULT_MODEL`; empty → throws VN "Chưa chọn model AI…". Provider = row || AI_DEFAULT_PROVIDER
+  || "anthropic". Pipeline P0.3 in `lib/ai/run.ts` `runModule(module,input,{adapter?})`:
+  validateInput(inputSchema) → sanitizeExternal(<<DATA>>) → GLOBAL_CONTRACT+module.system →
+  adapter.call → `safeJsonParse` (strip fences, slice `{`→`}`) → outputSchema.safeParse →
+  **repairOnce** (P0.2 buildRepairPrompt) → normalize → savePromptRun. `adapter` is injectable for
+  mock tests; **savePromptRun wrapped in try/catch** so DB failure never breaks pipeline & tests run
+  hermetic (no live DB). runModule NEVER throws — resolves {ok, status: ok|invalid_json|error}.
+  D.1 `lib/prompts/brand-dna.ts` = module `{key,system,buildUser,inputSchema,outputSchema,
+  temperature:0.2,normalize}`; threeWords = `z.tuple([str,str,str])` (exactly 3). Route
+  `app/api/ai/brand-dna/route.ts` `runtime="nodejs"`, POST→runModule→200/400. `AiSuggestionPanel`
+  enabled: client fetches route only (never imports lib/ai/*), AiLoading, "Áp dụng" writes only
+  `patchBrand({threeWords})`. Seed adds ONLY `PromptTemplate(brand-dna,v1)` upsert on compound
+  unique `moduleKey_version` (canonical prompt stays in code per P13; DB row is a pointer). QA:
+  scope-guard 0 violations · milestone-verifier M4 all-PASS (build 0 err, 4 tests, seed idempotent
+  PromptTemplate=1). Live real-API smoke deferred (no key) — user sets AI_DEFAULT_MODEL to verify.
+
 ## Convention tracker
 <!-- naming, structure, style rules discovered in this repo -->
 - Project docs are staged in `Z-NeededUpdate/docs/` until M0 promotes them to `docs/`.
