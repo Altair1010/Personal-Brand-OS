@@ -30,6 +30,8 @@
   · **Vì sao:** M4 chỉ verify bằng mock adapter (không có key lúc build). Sau khi điền key + model: bấm nút phải ra positioning + 3 từ khoá, và có 1 `PromptRun` trong `node node_modules/prisma/build/index.js studio`. (M4)
 - [ ] **Smoke test D.2/D.3 (Persona + Pillar)** · **Ở đâu:** `npm run dev` → Khán giả & Trụ cột → "Sinh personas (AI)" + "Sinh trụ cột (AI)"
   · **Vì sao:** M5 chỉ verify bằng mock adapter. Sau khi điền key + model: nút sinh phải ra 2–4 persona / 3–5 pillar (ratio bar tổng =100), lưu được, và có `PromptRun` (moduleKey `audience`/`pillars`) trong Studio. (M5)
+- [ ] **Smoke test D.4/D.6 (Strategy 30 ngày)** · **Ở đâu:** `npm run dev` → Chiến lược (sau khi đã duyệt Khán giả & Trụ cột) → "Sinh chiến lược 30 ngày"
+  · **Vì sao:** M6 verify bằng mock/unit test (không có key lúc build). Sau khi điền key + model: sinh phải ra 5 weeklyTheme + 30 dailyPlan (call phân tầng: 1× tầng-1 + 5× tuần), lưu `StrategyVersion` v1 (reason non-null), set `AppState.activeStrategyId`, và "Xuất Markdown" tải được file .md đủ field. Kiểm `WeeklyPlan=5`, `DailyPlan=30` trong Studio. (M6)
 
 ## 4. Placeholder cho milestone sau (M5→M10 append vào đây khi phát sinh)
 

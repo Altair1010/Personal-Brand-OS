@@ -8,13 +8,30 @@
   `/clear` session, VERIFY-gated.
 
 ## In-progress
-- (empty — M5 done on master; M6 next: Strategy Builder 30d + Versioning + Export ⭐ mốc lớn,
-  cân nhắc 2 phiên.)
+- (empty — M6 done on master; M7 next: Content Studio (plain text) + Calendar ⭐ mốc lớn,
+  chia 2 phiên.)
 
 ## Blocked
 - (none)
 
 ## Completed this session
+- **M6 — Strategy Builder 30d + Versioning + Export PASS.** Layered generator chống truncation:
+  D.4 `strategy` (temp 0.3, `weeklyThemes` ép `.length(5)`, contentRatio+objectivesMix normalize
+  ở code) sinh khung tháng KHÔNG dailyPlan → D.6 `weekly-plan` gọi **5 lần** (server action
+  `generateStrategy`, `runModule` trực tiếp, `daysInWeek=DAYS_PER_WEEK[i]`) → `assembleStrategy`
+  ghép **[7,7,7,7,2]=30 ngày** (dayIndex liên tục 1..30, name→pillarId, objective ngoài enum →
+  fallback "educate"). `versioning.createStrategyVersion`: reason rỗng → throw (invariant), version
+  `max+1` không xóa cũ, set `AppState.activeStrategyId` + link `aiPromptRunId`, ghi WeeklyPlan+DailyPlan
+  trong 1 transaction. D.7 `content-idea` **prompt-only** (không route — M7 dùng). Export:
+  `markdown.strategyVersionToMarkdown` (đủ field) + `/api/export` ghi ExportHistory; client tải .md
+  qua Blob. UI: `strategy/page.tsx` giữ gate `audienceApprovedAt`, `StrategyWizard`+`FrameworkPicker`
+  +`StrategyPreview`+`WeeklyThemeTimeline` (TanStack Query, DTO serializable, Json parse type-guard,
+  no `any`). Seed +3 PromptTemplate idempotent (PromptTemplate=6). Verified: build 0 err · vitest
+  **22/22** · seed 2× identical. QA: scope-guard 0 BLOCKER (3 WARN vô hại: dual export path, 2 route
+  AI pass-through, objective fallback) · trellis-check 0 issue · milestone-verifier **M6 DONE**.
+  Orchestration: pbos-prompt-engineer (prompts+routes+test) + pbos-data-modeler (engine+versioning
+  +export+seed) + trellis-implement (UI); gate qua scope-guard + trellis-check + milestone-verifier.
+  Live D.4/D.6 smoke deferred → ToFill.md §3.
 - **M5 — Audience & Pillars + REVIEW GATE PASS.** D.2 `audience` (2–4 persona) + D.3 `pillars`
   (3–5 pillar) modules; objectiveMix enum keys built from `OBJECTIVES` (LLM never sets enum).
   **Ratio normalized in code 3× (module normalize hook + server savePillars + RatioBar)** via

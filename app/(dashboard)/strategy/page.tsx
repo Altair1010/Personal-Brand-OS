@@ -1,20 +1,21 @@
 import Link from "next/link";
-import { Lock, Map } from "lucide-react";
+import { Lock } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
-import { getAudiencePillarsData } from "@/app/(dashboard)/audience-pillars/actions";
+import { StrategyWizard } from "@/components/strategy/StrategyWizard";
+import { getStrategyData } from "./actions";
 
 // Strategy is gated behind the audience/pillar review. Until AppState.audienceApprovedAt is
-// set, render a locked EmptyState pointing back at /audience-pillars — no builder is exposed.
-// M6 will build the actual 30-day builder behind this gate.
+// set, render a locked EmptyState pointing back at /audience-pillars. Once approved, the
+// 30-day builder (StrategyWizard) is exposed with the current strategy if one exists.
 
 export const dynamic = "force-dynamic";
 
 export default async function StrategyPage() {
-  const { approvedAt } = await getAudiencePillarsData();
+  const data = await getStrategyData();
 
-  if (!approvedAt) {
+  if (!data.approvedAt) {
     return (
       <>
         <PageHeader
@@ -41,10 +42,13 @@ export default async function StrategyPage() {
         title="Chiến lược nội dung"
         description="Lập kế hoạch nội dung 30 ngày theo tuần"
       />
-      <EmptyState
-        icon={Map}
-        title="Chưa có chiến lược"
-        description="Đã mở khoá. Trình dựng chiến lược 30 ngày sẽ có ở bước tiếp theo."
+      <StrategyWizard
+        brand={data.brand}
+        goal={data.goal}
+        personas={data.personas}
+        pillars={data.pillars}
+        frameworks={data.frameworks}
+        initialStrategy={data.strategy}
       />
     </>
   );

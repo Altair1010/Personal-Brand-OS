@@ -402,6 +402,51 @@ async function main() {
     },
   });
 
+  // 9d. PromptTemplate — D.4 strategy arc 30 ngày (canonical prompt lives in code).
+  await db.promptTemplate.upsert({
+    where: { moduleKey_version: { moduleKey: "strategy", version: 1 } },
+    update: {},
+    create: {
+      moduleKey: "strategy",
+      version: 1,
+      name: "Strategy Arc 30d",
+      isActive: true,
+      systemInstruction:
+        "Strategy Arc 30d — canonical prompt lives in lib/prompts/strategy.ts (source of truth); this row exists so PromptRun can reference a template.",
+      userTemplate: "",
+    },
+  });
+
+  // 9e. PromptTemplate — D.6 weekly to daily planner (canonical prompt lives in code).
+  await db.promptTemplate.upsert({
+    where: { moduleKey_version: { moduleKey: "weekly-plan", version: 1 } },
+    update: {},
+    create: {
+      moduleKey: "weekly-plan",
+      version: 1,
+      name: "Weekly to Daily Planner",
+      isActive: true,
+      systemInstruction:
+        "Weekly to Daily Planner — canonical prompt lives in lib/prompts/weekly-plan.ts (source of truth); this row exists so PromptRun can reference a template.",
+      userTemplate: "",
+    },
+  });
+
+  // 9f. PromptTemplate — D.7 daily idea generator (canonical prompt lives in code).
+  await db.promptTemplate.upsert({
+    where: { moduleKey_version: { moduleKey: "content-idea", version: 1 } },
+    update: {},
+    create: {
+      moduleKey: "content-idea",
+      version: 1,
+      name: "Daily Idea Generator",
+      isActive: true,
+      systemInstruction:
+        "Daily Idea Generator — canonical prompt lives in lib/prompts/content-idea.ts (source of truth); this row exists so PromptRun can reference a template.",
+      userTemplate: "",
+    },
+  });
+
   // --- count table ---
   const counts = {
     UserProfile: await db.userProfile.count(),

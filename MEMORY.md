@@ -99,6 +99,27 @@
   pbos-data-modeler (schema/seed) + pbos-prompt-engineer (D.2/D.3) + trellis-implement (engine/
   actions/routes/UI). Live D.2/D.3 smoke deferred → ToFill.md §3.
 
+- [2026-07-09] **M6 PASS** (Strategy Builder 30d + Versioning + Export). **Layered generation
+  anti-truncation** = the load-bearing pattern: D.4 `strategy` (temp 0.3) emits ONLY the month
+  frame (`contentRatio`, `weeklyThemes` forced `z.array(...).length(5)`, ctaPlan/topicMap/kpi/doNot),
+  NEVER dailyPlans; D.6 `weekly-plan` (temp 0.3) runs **5 separate `runModule` calls** inside server
+  action `generateStrategy` (`daysInWeek=DAYS_PER_WEEK[i]`), one week failing → return early, never
+  persist a partial version. `lib/strategy-engine/assembleStrategy.ts` merges in CODE:
+  `DAYS_PER_WEEK=[7,7,7,7,2]` (TOTAL 30), **dayIndex continuous 1..30** (not per-week reset), pillar
+  **name→id** map, objective outside `OBJECTIVES` → fallback `"educate"` (keeps 30-day invariant; rarely
+  hits since D.6 output already `z.enum(OBJECTIVES)`). `lib/strategy-engine/versioning.ts`
+  `createStrategyVersion`: **empty reason → throw** (hard invariant), `version = max+1` never deletes
+  old, sets `AppState.activeStrategyId` + links `aiPromptRunId`, writes WeeklyPlan+DailyPlan in one
+  `db.$transaction`. D.7 `content-idea` = **prompt-only, NO route** (M7 Studio consumes). Export:
+  `lib/import-export/markdown.ts` `strategyVersionToMarkdown` (all fields, keeps unknown ratio keys) +
+  `app/api/export/route.ts` writes ExportHistory; client downloads .md via Blob. **AI orchestration
+  lives in the server action calling `runModule` directly (no HTTP round-trip);** the `/api/ai/strategy`
+  + `/api/ai/weekly-plan` routes exist per milestone file-list but are pass-through, unused by main flow
+  (scope-guard WARN, acceptable). UI DTO fully serializable (`createdAt.toISOString()`, Json parsed via
+  type guards `asRatio`/`asCtaPlan`/`asTopicMap`/`asStringArray`, no `any`). Seed +3 PromptTemplate
+  (strategy/weekly-plan/content-idea) → PromptTemplate=6. build 0 err · vitest 22/22 · seed idempotent.
+  QA: scope-guard 0 BLOCKER · trellis-check 0 issue · verifier M6 DONE. Live D.4/D.6 smoke → ToFill.md §3.
+
 ## Convention tracker
 <!-- naming, structure, style rules discovered in this repo -->
 - Project docs are staged in `Z-NeededUpdate/docs/` until M0 promotes them to `docs/`.
