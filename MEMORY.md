@@ -79,6 +79,26 @@
   scope-guard 0 violations · milestone-verifier M4 all-PASS (build 0 err, 4 tests, seed idempotent
   PromptTemplate=1). Live real-API smoke deferred (no key) — user sets AI_DEFAULT_MODEL to verify.
 
+- [2026-07-09] **M5 PASS** (Audience & Pillars + REVIEW GATE). Modules D.2 `audience`
+  (temp 0.3, personas `.min(2).max(4)`) + D.3 `pillars` (temp 0.2, pillars `.min(3).max(5)`).
+  **objectiveMix zod object built dynamically from `OBJECTIVES`** (`Object.fromEntries(OBJECTIVES.map…)`)
+  — never lets LLM invent enum keys; `coerceObjectiveMix` drops stray keys on client too.
+  **Ratio normalized in CODE, 3 layers, never trust LLM/client:** module `normalize` hook +
+  server `savePillars` + `RatioBar` display, all via `lib/strategy-engine/normalizeRatio.ts`
+  (`normalizeWeightsTo100` = largest-remainder → sum EXACTLY 100; `normalizeRatioTo100(items,key)`
+  + `normalizeRecordTo100(record)`). **Review-gate persistence = `AppState.audienceApprovedAt
+  DateTime?`** (migration `20260709055054_audience_approval`) — server-side, survives reload/backup;
+  M6 reads it to unlock Strategy. Gate is triple-guarded: `ApproveGate` disabled until 2 checkboxes
+  + saved + not dirty; server `approveAudience` re-checks **>=2 persona AND >=3 pillar** (raised from
+  >=1 to match 3–5 rule); Strategy page renders locked EmptyState when `approvedAt` null (no
+  auto-chain, only a manual link after approve). Editing after approve → `resetApproval()` clears
+  flag. Server actions pattern (`audience-pillars/actions.ts`): diff-delete scoped by `{userId,
+  goalId}` double-guard so save never touches another goal's rows. Client fetches `/api/ai/{audience,
+  pillars}` only (never imports lib/ai). 19/19 tests, build 0 err, seed idempotent (PromptTemplate=3).
+  QA: scope-guard 0 BLOCKER (1 WARN fixed: pillar floor) · verifier M5 DONE. Delegated across
+  pbos-data-modeler (schema/seed) + pbos-prompt-engineer (D.2/D.3) + trellis-implement (engine/
+  actions/routes/UI). Live D.2/D.3 smoke deferred → ToFill.md §3.
+
 ## Convention tracker
 <!-- naming, structure, style rules discovered in this repo -->
 - Project docs are staged in `Z-NeededUpdate/docs/` until M0 promotes them to `docs/`.

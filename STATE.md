@@ -8,12 +8,27 @@
   `/clear` session, VERIFY-gated.
 
 ## In-progress
-- (empty — M4 done on master; M5 next: Audience & Pillars + REVIEW GATE.)
+- (empty — M5 done on master; M6 next: Strategy Builder 30d + Versioning + Export ⭐ mốc lớn,
+  cân nhắc 2 phiên.)
 
 ## Blocked
 - (none)
 
 ## Completed this session
+- **M5 — Audience & Pillars + REVIEW GATE PASS.** D.2 `audience` (2–4 persona) + D.3 `pillars`
+  (3–5 pillar) modules; objectiveMix enum keys built from `OBJECTIVES` (LLM never sets enum).
+  **Ratio normalized in code 3× (module normalize hook + server savePillars + RatioBar)** via
+  `lib/strategy-engine/normalizeRatio.ts` (largest-remainder, sum=100 exact). **Review gate =
+  `AppState.audienceApprovedAt DateTime?`** (migration `audience_approval`): ApproveGate disabled
+  until 2 checkboxes + saved + not-dirty; server `approveAudience` re-guards ≥2 persona & ≥3 pillar;
+  Strategy page renders locked EmptyState when `approvedAt` null (no auto-chain; manual link only);
+  edit-after-approve → resetApproval. Server actions diff-delete scoped by {userId,goalId}. Client
+  fetches `/api/ai/{audience,pillars}` only. Verified: build 0 err · 19/19 vitest · seed idempotent
+  2× (PromptTemplate=3). QA: scope-guard 0 BLOCKER (1 WARN fixed: pillar floor 1→3) · verifier M5
+  DONE. Delegated: pbos-data-modeler + pbos-prompt-engineer + trellis-implement; gate via
+  scope-guard + milestone-verifier. Live D.2/D.3 smoke deferred → ToFill.md §3.
+
+## Completed earlier this session
 - **M4 — AI Layer + Guard + Brand Analyzer (D.1) PASS.** Shared `lib/ai/*` pipeline (P0.3) +
   D.1 wired into onboarding. Raw-fetch adapter (no SDK) to Anthropic Messages API + OpenAI
   chat/completions; **temperature capability guard** (omit for opus-4-7/4-8/fable-5, else 400);
@@ -79,7 +94,9 @@
   folder `{docs,prisma,data\seed}`. Docs content now internally consistent.
 
 ## Next
-- Run **M3 — Onboarding Wizard (Brand+Company → Goal)**: linear wizard saving BrandDNA(+company)
-  + Goal, set `activeGoalId`; docx/pdf upload → text extract (mammoth/pdf-parse). "Phân tích AI"
-  button placeholder disabled (enabled in M4). Fresh `/clear` session recommended.
+- Run **M6 — Strategy Builder 30d + Versioning + Export** ⭐ (mốc lớn): layered generator
+  (D.4 arc + weekly themes → D.6 weekly→daily ×5 → assemble 30 days in code), StrategyVersion v1
+  (reason non-null + assumptions), export Markdown, set `AppState.activeStrategyId`. Gate is already
+  wired (audienceApprovedAt). **KHUYẾN NGHỊ chia 2 phiên** (a: prompts+2 routes+engine; b: UI+export
+  +test). Fresh `/clear` session.
 - Git: repo init'd, `master` branch, identity = minhkhang.guru (local config). No remote yet.

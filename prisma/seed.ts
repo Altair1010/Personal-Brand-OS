@@ -372,6 +372,36 @@ async function main() {
     },
   });
 
+  // 9b. PromptTemplate — audience persona builder (canonical prompt lives in code).
+  await db.promptTemplate.upsert({
+    where: { moduleKey_version: { moduleKey: "audience", version: 1 } },
+    update: {},
+    create: {
+      moduleKey: "audience",
+      version: 1,
+      name: "Audience Persona Builder",
+      isActive: true,
+      systemInstruction:
+        "Audience Persona Builder — canonical prompt lives in lib/prompts/audience.ts (source of truth); this row exists so PromptRun can reference a template.",
+      userTemplate: "",
+    },
+  });
+
+  // 9c. PromptTemplate — content pillar generator (canonical prompt lives in code).
+  await db.promptTemplate.upsert({
+    where: { moduleKey_version: { moduleKey: "pillars", version: 1 } },
+    update: {},
+    create: {
+      moduleKey: "pillars",
+      version: 1,
+      name: "Content Pillar Generator",
+      isActive: true,
+      systemInstruction:
+        "Content Pillar Generator — canonical prompt lives in lib/prompts/pillars.ts (source of truth); this row exists so PromptRun can reference a template.",
+      userTemplate: "",
+    },
+  });
+
   // --- count table ---
   const counts = {
     UserProfile: await db.userProfile.count(),

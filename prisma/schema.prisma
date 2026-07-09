@@ -10,10 +10,11 @@ datasource db {
 }
 
 model AppState {
-  id               String   @id @default("singleton")
-  activeGoalId     String?
-  activeStrategyId String?
-  updatedAt        DateTime @updatedAt
+  id                 String    @id @default("singleton")
+  activeGoalId       String?
+  activeStrategyId   String?
+  audienceApprovedAt DateTime?
+  updatedAt          DateTime  @updatedAt
 }
 
 model UserProfile {
