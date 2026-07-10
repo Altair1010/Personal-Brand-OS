@@ -42,6 +42,7 @@
 
 ## 4. Placeholder cho milestone sau (M5→M10 append vào đây khi phát sinh)
 
-- (M10) Settings sẽ cho chọn model / backup-restore trong UI — khi xong, các mục "đặt model qua env" ở trên có thể chuyển sang chọn trong app.
+- [x] (M10) Settings ĐÃ ship: chọn provider/model trong UI (`/settings` → AiModelConfigForm), backup export/import JSON, reset (2 lớp xác nhận). Mục §2 "đặt model qua env" giờ có thể làm trong app thay vì `.env` (`AIModelConfig.isDefault` được `resolveModelConfig()` ưu tiên).
+- [ ] (M10, tuỳ chọn) **Chọn model trong Settings thay cho env** · **Ở đâu:** `npm run dev` → Cài đặt → nhập provider + model + tick "mặc định" · **Vì sao:** thay cho `AI_DEFAULT_MODEL` trong `.env`; row `isDefault=true` được adapter ưu tiên. Không bắt buộc nếu đã đặt env. (M10)
 - (M11 Phase B, sau M10) Đóng gói Electron: installer + bundle Prisma engine + di chuyển SQLite sang OS user-data dir — task build, không phải user-fill; ghi ở đây để không quên.
 - _(các mốc sau tự thêm dòng của mình bên trên)_

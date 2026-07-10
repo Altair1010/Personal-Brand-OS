@@ -211,6 +211,41 @@
   (needs key) → ToFill.md §3. Delegated: pbos-prompt-engineer (D.15) · pbos-data-modeler
   (applyRevision + seed) · trellis-implement (ruleWarnings + actions/UI).
 
+- [2026-07-10] **M10 DONE** (Settings + Backup + Polish — web MVP mốc cuối). No migration
+  (AIModelConfig/ExportHistory đủ field). **seedCore refactor:** tách toàn bộ logic upsert
+  canonical từ `prisma/seed.ts` → `prisma/seedCore.ts` export `seedCore(db, domain)` với type
+  `SeedDb = PrismaClient | Prisma.TransactionClient` (nhận CẢ tx client → reset dùng lại trong
+  `$transaction`); seed.ts còn mỗi CLI entrypoint (parseDomain + new PrismaClient + gọi seedCore).
+  Idempotent giữ nguyên (upsert stable key, PromptTemplate=12). **Backup `lib/import-export/
+  backup.ts`:** `exportBackup(db)` dump 22 bảng → `{version:1,exportedAt,data:{model:rows}}`;
+  `backupEnvelopeSchema` zod validate CẤU TRÚC (không validate field — mục đích chặn file sai
+  trước khi ghi); `importBackup(db,env)` = `$transaction` upsert theo `IMPORT_ORDER` (parent trước,
+  **preserve cuid/natural key** → FK khớp); `wipeAll(tx)` deleteMany theo `RESET_ORDER` (reverse).
+  **FK gotcha (data-modeler bắt được):** `PromptRun` phải upsert SỚM (ngay sau PromptTemplate),
+  KHÔNG để cuối — vì `StrategyVersion/ContentDraft/PerformanceInsight.aiPromptRunId` là FK trỏ
+  PromptRun (SetNull); để cuối → child ghi FK trước khi parent tồn tại → vỡ transaction SQLite.
+  Date round-trip: export trả Date objects; JSON.stringify→parse thành ISO string; importBackup
+  ghi as-is, **dựa Prisma tự coerce string→DateTime** (không `new Date()` thủ công). **Settings
+  UI (server-action-only, client KHÔNG import lib/ai/backup/prisma):** `settings/actions.ts`
+  `getSettingsData` (active = try/catch `resolveModelConfig()` → null khi throw), `saveModelConfig`
+  (zod `provider:z.enum(["anthropic","openai"])` — 2 provider adapter hỗ trợ; **model = free-text,
+  KHÔNG hardcode**; `$transaction` unset mọi isDefault cũ rồi create default mới = DUY NHẤT 1
+  default; resolveModelConfig đọc isDefault → đổi model tự áp dụng), `deleteModelConfig`,
+  `resetDatabase(confirmText)` (**server RE-CHECK `confirmText==="RESET"`** trước khi wipe →
+  `wipeAll(tx)`+`seedCore(tx,"khang-guru")` 1 transaction). `api/backup/route.ts` GET=export+ghi
+  ExportHistory{kind:"backup"}+Content-Disposition; POST=`safeParse`→400 "File backup không hợp lệ"
+  KHÔNG chạm DB nếu sai, else importBackup try/catch→500. DangerZone 2 lớp (gõ "RESET" bật nút +
+  window.confirm). **Polish states = 2 file cấp group phủ CẢ 10 trang:** `app/(dashboard)/loading.tsx`
+  (AiLoading) + `error.tsx` ("use client" boundary → ErrorState onRetry=reset). Studio EmptyState
+  **đã có sẵn** trong `components/content/StudioList.tsx` (không sửa page — explore ban đầu nhầm).
+  Test `tests/import-export/backup.test.ts`: round-trip trên **SQLite temp thật** (`prisma db push`
+  file `prisma/test-backup.db` riêng, PrismaClient `datasources.db.url` explicit — KHÔNG dùng
+  lib/db singleton; seedCore→export→mutate(đổi name+xóa framework)→**guard mutation landed**→import
+  →assert row-count+field khớp; afterAll rmSync). build 0 err · **vitest 67/67 (14 file, +6)** · seed
+  idempotent 12/12. Gate: scope-guard 0 BLOCKER · milestone-verifier M10 DONE (feature-spec #8 đủ).
+  Delegated: pbos-data-modeler (seedCore+backup) · trellis-implement (actions/UI/route/polish/README)
+  · agent-skills:test-engineer (round-trip test). **Web MVP M0–M10 khép kín — còn M11 Electron.**
+
 ## Convention tracker
 <!-- naming, structure, style rules discovered in this repo -->
 - Project docs are staged in `Z-NeededUpdate/docs/` until M0 promotes them to `docs/`.
