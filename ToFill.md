@@ -33,6 +33,13 @@
 - [ ] **Smoke test D.4/D.6 (Strategy 30 ngày)** · **Ở đâu:** `npm run dev` → Chiến lược (sau khi đã duyệt Khán giả & Trụ cột) → "Sinh chiến lược 30 ngày"
   · **Vì sao:** M6 verify bằng mock/unit test (không có key lúc build). Sau khi điền key + model: sinh phải ra 5 weeklyTheme + 30 dailyPlan (call phân tầng: 1× tầng-1 + 5× tuần), lưu `StrategyVersion` v1 (reason non-null), set `AppState.activeStrategyId`, và "Xuất Markdown" tải được file .md đủ field. Kiểm `WeeklyPlan=5`, `DailyPlan=30` trong Studio. (M6)
 
+- [ ] **Smoke test D.8–D.11 (Content Studio: post-writer/hook/cta/tone)** · **Ở đâu:** `npm run dev` → Studio → viết bài từ ContentIdea + nút Hook/CTA/Tone
+  · **Vì sao:** M7 verify bằng mock. Sau khi điền key + model: writer ra hook/body/ending + enum hợp lệ; approve → `Post` gắn `strategyVersionId`+`dailyPlanId`; có `PromptRun`. (M7)
+- [ ] **Smoke test D.14 (Performance insight)** · **Ở đâu:** `npm run dev` → Hiệu suất → nhập metric ≥1 bài → "Sinh insight"
+  · **Vì sao:** M8 verify bằng mock. Sau khi điền key + model: insight có evidence trỏ số thật; <3 bài → confidence=low. (M8)
+- [ ] **Smoke test D.15 (Weekly Review / Revision)** · **Ở đâu:** `npm run dev` → Đánh giá tuần → "Sinh đề xuất điều chỉnh" → "Áp dụng — tạo version mới"
+  · **Vì sao:** M9 verify bằng mock/unit. Sau khi điền key + model: sinh phải ra adjustmentPlan (mỗi mục có reason) + revisedContentRatio (tổng=100); bấm áp dụng tạo `StrategyVersion` v(n+1) có `reason` non-null, clone WeeklyPlan+DailyPlan (Calendar vẫn đủ), Dashboard hiện card "Điều chỉnh gần nhất". (M9)
+
 ## 4. Placeholder cho milestone sau (M5→M10 append vào đây khi phát sinh)
 
 - (M10) Settings sẽ cho chọn model / backup-restore trong UI — khi xong, các mục "đặt model qua env" ở trên có thể chuyển sang chọn trong app.

@@ -181,6 +181,36 @@
   no hardcoded model). Live D.14 smoke (needs key) → ToFill.md §3. Delegated D.14 prompt →
   pbos-prompt-engineer, engine → trellis-implement; action/UI/tests done inline.
 
+- [2026-07-10] **M9 DONE** (Weekly Review / Revision Engine — nhẹ). No migration (schema đủ).
+  D.15 `lib/prompts/revision.ts` (temp 0.3, strategist): output `reasonForNewVersion =
+  z.string().min(1)` + `adjustmentPlan[].{change,reason}` `.min(1)` — reason ép ở SCHEMA;
+  `revisedContentRatio` normalize về 100 trong `normalize()` qua `normalizeRecordTo100`
+  (không tin LLM). Input `versionPerf[]` = attribution compare (postCount/avgReach/avgEngagement
+  theo version). buildUser bọc mọi external (insights finding/evidence/recommendation, goal,
+  weeklyThemes serialize) `sanitizeExternal(...,"paste")` (M7 lesson: no central guard).
+  **Load-bearing pattern `lib/strategy-engine/applyRevision.ts`:** KHÔNG tự ghi StrategyVersion
+  — tái dựng `tier1: StrategyOutput` (Json fields version cũ, override `contentRatio =
+  revisedContentRatio`) + `assembledWeeks` (clone từ `version.weeklyPlans.dailyPlans` cũ) rồi
+  gọi lại `createStrategyVersion` (giữ mọi invariant: version=max+1, reason-throw, set
+  activeStrategyId, không xóa cũ). **PHẢI clone WeeklyPlan+DailyPlan** vì `getCalendarData` +
+  `approveDraft` đọc version MỚI NHẤT (`findFirst orderBy version desc`) — version rỗng làm
+  Calendar trống + lệch attribution. reason non-null enforced 3 lớp: schema `.min(1)` →
+  repairOnce → createStrategyVersion throw. `lib/strategy-engine/ruleWarnings.ts` = pure
+  `(PerfPost[])=>string[]` (quá bán hàng ≥40% conversion; pillar yếu avgEngagement <0.5×trung
+  vị; reuse `aggregate`). Server action `review/actions.ts` (mirror performance/actions): 2 bước
+  **generate (không ghi DB) → apply** (review-gate style, không auto-chain); `runModule` gọi trực
+  tiếp (M6 pattern, no HTTP); `getReviewData.versionPerf` group Post theo strategyVersionId.
+  `goal.description` map từ `Goal.mainMessage` (schema Goal KHÔNG có field description).
+  UI: `review/page.tsx` (server) → `components/review/ReviewPanel.tsx` (client) +
+  `WeeklyAdjustmentCard`/`RevisionDiff`; Dashboard nhúng card qua `getLatestAdjustment()`
+  (chỉ khi ≥2 version). Client CHỈ gọi server action, không import lib/ai. `app/api/ai/revision/
+  route.ts` = pass-through (đủ file-list, flow chính dùng action; scope-guard WARN chấp nhận
+  như M6). Seed +1 PromptTemplate(revision) → **total 12**. build 0 err · vitest **61/61**
+  (13 files, +2: revision.test.ts 5 + ruleWarnings.test.ts 4) · seed idempotent 12/12. Gate:
+  scope-guard 0 BLOCKER · milestone-verifier M9 DONE (VERIFY + feature-spec #7). Live D.15 smoke
+  (needs key) → ToFill.md §3. Delegated: pbos-prompt-engineer (D.15) · pbos-data-modeler
+  (applyRevision + seed) · trellis-implement (ruleWarnings + actions/UI).
+
 ## Convention tracker
 <!-- naming, structure, style rules discovered in this repo -->
 - Project docs are staged in `Z-NeededUpdate/docs/` until M0 promotes them to `docs/`.

@@ -522,6 +522,21 @@ async function main() {
     },
   });
 
+  // 9l. PromptTemplate — M9 revision engine (canonical logic lives in code).
+  await db.promptTemplate.upsert({
+    where: { moduleKey_version: { moduleKey: "revision", version: 1 } },
+    update: {},
+    create: {
+      moduleKey: "revision",
+      version: 1,
+      name: "Revision Engine",
+      isActive: true,
+      systemInstruction:
+        "Revision Engine — canonical logic lives in lib/strategy-engine/applyRevision.ts (source of truth); this row exists so PromptRun can reference a template.",
+      userTemplate: "",
+    },
+  });
+
   // --- count table ---
   const counts = {
     UserProfile: await db.userProfile.count(),
