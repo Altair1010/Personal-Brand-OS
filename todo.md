@@ -1,16 +1,16 @@
-# todo.md — live checklist
+# todo.md — M11 Desktop runtime (live checklist)
 
-> LIVE FILE. Keep in sync with plan.md (the how) and STATE.md (the sprint view).
-> Tick items as you go; DELETE this file when the task is fully done (see RULES.md).
+> Plan: `C:\Users\MCBAu\.claude\plans\read-f-codex-personal-brand-cuddly-spring.md`
+> Tick as you go; DELETE when M11 gate passes (RULES.md).
 
 ## Now
-- [ ] (the single item currently in progress)
+- [ ] 1. next.config `output:'standalone'` → build pass + `.next/standalone/server.js`
 
 ## Next
-- [ ] (queued items, highest priority first)
+- [ ] 2. DB relocation + env helper (dev vs userData)
+- [ ] 3. First-run migrate + seed-if-empty
+- [ ] 4. Key từ `userData/pbos.env`
+- [ ] 5. Production boot wiring (main.js) — giữ dev path
+- [ ] 6. Regression + Gate (vitest, scope-guard, verifier)
 
-## Blocked
-- [ ] (item) — blocked by: (reason) — unblocks when: (condition)
-
-## Done
-- [x] (completed items — cleared when the task closes)
+## Checkpoints

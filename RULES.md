@@ -31,6 +31,18 @@
 4. **caveman**: in-agent skill (auto-on). Trims PROSE in the RESPONSE only — never code/JSON.
 > Each layer handles a DIFFERENT payload type -> never compress the same payload twice.
 
+## STATE vs MEMORY (different jobs — never duplicate content)
+- **STATE.md = a POINTER, time-axis.** Answers "where are we now / next / blocked".
+  Sprint-level ONLY: milestone id + one-line status. It carries NO technical detail
+  (no file names, migrations, test counts, patterns). It is overwritten as the sprint
+  moves.
+- **MEMORY.md = the RECORD, knowledge-axis.** Answers "why did we choose this / what
+  pattern must hold". Append-only; one entry per milestone holds ALL the durable detail.
+- **The handoff:** when a milestone passes, write the full detail as ONE MEMORY entry,
+  then collapse it in STATE to a single pointer line (`Mx DONE — detail → MEMORY.md`).
+  Never paste the same paragraph into both. If you catch STATE growing a technical
+  paragraph, it belongs in MEMORY — move it.
+
 ## plan.md & todo.md lifecycle
 - **Create** at task start (or reuse the existing files); do not start real work without them.
 - **Update after every step**: tick todo.md items, append a plan.md checkpoint
@@ -77,18 +89,22 @@
    met, and the seed stays idempotent. Do not create files outside the current milestone.
 
 ## Approved scope exceptions (explicit user authorization — logged, not drift)
-- **[2026-07-08] Desktop app wrapper (Electron) = new milestone M11**, done AFTER the web
-  MVP (M4→M10). User wants a real local desktop app (icon/window), not just `npm run dev`.
-  Rationale: single-user localhost app is more usable as a windowed desktop shell. Wrapper
-  lives under `electron/` and MUST NOT change any web behavior, entity, or feature scope —
-  it only boots the existing Next server and points a window at it. Phase A (now) = dev
-  window; Phase B (post-M10) = production installer + Prisma engine bundling. scope-guard:
-  treat `electron/` + electron devDeps as authorized; still flag any feature/entity creep.
-  - **Packaging-friendly constraints for M4–M10 (enforce now so Phase B is just wrapping,
+- **[2026-07-08] Desktop app (Electron), done AFTER the web MVP (M4→M10).** User wants a real
+  local desktop app (icon/window), not just `npm run dev`. Wrapper lives under `electron/` and
+  MUST NOT change any web behavior, entity, or feature scope — it only boots the existing Next
+  server and points a window at it. scope-guard: treat `electron/` + electron devDeps + electron-
+  builder config + `.github/workflows/*` as authorized; still flag any feature/entity creep.
+  - **[2026-07-11] Split into two milestones (was one "M11 Phase A/B"):**
+    - **M11 — runtime cross-platform:** boot the production build in Electron on Win + Mac;
+      relocate SQLite to OS user-data dir; first-run `migrate deploy`; API key from runtime.
+    - **M12 — packaging (unsigned):** NSIS `.exe` installer (Win, desktop shortcut + icon) built
+      locally; `.dmg` (Mac) via GitHub Actions `macos-latest` (electron-builder cannot cross-build
+      Mac from Win). **Decision: ship unsigned** — accept SmartScreen/Gatekeeper warnings; no cert.
+  - **Packaging-friendly constraints for M4–M10 (enforce now so M11/M12 are just wrapping,
     not rework):**
     1. **No hardcoded absolute paths.** Uploads, backup files, DB, exports must resolve from
        a configurable base, never assume cwd == repo root. Packaged app cwd differs.
-    2. **DB path relocatable.** Packaged app cannot write into its install dir — Phase B moves
+    2. **DB path relocatable.** Packaged app cannot write into its install dir — M11 moves
        SQLite to the OS user-data dir. Don't bake `./dev.db` assumptions into runtime logic;
        keep it behind `DATABASE_URL` (already so). No code hardcoding `prisma/dev.db`.
     3. **API key from runtime, not repo `.env`.** Packaged app ships no repo `.env`. The
@@ -98,4 +114,4 @@
     4. **Backup/restore uses a user-chosen location (M10).** Export/import JSON must go through
        a path the user picks (file dialog), not a fixed cwd-relative file.
     5. **Node-only deps stay externalized.** `serverExternalPackages` (pdf-parse/pdfjs-dist/
-       mammoth) — Phase B `asarUnpack`s them. Don't move these into client bundles.
+       mammoth) — M12 `asarUnpack`s them. Don't move these into client bundles.

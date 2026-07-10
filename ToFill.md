@@ -16,6 +16,7 @@
   · **Vì sao:** mọi call AI server-side đọc key này (`lib/ai/anthropic.ts`); rỗng → route AI trả lỗi. (M2/M4)
 - [ ] **(Tuỳ chọn) Điền `OPENAI_API_KEY`** · **Ở đâu:** `.env` · **Vì sao:** chỉ cần nếu đổi provider sang OpenAI (`lib/ai/openai.ts`); mặc định dùng Anthropic nên có thể bỏ trống. (M4)
 - [x] **`DATABASE_URL`** · **Ở đâu:** `.env` (`file:./dev.db`) · **Vì sao:** SQLite path; đã tạo ở M2. (M2)
+- [ ] **(App desktop) Điền key vào `pbos.env`** · **Ở đâu:** `<userData>/pbos.env` (Win: `%APPDATA%\personal-brand-os\pbos.env`; Mac: `~/Library/Application Support/personal-brand-os/pbos.env`), dòng `ANTHROPIC_API_KEY=...` · **Vì sao:** app đóng gói KHÔNG mang repo `.env`; shell Electron đọc file này lúc runtime rồi inject vào server (`electron/runtime.js` `loadUserEnv`). Thiếu file → app vẫn mở nhưng call AI báo "thiếu key". (M11)
 
 ## 2. Lựa chọn cấu hình (phải chọn, không hardcode)
 
@@ -40,9 +41,13 @@
 - [ ] **Smoke test D.15 (Weekly Review / Revision)** · **Ở đâu:** `npm run dev` → Đánh giá tuần → "Sinh đề xuất điều chỉnh" → "Áp dụng — tạo version mới"
   · **Vì sao:** M9 verify bằng mock/unit. Sau khi điền key + model: sinh phải ra adjustmentPlan (mỗi mục có reason) + revisedContentRatio (tổng=100); bấm áp dụng tạo `StrategyVersion` v(n+1) có `reason` non-null, clone WeeklyPlan+DailyPlan (Calendar vẫn đủ), Dashboard hiện card "Điều chỉnh gần nhất". (M9)
 
+- [ ] **Smoke test M11 (boot production Electron)** · **Ở đâu:** `npm run build:desktop && npm run app:prod` · **Vì sao:** verify M11 headless đã chứng minh mọi phần không-GUI (standalone server boot HTTP 200, DB→userData, migrate deploy, seed, route đọc DB). Bước cuối cần MÀN HÌNH: chạy 2 lệnh trên → cửa sổ Electron "Personal Brand OS" mở + load app; DB tạo ở `<userData>/pbos.db`. (M11)
+
 ## 4. Placeholder cho milestone sau (M5→M10 append vào đây khi phát sinh)
 
 - [x] (M10) Settings ĐÃ ship: chọn provider/model trong UI (`/settings` → AiModelConfigForm), backup export/import JSON, reset (2 lớp xác nhận). Mục §2 "đặt model qua env" giờ có thể làm trong app thay vì `.env` (`AIModelConfig.isDefault` được `resolveModelConfig()` ưu tiên).
 - [ ] (M10, tuỳ chọn) **Chọn model trong Settings thay cho env** · **Ở đâu:** `npm run dev` → Cài đặt → nhập provider + model + tick "mặc định" · **Vì sao:** thay cho `AI_DEFAULT_MODEL` trong `.env`; row `isDefault=true` được adapter ưu tiên. Không bắt buộc nếu đã đặt env. (M10)
-- (M11 Phase B, sau M10) Đóng gói Electron: installer + bundle Prisma engine + di chuyển SQLite sang OS user-data dir — task build, không phải user-fill; ghi ở đây để không quên.
+- (M11, sau M10) Desktop runtime cross-platform: boot production trong Electron + dời SQLite sang OS user-data dir + first-run migrate — task build, không phải user-fill.
+- (M12, sau M11) Đóng gói: installer `.exe` (Win) + `.dmg` (Mac qua CI) + bundle Prisma engine, unsigned — task build.
+- [ ] **(M12) Tạo GitHub repo + push remote** · **Vì sao:** artifact Mac (.dmg) chỉ build được trên GitHub Actions `macos-latest` (không cross-build từ Win); workflow chạy khi push tag `v*`. Hiện repo chưa có remote. (M12)
 - _(các mốc sau tự thêm dòng của mình bên trên)_

@@ -223,7 +223,7 @@ Trả lại JSON ĐÚNG schema sau, chỉ sửa phần sai, giữ nguyên phần
 
 ---
 
-# PHẦN 3 — MILESTONES M0–M10
+# PHẦN 3 — MILESTONES M0–M12
 
 > Cấu trúc mỗi mốc: **① Điều kiện tiên quyết · ② Output · ③ Gate · ④ Prompt** (Prompt gồm: Vai trò · Nhiệm vụ · Đọc file theo thứ tự · Tạo file + cấu trúc · Không được làm gì · Báo cáo · Ước lượng token/%).
 > % token tính theo baseline 200K/phiên, Opus 4.8. Khuyến nghị: **mỗi mốc 1 phiên `/clear`**.
@@ -426,8 +426,53 @@ Trả lại JSON ĐÚNG schema sau, chỉ sửa phần sai, giữ nguyên phần
 
 ---
 
+# PHẦN 3B — DESKTOP (post-MVP, đã duyệt scope: RULES.md > "Approved scope exceptions")
+
+> M11 & M12 bọc web MVP thành app desktop (Mac + Win). **KHÔNG đổi entity/feature/web behavior** —
+> chỉ thêm runtime shell + đóng gói. Quyết định đã chốt: **không code-sign** (chấp nhận cảnh báo
+> SmartScreen/Gatekeeper); **artifact Mac build qua GitHub Actions macOS runner** (không cross-build
+> từ Win). Mỗi mốc 1 phiên `/clear`.
+
+## ════ M11 — Desktop runtime cross-platform (Mac + Win) ════
+**① Điều kiện tiên quyết:** M10 pass (web MVP khép kín). `electron/main.js` đã tồn tại (dev window, spawn `next dev`).
+**② Output:** Electron shell boot **production build** đúng trên cả Win + Mac; DB ở OS user-data dir; first-run migrate; API key lấy runtime. Chưa đóng gói installer.
+**③ Gate:** [ ] `npm run build` + boot production trong Electron mở cửa sổ OK [ ] DB tạo ở `app.getPath('userData')`, first-run `migrate deploy` chạy [ ] key lấy từ AIModelConfig/Settings runtime, app không cần `.env` repo [ ] không regression web (entity/feature/behavior nguyên).
+**④ Prompt:**
+- **Vai trò:** Desktop/full-stack engineer bọc Next app bằng Electron, giữ web nguyên.
+- **Nhiệm vụ:** chuyển `electron/main.js` từ `next dev` → production; dời DB sang userData; first-run migrate; key runtime; cấu hình Next standalone.
+- **Đọc theo thứ tự:** `electron/main.js` → `next.config.*` → `RULES.md` (dòng 91–113 "Approved scope exceptions" + "packaging-friendly constraints") → `prisma/schema.prisma` (DATABASE_URL) → `CLAUDE.md`.
+- **Tạo/sửa file + cấu trúc:**
+  - `electron/main.js`: bỏ `next dev`; boot Next `output:'standalone'` `server.js` bằng Electron node (`process.execPath` + `ELECTRON_RUN_AS_NODE=1`); bỏ phụ thuộc `node_modules/next/bin`.
+  - DB: khi production/packaged → set `DATABASE_URL` = file trong `app.getPath('userData')`; dev giữ `prisma/dev.db`.
+  - First-run: chạy `prisma migrate deploy` (+ seed nếu DB trống) trước khi mở cửa sổ.
+  - `next.config.*`: thêm `output: 'standalone'`; giữ `serverExternalPackages` (pdf-parse/pdfjs-dist/mammoth).
+  - API key: đọc từ Settings/AIModelConfig (M10) hoặc env do shell inject; xác nhận không đọc `.env` repo (project rule 3).
+- **Không được làm:** không đổi entity/feature/web behavior; không hardcode path/model string; không dời DB dev; không đóng gói installer (đó là M12).
+- **Báo cáo:** log boot production + đường dẫn DB userData + kết quả first-run migrate + xác nhận không regression.
+- **Ước lượng token:** ~40–55K (~20–28%). 1 phiên.
+
+## ════ M12 — Packaging: application + installer (unsigned) ════
+**① Điều kiện tiên quyết:** M11 pass (shell production chạy đúng Win + Mac).
+**② Output:** installer `.exe` (Win, có shortcut Desktop + icon) build local; `.dmg` (Mac) build qua GitHub Actions macOS runner. Unsigned.
+**③ Gate:** [ ] `.exe` cài trên Win, tạo shortcut Desktop + icon, mở app chạy [ ] app đọc/ghi DB ở userData sau cài [ ] workflow CI build ra `.dmg` trên `macos-latest` [ ] artifacts tải về được.
+**④ Prompt:**
+- **Vai trò:** Release engineer đóng gói Electron đa nền tảng.
+- **Nhiệm vụ:** cấu hình electron-builder (nsis + dmg, unsigned) + icon + CI macOS; ra artifacts.
+- **Đọc theo thứ tự:** `electron/main.js` (M11) → `package.json` → `RULES.md` (packaging-friendly constraints 99–113) → `ToFill.md`.
+- **Tạo/sửa file + cấu trúc:**
+  - devDep `electron-builder`; scripts `dist` / `dist:win` / `dist:mac`.
+  - `electron-builder.yml` (hoặc `package.json > build`): Win `nsis` (`createDesktopShortcut:true`, `createStartMenuShortcut`, icon `.ico`); Mac `dmg` (icon `.icns`, `mac.identity:null`); `asarUnpack` Prisma engines + node-only deps (pdf-parse/pdfjs-dist/mammoth) + standalone server; `extraResources` migrations/seed nếu cần first-run.
+  - Icon: `build/icon.ico`, `build/icon.icns`, `build/icon.png` (nguồn 1024px).
+  - `.github/workflows/desktop-build.yml`: job `windows-latest` build `.exe`, job `macos-latest` build `.dmg`, trigger tag `v*`, upload artifacts / Release.
+- **Không được làm:** không code-sign (chấp nhận cảnh báo OS); không đổi runtime logic M11; không đổi scope web.
+- **Báo cáo:** đường dẫn artifacts (Win local + Mac CI) + xác nhận cài chạy được.
+- **Ước lượng token:** ~35–45K (~18–23%). 1 phiên.
+- **Việc user phải tự làm:** tạo GitHub repo + push remote (để chạy macOS CI) — xem `ToFill.md`.
+
+---
+
 ## Thứ tự & phụ thuộc
-`M0→M1→M2→M3→M4→M5(gate)→M6⭐→M7⭐→M8→M9→M10`. M6, M7 nên chia 2 phiên. Sau mỗi mốc: commit `Mx: <goal>`, `/clear` trước mốc kế.
+`M0→M1→M2→M3→M4→M5(gate)→M6⭐→M7⭐→M8→M9→M10` (web MVP) `→M11→M12` (desktop post-MVP). M6, M7 nên chia 2 phiên. Sau mỗi mốc: commit `Mx: <goal>`, `/clear` trước mốc kế.
 
 ## §I Nguyên tắc chia task trong 1 mốc
 validator → API route → component → page wiring → test. API AI luôn theo pattern P0.3. Không tạo file ngoài mốc. Enum chỉ từ `lib/constants.ts`. Không hardcode model string.

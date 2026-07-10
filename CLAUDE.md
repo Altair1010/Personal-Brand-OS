@@ -103,9 +103,11 @@ STATE/MEMORY). Không bao giờ ghi giá trị bí mật vào file này.
 Files live in the project root (`F:\Codex\Personal Brand OS\<file>`).
 
 ### Read order (every session start — read BEFORE acting, in this order)
-1. **`STATE.md`** — sprint view: where we are, what's next, what's blocked.
+1. **`STATE.md`** — sprint POINTER: where we are, what's next, what's blocked.
+   Milestone id + one-line status ONLY; no technical detail (that's MEMORY's job).
 2. **`plan.md`** + **`todo.md`** — the active task's live "how" + checklist (skip if empty).
-3. **`MEMORY.md`** — lasting decisions/patterns/bug-workarounds so you don't relitigate.
+3. **`MEMORY.md`** — the RECORD: lasting decisions/patterns/bug-workarounds, one entry
+   per milestone holding the full detail, so you don't relitigate. STATE points here.
 4. **`RULES.md`** — hard rules (project + engine) that gate every change.
 5. **`SPEC.md`** — Goal/Scope/Acceptance contract; re-read when scope is in question.
 6. **`LOOP.md`** — pick which loop to run (milestone loop vs triage loop).
@@ -118,7 +120,8 @@ Files live in the project root (`F:\Codex\Personal Brand OS\<file>`).
   journey* (a reusable loop worth naming), define or refine that loop here. Every task
   runs through a loop; when the loop shape changes, LOOP.md changes.
 - **`MEMORY.md`** — after **every** task is done: distill the lasting decision/pattern
-  here *before* clearing plan.md/todo.md. One entry = one fact.
+  here *before* clearing plan.md/todo.md. One entry = one fact. This is where ALL durable
+  technical detail lives — STATE.md only points at it (RULES.md > "STATE vs MEMORY").
 - **`plan.md`** — when a new plan forms. In **plan mode**, write the plan to `plan.md`
   and reference its path — do NOT paste hundreds of plan lines into CLAUDE.md, STATE.md,
   or the chat. plan.md is the single home for the live "how".
@@ -126,7 +129,9 @@ Files live in the project root (`F:\Codex\Personal Brand OS\<file>`).
 - **`RULES.md`** — append a project rule the moment a new hard constraint surfaces.
 - **`SPEC.md`** — keep the Trellis spec (Goal / Scope / Acceptance) in sync when scope
   changes.
-- **`STATE.md`** — sprint-level view; agent-managed. Update at session start/end.
+- **`STATE.md`** — sprint-level POINTER; agent-managed. Update at session start/end.
+  When a milestone passes: write full detail to MEMORY, collapse STATE to one pointer
+  line. Never let a technical paragraph live in STATE (RULES.md > "STATE vs MEMORY").
 - **`ToFill.md`** — the moment a milestone introduces anything the USER must do by hand
   before go-live (fill an API key/secret, pick a config value, run a live smoke-test that
   needs a key), append it there — one line per item, grouped by category. It is the single

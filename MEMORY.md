@@ -244,7 +244,48 @@
   →assert row-count+field khớp; afterAll rmSync). build 0 err · **vitest 67/67 (14 file, +6)** · seed
   idempotent 12/12. Gate: scope-guard 0 BLOCKER · milestone-verifier M10 DONE (feature-spec #8 đủ).
   Delegated: pbos-data-modeler (seedCore+backup) · trellis-implement (actions/UI/route/polish/README)
-  · agent-skills:test-engineer (round-trip test). **Web MVP M0–M10 khép kín — còn M11 Electron.**
+  · agent-skills:test-engineer (round-trip test). **Web MVP M0–M10 khép kín — còn desktop M11+M12.**
+
+- [2026-07-11] **M11 DONE** (Desktop runtime cross-platform — Electron production boot).
+  `next.config.ts` +`output:'standalone'` (giữ `serverExternalPackages`) → `next build` sinh
+  `.next/standalone/server.js` + traces `@prisma/client`/`.prisma/client` (query_engine DLL 20MB)
+  + pdf-parse/pdfjs-dist/mammoth vào `standalone/node_modules` (không cần asarUnpack cho unpackaged
+  test; M12 lo packaged). **`electron/main.js` rẽ 2 nhánh:** dev = `startNextDev` (spawn `next dev`,
+  BYTE-FOR-BYTE như Phase A — dev path giữ nguyên) · prod = `startNextProd` khi `app.isPackaged ||
+  argv.includes('--prod')`. **`electron/runtime.js` (NEW) = env/path plumbing thuần:** `isProd`,
+  `resolveDatabaseUrl` (dev→`file:prisma/dev.db` unchanged · prod→`file:<app.getPath('userData')>/
+  pbos.db`, mkdir recursive), `loadUserEnv` (parse `userData/pbos.env` KEY=VALUE, strip quote/#;
+  thiếu file→`{}`, app vẫn boot, AI báo "thiếu key" — **KHÔNG đọc repo `.env`**, rule 3),
+  `prepareStandaloneAssets` (Next standalone KHÔNG tự copy `.next/static`+`public` → `fs.cpSync` cạnh
+  `server.js`; skip khi `app.isPackaged`), `firstRunSetup` (spawn `migrate deploy` LUÔN idempotent +
+  seed CHỈ khi `dbExistedBefore=false` — chạy TRƯỚC khi mở window; migrate fail→dialog.showErrorBox+
+  quit, không mở window trắng). **Spawn = `process.execPath` + `ELECTRON_RUN_AS_NODE:'1'`** cho cả
+  server (`server.js`, cwd=standaloneDir, env PORT/HOSTNAME='127.0.0.1'/DATABASE_URL/NODE_ENV=production
+  + injectedKeys) và migrate/seed. **Gotcha (reusable): `prisma db seed` shell ra bare `tsx` → PATH
+  fail dưới Electron** (giống M2 `npx prisma` fail); fix = spawn `node_modules/tsx/dist/cli.mjs
+  prisma/seed.ts` trực tiếp. **Prisma CLI (`node_modules/prisma/build/index.js`) tự nạp repo `.env`
+  lúc migrate** nhưng ta truyền `DATABASE_URL` explicit → dotenv KHÔNG override (default) → migrate
+  đúng userData DB, không đụng dev.db. package.json +`build:desktop`(`next build`) +`app:prod`
+  (`electron electron/main.js --prod`). **Verify không cần GUI (headless):** migrate deploy→2
+  migration applied · seed qua tsx→6 ContentObjective/4 Framework/AppState/AIModelConfig · boot
+  `server.js` thật→HTTP 200 `/`+`/settings` · `/api/backup` (đọc DB) trả seeded "Khang Guru" =
+  Prisma client+engine trong standalone query đúng DB userData-relocated. vitest **67/67** 0
+  regression. Gate: scope-guard PASS 4/4 (rule-3 `.env` sạch, 0 hardcoded path/model, DB behind
+  DATABASE_URL, 0 entity/feature creep). **Còn 1 bước MANUAL user (headless env không mở GUI):** chạy
+  `npm run build:desktop && npm run app:prod` xác nhận cửa sổ Electron mở + load app (→ToFill.md §3).
+  **M12 TODO đã note trong code:** packaged build cần bundle tsx+seed+prisma CLI qua extraResources
+  (`runtime.js` schemaDir=root chỉ đúng cho unpackaged).
+
+## Desktop (M11 + M12) — scope & quyết định [2026-07-11]
+Desktop tách 2 mốc (viết ở `docs/milestones.md` PHẦN 3B). Web M0–M10 vốn cross-platform (audit path
+sạch: mọi path qua `path.join/resolve`+`__dirname`, 0 hardcoded `C:\`/`/Users/`; DB qua `DATABASE_URL`).
+`electron/main.js` hiện = dev window (spawn `next dev`), main=electron/main.js, script `app`.
+- **M11 runtime:** main.js `next dev`→production (Next `output:'standalone'` + Electron node
+  `ELECTRON_RUN_AS_NODE=1`); DB→`app.getPath('userData')`; first-run `migrate deploy`; key runtime.
+- **M12 packaging:** electron-builder — Win `nsis` `.exe` (shortcut+icon, build local) + Mac `dmg`
+  (build qua GitHub Actions `macos-latest`, KHÔNG cross-build từ Win). **Unsigned** (chốt với user:
+  chấp nhận SmartScreen/Gatekeeper). asarUnpack Prisma engines + pdf-parse/pdfjs-dist/mammoth.
+- **User action (ToFill.md):** tạo GitHub repo + push remote để chạy Mac CI (repo chưa có remote).
 
 ## Convention tracker
 <!-- naming, structure, style rules discovered in this repo -->

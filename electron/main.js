@@ -1,31 +1,74 @@
-// Electron desktop shell (milestone M11, Phase A — dev window).
-// Boots the existing Next.js server as a child process and points a window at it.
-// MUST NOT change any web behavior — it only wraps the running app. See RULES.md >
-// "Approved scope exceptions". Phase B (production installer + Prisma engine bundling) later.
+// Electron desktop shell (milestone M11).
+// Two boot modes, selected at runtime — the wrapper NEVER changes web behavior, it only
+// boots the existing Next server and points a window at it (RULES.md > "Approved scope exceptions"):
+//   - dev  (default): spawn `next dev` (unchanged from Phase A).
+//   - prod (packaged, or local `--prod`): boot the Next `output:'standalone'` server with
+//     Electron's own node, DB relocated to userData, first-run migrate, API key from userData/pbos.env.
 
-const { app, BrowserWindow, shell } = require("electron");
+const { app, BrowserWindow, shell, dialog } = require("electron");
 const { spawn } = require("child_process");
 const path = require("path");
+const fs = require("fs");
 const http = require("http");
+const rt = require("./runtime");
 
 const PORT = process.env.PBOS_PORT || "3005";
 const APP_URL = `http://localhost:${PORT}`;
 const ROOT = path.join(__dirname, "..");
+const PROD = rt.isProd(app, process.argv);
 
 let serverProc = null;
 let win = null;
 
-function startNext() {
+// ── dev boot (unchanged) ──────────────────────────────────────────────────────
+function startNextDev() {
   const nextBin = path.join(ROOT, "node_modules", "next", "dist", "bin", "next");
   serverProc = spawn(
     process.platform === "win32" ? "node.exe" : "node",
     [nextBin, "dev", "-p", PORT],
-    {
-      cwd: ROOT,
-      env: { ...process.env, PORT },
-      stdio: "inherit",
-    },
+    { cwd: ROOT, env: { ...process.env, PORT }, stdio: "inherit" },
   );
+  serverProc.on("exit", () => {
+    serverProc = null;
+  });
+}
+
+// ── production boot ───────────────────────────────────────────────────────────
+// Returns the standalone server path once the child is spawned. Throws (caller aborts)
+// if the production build is missing — never open a blank window against nothing.
+async function startNextProd() {
+  const paths = rt.resolvePaths(app, ROOT);
+  if (!fs.existsSync(paths.standaloneServer)) {
+    throw new Error(
+      `Production build missing: ${paths.standaloneServer}. Run \`npm run build:desktop\` first.`,
+    );
+  }
+
+  const databaseUrl = rt.resolveDatabaseUrl(app, ROOT, true);
+  const dbExistedBefore = fs.existsSync(rt.dbFileFromUrl(databaseUrl));
+  const injectedKeys = rt.loadUserEnv(app);
+
+  rt.prepareStandaloneAssets(app, paths);
+  await rt.firstRunSetup({
+    execPath: process.execPath,
+    paths,
+    databaseUrl,
+    dbExistedBefore,
+  });
+
+  serverProc = spawn(process.execPath, [paths.standaloneServer], {
+    cwd: paths.standaloneDir,
+    env: {
+      ...process.env,
+      ...injectedKeys,
+      ELECTRON_RUN_AS_NODE: "1",
+      NODE_ENV: "production",
+      PORT,
+      HOSTNAME: "127.0.0.1",
+      DATABASE_URL: databaseUrl,
+    },
+    stdio: "inherit",
+  });
   serverProc.on("exit", () => {
     serverProc = null;
   });
@@ -65,7 +108,7 @@ function createWindow() {
   });
 }
 
-// Kill the Next server (and its worker children) on shutdown.
+// Kill the child server (and its worker children) on shutdown.
 function shutdown() {
   if (!serverProc) return;
   const pid = serverProc.pid;
@@ -81,8 +124,16 @@ function shutdown() {
   }
 }
 
-app.whenReady().then(() => {
-  startNext();
+app.whenReady().then(async () => {
+  try {
+    if (PROD) await startNextProd();
+    else startNextDev();
+  } catch (err) {
+    console.error("[pbos]", err.message);
+    dialog.showErrorBox("Personal Brand OS — boot failed", err.message);
+    app.quit();
+    return;
+  }
   waitForServer((err) => {
     if (err) console.error("[pbos]", err.message);
     createWindow();

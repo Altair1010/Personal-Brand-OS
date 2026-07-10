@@ -30,11 +30,14 @@ insight + adjustment with no manual editing.
 Company tab, time-series metrics, sentiment, image generation, multi-user/auth/cloud,
 multi-platform, TipTap/rich text.
 
-**Approved exception — Desktop wrapper (Electron), milestone M11 (post-M10):** wrap the
-existing Next.js localhost app in an Electron window (icon + own window, no browser). It
-boots the same Next server + Prisma — no feature/entity change. Phase A = dev window (now);
-Phase B = production installer + Prisma engine bundling (later). See RULES.md > "Approved
-scope exceptions".
+**Approved exception — Desktop app (Electron), split into M11 + M12 (post-M10):** wrap the
+existing Next.js localhost app in an Electron window (icon + own window, no browser). Boots the
+same Next server + Prisma — no feature/entity change.
+- **M11 — runtime cross-platform:** boot the production build in Electron on Win + Mac; relocate
+  SQLite to the OS user-data dir; first-run `migrate deploy`; API key from runtime (not repo `.env`).
+- **M12 — packaging (unsigned):** `.exe` installer (Win, NSIS, desktop shortcut + icon) built
+  locally; `.dmg` (Mac) built via GitHub Actions `macos-latest` runner (no cross-build from Win).
+See RULES.md > "Approved scope exceptions".
 
 ## Constraints (hard — full list in RULES.md)
 - Stack: Next.js App Router + TS + Tailwind + shadcn/ui + Prisma + SQLite + Recharts +

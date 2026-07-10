@@ -10,6 +10,8 @@
     "lint": "next lint",
     "db:seed": "prisma db seed",
     "app": "electron electron/main.js",
+    "build:desktop": "next build",
+    "app:prod": "electron electron/main.js --prod",
     "test": "vitest run"
   },
   "prisma": {

@@ -11,19 +11,24 @@
   `/clear` session, VERIFY-gated.
 
 ## In-progress
-- (none) — **web MVP M0–M10 hoàn tất**. Next: **M11 — Electron wrapper** (post-MVP, đã duyệt scope).
+- (none) — **web MVP M0–M10 + M11 (desktop runtime) hoàn tất**. Còn **M12 (packaging)**.
 
 ## Blocked
 - (none)
 
 ## Completed
 - **M0–M10 DONE** (M10 = Settings + Backup + Polish — web MVP mốc cuối). Detail + patterns → MEMORY.md.
+- **M11 DONE** (Desktop runtime — Electron production boot standalone + DB→userData + first-run migrate/seed
+  + key từ `userData/pbos.env`). Verify headless full (build/migrate/seed/boot 200/route đọc DB), vitest 67/67,
+  scope-guard PASS. Còn 1 bước MANUAL: boot GUI Electron (`npm run app:prod`) — headless env không mở màn hình (ToFill §3).
 - Live D.1–D.15 AI smoke (needs API key) still deferred → ToFill.md §3.
+- Desktop scope M11 cũ (Electron gộp) đã **tách đôi** → M11 runtime + M12 packaging (milestones.md PHẦN 3B).
 
 ## Next
-- **M11 — Electron wrapper** (RULES.md > "Approved scope exceptions"): Phase A dev window boot
-  Next server + point window; KHÔNG đổi web behavior/entity/scope. Phase B (sau) = installer +
-  bundle Prisma engine + SQLite → OS user-data dir. Fresh `/clear` session.
+- **M12 — Packaging (unsigned)**: electron-builder — `.exe` installer (Win, local, NSIS shortcut+icon) +
+  `.dmg` (Mac qua GitHub Actions `macos-latest`). asarUnpack Prisma engines + externals; **extraResources
+  bundle tsx+seed+prisma CLI** (M11 note: `runtime.js` paths chỉ đúng unpackaged). Cần user tạo GitHub
+  remote trước (ToFill §4). Fresh `/clear`.
 
 ## Env
 - Git: repo init'd, `master` branch, identity = minhkhang.guru (local). No remote yet.
