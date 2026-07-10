@@ -5,6 +5,7 @@
 import { z } from "zod";
 import type { PromptModule } from "@/lib/ai/run";
 import { OBJECTIVES, HOOK_STYLES } from "@/lib/constants";
+import { sanitizeExternal } from "@/lib/ai/sanitize";
 
 export const hookInputSchema = z.object({
   topic: z.string().min(1),
@@ -72,13 +73,13 @@ export const hookModule: PromptModule<HookInput, HookOutput> = {
   buildUser: (input) => {
     const personaDesc =
       typeof input.persona["pain"] === "string"
-        ? `Nỗi đau: ${input.persona["pain"]}`
+        ? `Nỗi đau: ${sanitizeExternal(input.persona["pain"], "paste")}`
         : typeof input.persona["name"] === "string"
-          ? `Persona: ${input.persona["name"]}`
+          ? `Persona: ${sanitizeExternal(input.persona["name"], "paste")}`
           : "";
 
     return `Sinh ${input.count} hook cho chủ đề sau:
-- Topic: ${input.topic}
+- Topic: ${sanitizeExternal(input.topic, "paste")}
 - Objective: ${input.objectiveKey}
 ${personaDesc ? `- ${personaDesc}` : ""}
 

@@ -5,6 +5,7 @@
 import { z } from "zod";
 import type { PromptModule } from "@/lib/ai/run";
 import { OBJECTIVES, CTA_INTENSITY } from "@/lib/constants";
+import { sanitizeExternal } from "@/lib/ai/sanitize";
 
 export const ctaInputSchema = z.object({
   objectiveKey: z.enum(OBJECTIVES),
@@ -66,11 +67,13 @@ export const ctaModule: PromptModule<CtaInput, CtaOutput> = {
   buildUser: (input) => {
     const goalDesc =
       typeof input.goal["mainGoal"] === "string"
-        ? input.goal["mainGoal"]
+        ? sanitizeExternal(input.goal["mainGoal"], "paste")
         : typeof input.goal["description"] === "string"
-          ? input.goal["description"]
-          : JSON.stringify(input.goal).slice(0, 200);
-    const offerLine = input.offer ? `\n- Offer: ${input.offer}` : "";
+          ? sanitizeExternal(input.goal["description"], "paste")
+          : sanitizeExternal(JSON.stringify(input.goal).slice(0, 200), "paste");
+    const offerLine = input.offer
+      ? `\n- Offer: ${sanitizeExternal(input.offer, "paste")}`
+      : "";
 
     return `Sinh CTA cho thông tin sau:
 - Objective: ${input.objectiveKey}
