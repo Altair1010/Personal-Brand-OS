@@ -8,13 +8,30 @@
   `/clear` session, VERIFY-gated.
 
 ## In-progress
-- (empty — M6 done on master; M7 next: Content Studio (plain text) + Calendar ⭐ mốc lớn,
-  chia 2 phiên.)
+- **M7 chia 2 phiên — 7a DONE (commit `M7a` 797e5b6), 7b NEXT.** 7b = UI: `studio/page.tsx`
+  (list) + `studio/[draftId]/page.tsx` (editor 3 textarea Hook/Body/Ending, plain text) +
+  `calendar/page.tsx` + `components/content/*` + `studio/actions.ts`. Owner trellis-implement;
+  gate scope-guard → trellis-check → milestone-verifier (M7 full). Plan:
+  `~/.claude/plans/read-f-codex-personal-brand-resilient-shell.md`. Fresh `/clear` cho 7b.
 
 ## Blocked
 - (none)
 
 ## Completed this session
+- **M7a — Content AI modules + routes + engine PASS (partial M7).** D.8 `post-writer` (temp 0.7,
+  out hook/body/ending/hashtags≤8/imageSuggestion + hookStyle/ctaIntensity/format `z.enum` từ
+  constants + estimatedReadTime), D.9 `hook`, D.10 `cta`, D.11 `tone` (temp 0.5). Mọi enum
+  `z.enum(constants)`; `sanitizeExternal(...,"paste")` bọc user-paste (tone.text, post-writer
+  idea/cta) trong buildUser (mẫu brand-dna). 4 route pass-through `runtime=nodejs` (mẫu
+  weekly-plan). `lib/content-engine/approveDraft` = `$transaction`: THROW nếu thiếu
+  strategyVersionId (max version của AppState.activeStrategyId) HOẶC dailyPlanId (draft→
+  contentIdea→dailyPlanId); mirror analytic dims; guard 1 Post/draft (contentDraftId @unique);
+  finalText ghép hook/body/ending. `draftVersioning` bump version max+1. Seed +4 PromptTemplate
+  idempotent (total 10). KHÔNG migration. Verified: build 0 err · vitest **43/43** (9 file) ·
+  seed 2× stable. QA: pbos-scope-guard **0 BLOCKER** (5 WARN nhẹ: sanitize đã fix; "posted"/
+  "facebook" hardcode nhưng ∈POST_STATUS/MVP-only). Orchestration: pbos-prompt-engineer
+  (prompts+routes+tests+sanitize fix) + pbos-data-modeler (engine+seed); gate qua scope-guard.
+  Live D.8–D.11 smoke (cần key) deferred → ToFill.md §3. **7b (UI) chưa làm.**
 - **M6 — Strategy Builder 30d + Versioning + Export PASS.** Layered generator chống truncation:
   D.4 `strategy` (temp 0.3, `weeklyThemes` ép `.length(5)`, contentRatio+objectivesMix normalize
   ở code) sinh khung tháng KHÔNG dailyPlan → D.6 `weekly-plan` gọi **5 lần** (server action

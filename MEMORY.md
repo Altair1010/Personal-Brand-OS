@@ -120,6 +120,20 @@
   (strategy/weekly-plan/content-idea) → PromptTemplate=6. build 0 err · vitest 22/22 · seed idempotent.
   QA: scope-guard 0 BLOCKER · trellis-check 0 issue · verifier M6 DONE. Live D.4/D.6 smoke → ToFill.md §3.
 
+- [2026-07-10] **M7a PASS (partial M7 — AI + engine only).** D.8 `post-writer` / D.9 `hook` /
+  D.10 `cta` / D.11 `tone` modules + 4 pass-through routes + engine. **Gotcha (reusable): `runModule`
+  does NOT sanitize centrally** — its header comment "sanitizeExternal handled in buildUser input"
+  means each PromptModule must wrap external free-text itself. `sanitizeExternal(text, source)` needs
+  a mandatory `source: "upload"|"paste"`; wrapped tone.text + post-writer idea/cta with `"paste"`
+  (pattern = `lib/prompts/brand-dna.ts:93`). Enum-output fields all `z.enum(constants)`.
+  `lib/content-engine/approveDraft.ts` = the attribution enforcer: `$transaction`, **THROWS unless
+  BOTH** `strategyVersionId` (latest version of `AppState.activeStrategyId`) AND `dailyPlanId`
+  (draft→contentIdea→dailyPlanId) present — no partial-attribution Post; mirrors analytic dims onto
+  Post; 1 Post/draft via `contentDraftId @unique` guard. `draftVersioning` bumps `version=max+1`.
+  Seed +4 PromptTemplate → total 10. NO migration (ContentDraft/Post/MetricSnapshot already complete).
+  build 0 err · vitest 43/43 (9 files) · seed idempotent. scope-guard 0 BLOCKER. **7b (Studio/Calendar
+  UI + studio/actions.ts) NOT done** — separate session, owner trellis-implement.
+
 ## Convention tracker
 <!-- naming, structure, style rules discovered in this repo -->
 - Project docs are staged in `Z-NeededUpdate/docs/` until M0 promotes them to `docs/`.
