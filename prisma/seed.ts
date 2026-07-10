@@ -447,6 +447,66 @@ async function main() {
     },
   });
 
+  // 9g. PromptTemplate — post-writer (M7 content engine).
+  await db.promptTemplate.upsert({
+    where: { moduleKey_version: { moduleKey: "post-writer", version: 1 } },
+    update: {},
+    create: {
+      moduleKey: "post-writer",
+      version: 1,
+      name: "Post Writer",
+      isActive: true,
+      systemInstruction:
+        "Post Writer — canonical prompt lives in lib/prompts/post-writer.ts (source of truth); this row exists so PromptRun can reference a template.",
+      userTemplate: "",
+    },
+  });
+
+  // 9h. PromptTemplate — hook generator (M7 content engine).
+  await db.promptTemplate.upsert({
+    where: { moduleKey_version: { moduleKey: "hook", version: 1 } },
+    update: {},
+    create: {
+      moduleKey: "hook",
+      version: 1,
+      name: "Hook Generator",
+      isActive: true,
+      systemInstruction:
+        "Hook Generator — canonical prompt lives in lib/prompts/hook.ts (source of truth); this row exists so PromptRun can reference a template.",
+      userTemplate: "",
+    },
+  });
+
+  // 9i. PromptTemplate — CTA writer (M7 content engine).
+  await db.promptTemplate.upsert({
+    where: { moduleKey_version: { moduleKey: "cta", version: 1 } },
+    update: {},
+    create: {
+      moduleKey: "cta",
+      version: 1,
+      name: "CTA Writer",
+      isActive: true,
+      systemInstruction:
+        "CTA Writer — canonical prompt lives in lib/prompts/cta.ts (source of truth); this row exists so PromptRun can reference a template.",
+      userTemplate: "",
+    },
+  });
+
+  // 9j. PromptTemplate — tone adjuster (M7 content engine).
+  await db.promptTemplate.upsert({
+    where: { moduleKey_version: { moduleKey: "tone", version: 1 } },
+    update: {},
+    create: {
+      moduleKey: "tone",
+      version: 1,
+      name: "Tone Adjuster",
+      isActive: true,
+      systemInstruction:
+        "Tone Adjuster — canonical prompt lives in lib/prompts/tone.ts (source of truth); this row exists so PromptRun can reference a template.",
+      userTemplate: "",
+    },
+  });
+
   // --- count table ---
   const counts = {
     UserProfile: await db.userProfile.count(),
