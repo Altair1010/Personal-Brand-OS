@@ -507,6 +507,21 @@ async function main() {
     },
   });
 
+  // 9k. PromptTemplate — D.14 performance analyzer (M8 performance lab).
+  await db.promptTemplate.upsert({
+    where: { moduleKey_version: { moduleKey: "performance", version: 1 } },
+    update: {},
+    create: {
+      moduleKey: "performance",
+      version: 1,
+      name: "Performance Analyzer",
+      isActive: true,
+      systemInstruction:
+        "Performance Analyzer — canonical prompt lives in lib/prompts/performance.ts (source of truth); this row exists so PromptRun can reference a template.",
+      userTemplate: "",
+    },
+  });
+
   // --- count table ---
   const counts = {
     UserProfile: await db.userProfile.count(),

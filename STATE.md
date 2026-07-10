@@ -1,151 +1,30 @@
 # STATE.md — loop state tracker
 
-> Sprint-level view. Read this first each session, then drill into plan.md (the how)
-> and todo.md (the checklist). Keep all three in sync (see RULES.md).
+> Sprint-level POINTER, not a logbook. Read first each session, then drill into
+> plan.md (the how) + todo.md (the checklist). Keep all three in sync (RULES.md).
+> **No technical detail here** — milestone id + one-line status only. Full
+> decisions/patterns live in MEMORY.md (one entry per milestone). See RULES.md >
+> "STATE vs MEMORY".
 
 ## Sprint goals
 - Ship the Personal Brand OS MVP across `M0 -> M10` (see SPEC.md), one milestone per
   `/clear` session, VERIFY-gated.
 
 ## In-progress
-- (none) — M7 FULL DONE. Next mốc: **M8 — Performance Lab**.
+- (none) — next milestone: **M9 — Weekly Review / Revision Engine**.
 
 ## Blocked
 - (none)
 
-## Completed this session
-- **M7 phiên B (7b) — Content Studio UI + Calendar PASS → M7 FULL DONE (commit `M7` 30c645d).**
-  UI layer: `studio/actions.ts` (server action: getStudioData/getDraft/getCalendarData/
-  createDraftFromIdea/saveDraft/approveDraftAction — DTO serializable, USER_ID="local",
-  ActionResult, revalidatePath), `studio/page.tsx` (list draft + tạo từ ContentIdea),
-  `studio/[draftId]/page.tsx` (editor), `calendar/page.tsx` (30 ngày theo DailyPlan active
-  strategy). 12 `components/content/*`: StructuredEditor (3 textarea Hook/Body/Ending plain
-  text, KHÔNG TipTap), ObjectiveSelect/FrameworkSelect/EnumSelect (enum từ constants),
-  HookGeneratorPanel/CtaGeneratorPanel/ToneRewriter (fetch route `/api/ai/*`, không import key
-  client), StatusStepper (POST_STATUS), CalendarMonth/DayCell/PostChip (OBJECTIVE_COLORS).
-  saveDraft → bumpDraftVersion (+1) + update analytic dims (z.enum-guard, giá trị ngoài enum bị
-  bỏ). approveDraftAction → engine approveDraft (throw nếu thiếu strategyVersionId/dailyPlanId,
-  UI hiện lỗi không nuốt). **Fix BLOCKER (scope-guard bắt): hook.ts + cta.ts thiếu
-  sanitizeExternal cho user-controlled fields (topic/persona/goal/offer) — đã bọc
-  `sanitizeExternal(...,"paste")` theo pattern post-writer/tone; DraftEditor thêm enum-guard
-  `inEnum()` cho AI output.** Verified: build 0 err · vitest **43/43** (9 file) · seed 2×
-  idempotent (PromptTemplate=10). Gate: pbos-scope-guard **0 BLOCKER** (2 WARN nhẹ đã xử) →
-  trellis-check **PASS 0 issue** → pbos-milestone-verifier **M7 DONE** (6 VERIFY gate + feature-
-  spec #5). Orchestration: trellis-implement (UI) + main (fix BLOCKER); gate 3 agent. Live
-  D.8–D.11 smoke (cần key) vẫn deferred → ToFill.md §3.
-- **M7a — Content AI modules + routes + engine PASS (partial M7).** D.8 `post-writer` (temp 0.7,
-  out hook/body/ending/hashtags≤8/imageSuggestion + hookStyle/ctaIntensity/format `z.enum` từ
-  constants + estimatedReadTime), D.9 `hook`, D.10 `cta`, D.11 `tone` (temp 0.5). Mọi enum
-  `z.enum(constants)`; `sanitizeExternal(...,"paste")` bọc user-paste (tone.text, post-writer
-  idea/cta) trong buildUser (mẫu brand-dna). 4 route pass-through `runtime=nodejs` (mẫu
-  weekly-plan). `lib/content-engine/approveDraft` = `$transaction`: THROW nếu thiếu
-  strategyVersionId (max version của AppState.activeStrategyId) HOẶC dailyPlanId (draft→
-  contentIdea→dailyPlanId); mirror analytic dims; guard 1 Post/draft (contentDraftId @unique);
-  finalText ghép hook/body/ending. `draftVersioning` bump version max+1. Seed +4 PromptTemplate
-  idempotent (total 10). KHÔNG migration. Verified: build 0 err · vitest **43/43** (9 file) ·
-  seed 2× stable. QA: pbos-scope-guard **0 BLOCKER** (5 WARN nhẹ: sanitize đã fix; "posted"/
-  "facebook" hardcode nhưng ∈POST_STATUS/MVP-only). Orchestration: pbos-prompt-engineer
-  (prompts+routes+tests+sanitize fix) + pbos-data-modeler (engine+seed); gate qua scope-guard.
-  Live D.8–D.11 smoke (cần key) deferred → ToFill.md §3. **7b (UI) chưa làm.**
-- **M6 — Strategy Builder 30d + Versioning + Export PASS.** Layered generator chống truncation:
-  D.4 `strategy` (temp 0.3, `weeklyThemes` ép `.length(5)`, contentRatio+objectivesMix normalize
-  ở code) sinh khung tháng KHÔNG dailyPlan → D.6 `weekly-plan` gọi **5 lần** (server action
-  `generateStrategy`, `runModule` trực tiếp, `daysInWeek=DAYS_PER_WEEK[i]`) → `assembleStrategy`
-  ghép **[7,7,7,7,2]=30 ngày** (dayIndex liên tục 1..30, name→pillarId, objective ngoài enum →
-  fallback "educate"). `versioning.createStrategyVersion`: reason rỗng → throw (invariant), version
-  `max+1` không xóa cũ, set `AppState.activeStrategyId` + link `aiPromptRunId`, ghi WeeklyPlan+DailyPlan
-  trong 1 transaction. D.7 `content-idea` **prompt-only** (không route — M7 dùng). Export:
-  `markdown.strategyVersionToMarkdown` (đủ field) + `/api/export` ghi ExportHistory; client tải .md
-  qua Blob. UI: `strategy/page.tsx` giữ gate `audienceApprovedAt`, `StrategyWizard`+`FrameworkPicker`
-  +`StrategyPreview`+`WeeklyThemeTimeline` (TanStack Query, DTO serializable, Json parse type-guard,
-  no `any`). Seed +3 PromptTemplate idempotent (PromptTemplate=6). Verified: build 0 err · vitest
-  **22/22** · seed 2× identical. QA: scope-guard 0 BLOCKER (3 WARN vô hại: dual export path, 2 route
-  AI pass-through, objective fallback) · trellis-check 0 issue · milestone-verifier **M6 DONE**.
-  Orchestration: pbos-prompt-engineer (prompts+routes+test) + pbos-data-modeler (engine+versioning
-  +export+seed) + trellis-implement (UI); gate qua scope-guard + trellis-check + milestone-verifier.
-  Live D.4/D.6 smoke deferred → ToFill.md §3.
-- **M5 — Audience & Pillars + REVIEW GATE PASS.** D.2 `audience` (2–4 persona) + D.3 `pillars`
-  (3–5 pillar) modules; objectiveMix enum keys built from `OBJECTIVES` (LLM never sets enum).
-  **Ratio normalized in code 3× (module normalize hook + server savePillars + RatioBar)** via
-  `lib/strategy-engine/normalizeRatio.ts` (largest-remainder, sum=100 exact). **Review gate =
-  `AppState.audienceApprovedAt DateTime?`** (migration `audience_approval`): ApproveGate disabled
-  until 2 checkboxes + saved + not-dirty; server `approveAudience` re-guards ≥2 persona & ≥3 pillar;
-  Strategy page renders locked EmptyState when `approvedAt` null (no auto-chain; manual link only);
-  edit-after-approve → resetApproval. Server actions diff-delete scoped by {userId,goalId}. Client
-  fetches `/api/ai/{audience,pillars}` only. Verified: build 0 err · 19/19 vitest · seed idempotent
-  2× (PromptTemplate=3). QA: scope-guard 0 BLOCKER (1 WARN fixed: pillar floor 1→3) · verifier M5
-  DONE. Delegated: pbos-data-modeler + pbos-prompt-engineer + trellis-implement; gate via
-  scope-guard + milestone-verifier. Live D.2/D.3 smoke deferred → ToFill.md §3.
-
-## Completed earlier this session
-- **M4 — AI Layer + Guard + Brand Analyzer (D.1) PASS.** Shared `lib/ai/*` pipeline (P0.3) +
-  D.1 wired into onboarding. Raw-fetch adapter (no SDK) to Anthropic Messages API + OpenAI
-  chat/completions; **temperature capability guard** (omit for opus-4-7/4-8/fable-5, else 400);
-  model from AIModelConfig || env AI_DEFAULT_MODEL (no hardcode). `runModule` = validateInput →
-  sanitizeExternal(<<DATA>> injection guard) → GLOBAL_CONTRACT+system → call → safeJsonParse →
-  zod validate → repairOnce → savePromptRun (try/catch, never throws). D.1 brand-dna module
-  (temp 0.2, threeWords tuple[3]); route `runtime=nodejs`; `AiSuggestionPanel` enabled (fetch
-  route only, apply threeWords). Seed +PromptTemplate(brand-dna) idempotent. Added vitest +
-  `tests/prompts/brand-dna.test.ts` (4 cases: ok/repair/invalid_json/sanitize). Verified: build
-  0 err · npm test 4/4 · seed 2× identical (PromptTemplate=1). QA: scope-guard 0 violations ·
-  milestone-verifier M4 all-PASS. Impl via pbos-prompt-engineer + pbos-data-modeler (seed).
-  Live real-API smoke deferred (no key here) — set AI_DEFAULT_MODEL in .env to run D.1 live.
-- **M11 Phase A — Electron desktop shell (dev window).** APPROVED scope exception (user wants
-  a real local desktop app, not `npm run dev`). `electron/main.js` spawns Next dev on PORT
-  3005, polls until ready, opens a 1400×900 BrowserWindow at localhost:3005; taskkill tree on
-  quit. Scripts: `npm run app` (+ `main` field). No web behavior/entity change. Verified:
-  `node --check` OK + Next boots on 3005 (onboarding 200). GUI launch is user-side (no display
-  here). Phase B (installer + Prisma engine bundling) deferred to after M10. Logged in
-  RULES.md + SPEC.md exception sections.
-- **M3 — Onboarding Wizard PASS.** 2-step wizard (Brand DNA+company → Goal). Deps: zod,
-  zustand, @tanstack/react-query, mammoth, pdf-parse@2. Persistence = server actions
-  (`onboarding/actions.ts` save/get, upsert userId="local", setActive AppState singleton);
-  `/api/upload` route (mammoth docx / pdf-parse pdf / image→415). pdfjs bundling fix via
-  `serverExternalPackages`. Zustand wizard draft hydrated from server; page `force-dynamic`
-  for reload persistence. Components: brand/{OnboardingWizard,BrandDnaForm,FileDropzone,
-  AiSuggestionPanel(disabled)}, forms/{GoalForm,KpiEditor,ContentRatioSlider}, ui/{input,
-  textarea,label}, Providers (QueryClient). Verified live: Playwright walk (hydrate seeded →
-  finish → DB goal.name updated, activeGoalId set, count 1/1) + curl upload 400/415/200.
-  QA: scope-guard 0 violations · verifier M3 DONE (build 0 err, seed idempotent 2x). No test
-  files (M3 lists none; tests start M4).
-
-## Completed prior session
-- **M2 — Database + Seed PASS.** prisma@6.19.3 + @prisma/client@6 + tsx installed; `.env`
-  created (`DATABASE_URL="file:./dev.db"`, gitignored). `migrate dev --name init` →
-  `prisma/migrations/20260708120843_init` + `dev.db`. `lib/db.ts` = Prisma singleton
-  (globalThis guard, exports `db`+`prisma`). `prisma/seed.ts` (tsx) idempotent via upsert on
-  fixed id/key/slug; `--domain` arg (khang-guru default / dongy). Seeds: UserProfile id="local",
-  BrandDNA(+company), 1 Goal id="goal-default", AppState{singleton, activeGoalId=goal-default},
-  6 ContentObjective (keys from `OBJECTIVES`), 4 Framework (aida/pas/bab/storybrand), 5
-  ContentTemplate, AIModelConfig{provider:anthropic, model:""}. Seed x2 → counts identical.
-  `npm run build` 12/12 static, 0 type errors. QA: scope-guard 0 violations · verifier 6/6
-  gates PASS. Impl delegated to pbos-data-modeler. NOTE: `package.json#prisma` deprecated in
-  Prisma 7 (warning only) — defer.
-
-- **M1 — Foundation + Constants + AppShell PASS.** Next.js 15 App Router + TS + Tailwind v3
-  + shadcn (hand-authored button/card/badge) + AppShell (Sidebar 8 mục/Studio+Calendar 1
-  group, Topbar, PageContainer, PageHeader) + shared states (EmptyState/ErrorState/AiLoading)
-  + `lib/constants.ts` (sole enum source) + 9 route placeholders. `npm run build` = 12/12
-  static, 0 type errors. Prisma NOT installed (deferred to M2 → pin prisma@6). QA: scope-guard
-  0 violations · code-reviewer APPROVE (0 critical, minor fixes applied) · verifier 5/5 gates.
-
-- **M0 — Docs & Scope Lock PASS.** Gates: schema 22 models (no Campaign/PainPoint/
-  CompanyProfile) ✓ · docs consistent, forbidden names only in "BỎ" context ✓ ·
-  `prisma@6 format` pass ✓. Promoted `Z-NeededUpdate/{docs,prisma/schema.prisma,.env.example}`
-  -> repo root. Schema is **Prisma v6 syntax** (v7 rejects `datasource.url`) — pin prisma@6 in M1/M2.
-
-- Fixed rtk PreToolUse hook path (backslash -> forward slash) in project settings.json.
-- Restructured CLAUDE.md into PART A (project) / PART B (engine) + added the scaffold
-  file maintenance protocol (§3a). Content preserved verbatim.
-- Added 8 project hard rules to RULES.md; wrote the Trellis spec in SPEC.md.
-- Pre-M0 cleanup of `Z-NeededUpdate/`: fixed stale entity count 19->22 across all docs +
-  scaffold + agent defs (schema actually has 22 models); deleted brace-expansion garbage
-  folder `{docs,prisma,data\seed}`. Docs content now internally consistent.
+## Completed
+- **M0–M8 DONE** (M8 = Performance Lab). Per-milestone detail + patterns → MEMORY.md.
+- Live D.1–D.14 AI smoke (needs API key) still deferred → ToFill.md §3.
 
 ## Next
-- Run **M8 — Performance Lab (manual tối giản)**: bảng inline nhập 4 field (reach/engagement/
-  comments/saves) + note → 1 MetricSnapshot/Post (@@unique, tự tính daysSincePost); charts
-  group-by pillar/hook/cta/format (dùng mirror dims trên Post); AI insight có evidence+confidence
-  (D.x performance module). Điều kiện tiên quyết ĐÃ đủ (M7 có Post + attribution + mirror dims).
-  Fresh `/clear` session.
-- Git: repo init'd, `master` branch, identity = minhkhang.guru (local config). No remote yet.
+- **M9 — Weekly Review / Revision Engine (nhẹ)**: rule-based warnings + 1 call AI (D.15
+  `revision`) → StrategyVersion mới có `reasonForNewVersion` (non-null); dùng Post→StrategyVersion
+  attribution để so sánh; review UI + RevisionDiff + Dashboard WeeklyAdjustmentCard. Tiền đề đủ
+  (M8 có PerformanceInsight). Fresh `/clear` session.
+
+## Env
+- Git: repo init'd, `master` branch, identity = minhkhang.guru (local). No remote yet.

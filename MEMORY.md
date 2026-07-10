@@ -154,6 +154,33 @@
   BLOCKER → trellis-check PASS → milestone-verifier M7 DONE (6 VERIFY + feature-spec #5). Live
   D.8–D.11 smoke (needs key) → ToFill.md §3.
 
+- [2026-07-10] **M8 DONE** (Performance Lab — manual tối giản). No migration (MetricSnapshot/
+  PerformanceInsight/Post-dims already complete). D.14 `lib/prompts/performance.ts` (temp 0.2,
+  `data analyst`): output enum `scope`/`confidence` = `z.enum` in-module (INSIGHT_SCOPES/
+  INSIGHT_CONFIDENCE); objective/pillar/hook/cta/format are INPUT **data** (plain `z.string()`, NOT
+  z.enum — they're describing, not producing enums); every insight.finding needs evidence (`.min(1)`).
+  **Key pattern: `normalize(o:O)=>O` has NO access to input, so the "<3 posts → confidence=low" rule
+  can't live in normalize** — extracted a pure `enforceLowConfidence(out, postCount)` exported from
+  the module, called in the server action AFTER runModule (where postCount is known) + unit-tested
+  directly. buildUser wraps every external field (period + per-post labels) in `sanitizeExternal(...,
+  "paste")` (M7 lesson: no central guard). Engine `lib/performance-engine/`: `computeDaysSincePost(
+  {publishedAt,createdAt},now?)` = `max(0, floor((now-(publishedAt??createdAt))/86_400_000))`;
+  `aggregate(PerfPost[])` groups by pillar/hook/cta/format (count all, avg only posts WITH metrics,
+  drop null-dim groups); `buildInsightInput` maps only posts with metrics → D.14 input. Server action
+  `performance/actions.ts` (mirror studio/actions): `getPerformanceData` (Post+metrics+pillar id→name
+  → rows+aggregates+latestInsights), `saveMetric` (zod int≥0, **upsert on @unique postId** = 1 snap/
+  Post, computes daysSincePost in code), `runInsight` (calls `runModule` directly per M6 — no HTTP;
+  runModule does NOT expose promptRunId so `aiPromptRunId` stays null; deletes old insights then batch-
+  creates, `evidence` stored as Json `{text}`). UI: MetricInlineTable (inline number inputs + FB metric
+  labels + per-row save via useTransition/router.refresh), PerformanceCharts (**recharts** BarChart,
+  client, avgReach+avgEngagement per dim, hides empty groups), Pillar/HookPerfTable, LatestInsightCard
+  (Sinh insight button → runInsight, confidence Badge amber/emerald, AiLoading while pending). Client
+  imports server action + types ONLY, never lib/ai. Seed +1 PromptTemplate(performance) → **total 11**.
+  Prereq: `npm i recharts`. build 0 err · vitest **52/52** (11 files, +9: performance.test.ts +
+  computeDaysSincePost.test.ts) · seed idempotent (11 both runs) · scope audit clean (no client lib/ai,
+  no hardcoded model). Live D.14 smoke (needs key) → ToFill.md §3. Delegated D.14 prompt →
+  pbos-prompt-engineer, engine → trellis-implement; action/UI/tests done inline.
+
 ## Convention tracker
 <!-- naming, structure, style rules discovered in this repo -->
 - Project docs are staged in `Z-NeededUpdate/docs/` until M0 promotes them to `docs/`.
