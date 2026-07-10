@@ -11,7 +11,7 @@
   `/clear` session, VERIFY-gated.
 
 ## In-progress
-- (none) — **web MVP M0–M10 + M11 (desktop runtime) hoàn tất**. Còn **M12 (packaging)**.
+- (none) — **web MVP M0–M10 + M11 (runtime) + M12 (packaging) hoàn tất**. Milestone cuối xong.
 
 ## Blocked
 - (none)
@@ -23,12 +23,13 @@
   server 200, DB ở `AppData\Roaming\Electron\pbos.db`. vitest 67/67, scope-guard PASS.
 - Live D.1–D.15 AI smoke (needs API key) still deferred → ToFill.md §3.
 - Desktop scope M11 cũ (Electron gộp) đã **tách đôi** → M11 runtime + M12 packaging (milestones.md PHẦN 3B).
+- **M12 DONE** (Packaging unsigned — electron-builder nsis `.exe` 187.7M build local + CI `.dmg` Mac).
+  Detail + winCodeSign local workaround → MEMORY.md. GUI install/launch + tải `.dmg` = user (ToFill §4).
 
 ## Next
-- **M12 — Packaging (unsigned)**: electron-builder — `.exe` installer (Win, local, NSIS shortcut+icon) +
-  `.dmg` (Mac qua GitHub Actions `macos-latest`). asarUnpack Prisma engines + externals; **extraResources
-  bundle tsx+seed+prisma CLI** (M11 note: `runtime.js` paths chỉ đúng unpackaged). Cần user tạo GitHub
-  remote trước (ToFill §4). Fresh `/clear`.
+- (none) — **toàn bộ roadmap M0→M12 xong.** Còn: live AI smoke D.1–D.15 (cần key, ToFill §3) +
+  user cài `.exe`/test GUI + tag `v0.1.0` chạy CI Mac (ToFill §4).
 
 ## Env
-- Git: repo init'd, `master` branch, identity = minhkhang.guru (local). No remote yet.
+- Git: repo init'd, `master` branch, identity = minhkhang.guru (local).
+  Remote = `https://github.com/Altair1010/Personal-Brand-OS.git`. Tag `v0.1.0` kích CI desktop-build.

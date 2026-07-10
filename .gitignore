@@ -13,6 +13,9 @@ node_modules/
 
 # production
 /build
+# ...but keep the packaging icon source (electron-builder derives ico/icns; CI needs it)
+!/build/
+!/build/icon.png
 
 # misc
 .DS_Store

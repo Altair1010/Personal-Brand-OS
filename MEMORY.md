@@ -277,6 +277,36 @@
   **M12 TODO đã note trong code:** packaged build cần bundle tsx+seed+prisma CLI qua extraResources
   (`runtime.js` schemaDir=root chỉ đúng cho unpackaged).
 
+- [2026-07-11] **M12 DONE** (Packaging unsigned — electron-builder@25). **`runtime.js resolvePaths`
+  fix:** đổi `root`→`base` cho `prismaCli/tsxCli/seedScript/schemaDir` (base=`process.resourcesPath`
+  khi packaged, else repo root → unpackaged BYTE-IDENTICAL M11); thêm `prismaEngineLib`
+  (`base/node_modules/.prisma/client/query_engine-windows.dll.node`) + `firstRunSetup` set
+  `PRISMA_QUERY_ENGINE_LIBRARY` cho seed spawn CHỈ khi file tồn tại (Windows; Mac tên khác→Prisma
+  co-located resolution tự lo). **`electron-builder.yml`:** asar CHỈ chứa Electron shell; `asarUnpack:
+  []`; **mọi spawn-target ra `extraResources`** (child_process.spawn KHÔNG với tới trong app.asar):
+  `.next/standalone` (server+traced node_modules), `prisma/{schema,seed.ts,seedCore.ts,migrations}`,
+  `node_modules/{prisma(build+*.node),@prisma/engines(*.node+*.exe),@prisma/client,.prisma/client,
+  tsx(dist),esbuild,@esbuild}`. **Gotcha (reusable): seed `import @prisma/client` resolve từ
+  `resourcesPath/node_modules`, KHÔNG chui vào standalone subtree** → phải copy `@prisma/client` +
+  `.prisma/client` (engine) ra extraResources riêng. **Pre-step `scripts/prepare-package.js`:**
+  pre-nest `.next/static`+`public` vào `.next/standalone/{.next/static,public}` (packaged bỏ qua
+  `prepareStandaloneAssets`; server.js kỳ vọng cạnh nó). **Icons:** `scripts/make-icons.js` sharp→
+  `build/icon.png` 1024 placeholder; **electron-builder tự sinh .ico/.icns từ png** (bỏ icon-gen —
+  bundled sharp lỗi libvips "space 32"; bỏ @shockpkg/icon-encoder — ico 256 fail check). `win.icon/
+  mac.icon = build/icon.png`. **`.gitignore` dòng `/build` che icons** → thêm `!/build/` +
+  `!/build/icon.png`. **CI `.github/workflows/desktop-build.yml`:** trigger tag `v*`, job
+  windows-latest→.exe + macos-latest→.dmg, upload-artifact. **Local build gotcha (reusable, chỉ
+  Windows non-elevated):** electron-builder tải `winCodeSign-2.6.0.7z` chứa darwin dylib SYMLINK →
+  7za fail "A required privilege is not held" (thiếu SeCreateSymbolicLinkPrivilege khi không bật
+  Developer Mode/không admin) → extract fail exit 2, không rename temp→stable, tải lại vô hạn. **Fix:**
+  giải nén tay `winCodeSign-2.6.0.7z` (bất kỳ, đều cùng nội dung) vào
+  `%LOCALAPPDATA%\electron-builder\Cache\winCodeSign\winCodeSign-2.6.0` với `-xr!darwin`, xoá temp
+  numeric dir → electron-builder thấy stable dir, skip download. **GitHub Actions windows runner chạy
+  admin → symlink OK, CI KHÔNG cần workaround.** File lock `xmlbuilder` (EnsureEmptyDir) khi build lại
+  đè lên `release/` cũ → `rm -rf release` trước khi retry. **Verify:** installer `Personal Brand OS
+  Setup 0.1.0.exe` **187.7M** · 14/14 spawn-path tồn tại trong `win-unpacked/resources` · vitest 67/67
+  · scope-guard PASS 4/4. GUI install/launch + Mac .dmg CI = user tự làm (ToFill §4).
+
 ## Desktop (M11 + M12) — scope & quyết định [2026-07-11]
 Desktop tách 2 mốc (viết ở `docs/milestones.md` PHẦN 3B). Web M0–M10 vốn cross-platform (audit path
 sạch: mọi path qua `path.join/resolve`+`__dirname`, 0 hardcoded `C:\`/`/Users/`; DB qua `DATABASE_URL`).

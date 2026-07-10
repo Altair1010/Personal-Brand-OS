@@ -1,0 +1,122 @@
+# Personal Brand OS — packaging (M12, unsigned).
+# Convention: the asar holds ONLY the Electron JS shell. Everything a child process
+# spawns (Next standalone server, Prisma CLI + engines, tsx + esbuild, seed + schema +
+# migrations) lives under extraResources at process.resourcesPath — real on-disk paths,
+# because child_process.spawn / ELECTRON_RUN_AS_NODE cannot reach into app.asar.
+appId: com.personalbrandos.app
+productName: Personal Brand OS
+
+directories:
+  output: release
+  buildResources: build
+
+# What goes INTO the asar: the Electron shell only. Heavy server/tooling packages are
+# excluded here and re-added via extraResources below (or not needed in the app at all).
+files:
+  - electron/**
+  - package.json
+  - node_modules/**
+  - "!node_modules/prisma/**"
+  - "!node_modules/@prisma/**"
+  - "!node_modules/.prisma/**"
+  - "!node_modules/tsx/**"
+  - "!node_modules/esbuild/**"
+  - "!node_modules/@esbuild/**"
+  - "!node_modules/next/**"
+  - "!node_modules/@next/**"
+  - "!node_modules/electron-builder/**"
+  - "!node_modules/app-builder-lib/**"
+  - "!node_modules/icon-gen/**"
+  - "!node_modules/sharp/**"
+  - "!node_modules/@img/**"
+  - "!node_modules/typescript/**"
+  - "!node_modules/vitest/**"
+  - "!node_modules/@vitest/**"
+  - "!node_modules/eslint/**"
+  - "!node_modules/tailwindcss/**"
+  - "!node_modules/pdf-parse/**"
+  - "!node_modules/pdfjs-dist/**"
+  - "!node_modules/mammoth/**"
+  - "!.next/**"
+  - "!prisma/**"
+  - "!app/**"
+  - "!components/**"
+  - "!lib/**"
+  - "!templates/**"
+  - "!tests/**"
+  - "!docs/**"
+  - "!scripts/**"
+  - "!.trellis/**"
+  - "!.env*"
+  - "!*.md"
+
+# Nothing to unpack from asar — spawn-targets are all in extraResources.
+asarUnpack: []
+
+# Copied verbatim to <install>/resources/<to> == process.resourcesPath/<to>.
+extraResources:
+  # Next standalone server (server.js + traced node_modules + pre-nested static/public).
+  - from: .next/standalone
+    to: .next/standalone
+    filter: ["**"]
+  # Prisma schema + migrations + seed (first-run `migrate deploy` + seed).
+  - from: prisma/schema.prisma
+    to: prisma/schema.prisma
+  - from: prisma/seed.ts
+    to: prisma/seed.ts
+  - from: prisma/seedCore.ts
+    to: prisma/seedCore.ts
+  - from: prisma/migrations
+    to: prisma/migrations
+    filter: ["**"]
+  # Prisma CLI (spawned for `migrate deploy`).
+  - from: node_modules/prisma
+    to: node_modules/prisma
+    filter: ["build/**", "*.node", "package.json"]
+  # Prisma engines (schema-engine for migrate; query engine).
+  - from: node_modules/@prisma/engines
+    to: node_modules/@prisma/engines
+    filter: ["*.node", "*.exe", "package.json"]
+  # Generated client + its engine — the seed does `import { PrismaClient }`, resolved
+  # from resourcesPath/node_modules (NOT the standalone subtree).
+  - from: node_modules/@prisma/client
+    to: node_modules/@prisma/client
+    filter: ["**"]
+  - from: node_modules/.prisma/client
+    to: node_modules/.prisma/client
+    filter: ["**"]
+  # tsx (runs seed.ts) + esbuild (its transpiler) + platform binary (npm installs the
+  # correct @esbuild/<os> per runner — glob matches whichever is present).
+  - from: node_modules/tsx
+    to: node_modules/tsx
+    filter: ["dist/**", "package.json"]
+  - from: node_modules/esbuild
+    to: node_modules/esbuild
+    filter: ["**"]
+  - from: node_modules/@esbuild
+    to: node_modules/@esbuild
+    filter: ["**"]
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.png # electron-builder converts to .ico
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Personal Brand OS
+
+mac:
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+  icon: build/icon.png # electron-builder converts to .icns
+  identity: null # unsigned — accept Gatekeeper warning
+
+dmg:
+  title: Personal Brand OS

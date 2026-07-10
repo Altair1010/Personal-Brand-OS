@@ -69,10 +69,23 @@ function resolvePaths(app, root) {
     standaloneDir: path.join(base, ".next", "standalone"),
     staticSrc: path.join(base, ".next", "static"),
     publicSrc: path.join(base, "public"),
-    prismaCli: path.join(root, "node_modules", "prisma", "build", "index.js"),
-    tsxCli: path.join(root, "node_modules", "tsx", "dist", "cli.mjs"),
-    seedScript: path.join(root, "prisma", "seed.ts"),
-    schemaDir: root,
+    // M12: use `base` (packaged → process.resourcesPath, else → repo root) so the
+    // prisma/tsx CLIs, seed, schema, and generated engine resolve to real on-disk
+    // files under extraResources when packaged — child_process.spawn cannot reach
+    // into app.asar. Unpackaged is unchanged (base === root).
+    prismaCli: path.join(base, "node_modules", "prisma", "build", "index.js"),
+    tsxCli: path.join(base, "node_modules", "tsx", "dist", "cli.mjs"),
+    seedScript: path.join(base, "prisma", "seed.ts"),
+    schemaDir: base,
+    // The generated Prisma client bakes an absolute engine path at build time,
+    // wrong once packaged. Point the seed child at the extraResources copy.
+    prismaEngineLib: path.join(
+      base,
+      "node_modules",
+      ".prisma",
+      "client",
+      "query_engine-windows.dll.node",
+    ),
   };
 }
 
@@ -120,8 +133,15 @@ async function firstRunSetup({ execPath, paths, databaseUrl, dbExistedBefore }) 
   if (!dbExistedBefore) {
     // Seed via the tsx entry directly (idempotent upserts). We resolve tsx's own path
     // instead of `prisma db seed` — the latter shells out to a bare `tsx` on PATH, which
-    // is absent when launched from Electron. (M12 must bundle tsx + seed for packaged builds.)
-    await runNode(execPath, paths.tsxCli, [paths.seedScript], env, "db seed");
+    // is absent when launched from Electron. (M12 bundles tsx + seed via extraResources.)
+    // The generated client's baked engine path is stale once packaged; point it at the
+    // co-located extraResources engine when that file exists (Windows). On other platforms
+    // the file name differs and Prisma's own co-located resolution takes over.
+    const seedEnv =
+      paths.prismaEngineLib && fs.existsSync(paths.prismaEngineLib)
+        ? { ...env, PRISMA_QUERY_ENGINE_LIBRARY: paths.prismaEngineLib }
+        : env;
+    await runNode(execPath, paths.tsxCli, [paths.seedScript], seedEnv, "db seed");
   }
 }
 

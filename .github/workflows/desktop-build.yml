@@ -1,0 +1,47 @@
+name: Desktop Build
+
+# Unsigned installers. Push a v* tag to build both platforms.
+#   Windows job -> NSIS .exe ; macOS job -> .dmg (electron-builder cannot cross-build Mac).
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch: {}
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npm run icons
+      - run: npm run build:desktop
+      - run: node scripts/prepare-package.js
+      - run: npm run dist:win
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: release/*.exe
+          if-no-files-found: error
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npm run icons
+      - run: npm run build:desktop
+      - run: node scripts/prepare-package.js
+      - run: npm run dist:mac
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: release/*.dmg
+          if-no-files-found: error
