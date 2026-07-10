@@ -134,6 +134,26 @@
   build 0 err · vitest 43/43 (9 files) · seed idempotent. scope-guard 0 BLOCKER. **7b (Studio/Calendar
   UI + studio/actions.ts) NOT done** — separate session, owner trellis-implement.
 
+- [2026-07-10] **M7 FULL DONE** (commit `30c645d`, master — 7b UI phiên). Studio/Calendar UI:
+  `studio/actions.ts` server action (getStudioData/getDraft/getCalendarData/createDraftFromIdea/
+  saveDraft/approveDraftAction) mirrors `strategy/actions.ts` (USER_ID="local", ActionResult,
+  serializable DTO). **saveDraft splits writes:** `bumpDraftVersion` handles content (hook/body/
+  ending/hashtags/imageSuggestion/contentMarkdown) only; analytic dims (objectiveKey/hookStyle/
+  ctaIntensity/format/framework/topic) updated via separate `db.contentDraft.update` **because dims
+  are z.enum-guarded at the action layer** (out-of-enum → field dropped, no garbage saved). Approve
+  goes ONLY through `content-engine/approveDraft` — UI surfaces the invariant throw (missing
+  strategyVersionId/dailyPlanId) as ErrorState, never swallows. AI from client = `fetch("/api/ai/
+  {post-writer,hook,cta,tone}")` only, never imports lib/ai. Editor = 3 `Textarea` Hook/Body/Ending
+  (plain text, no TipTap); `DraftEditor` guards AI-output enums client-side via `inEnum(TUPLE, v)`.
+  **BLOCKER caught by scope-guard & fixed here (recurrence of the M7a gotcha):** `lib/prompts/
+  hook.ts` + `cta.ts` were still interpolating user-controlled fields (topic/persona/goal/offer)
+  WITHOUT `sanitizeExternal` — the M7a note only covered post-writer/tone. Wrapped all with
+  `sanitizeExternal(...,"paste")`. **Lesson: every PromptModule.buildUser touching external text
+  must sanitize; there is no central guard — audit hook/cta-style list modules explicitly.** No
+  migration. build 0 err · vitest 43/43 · seed idempotent (PromptTemplate=10). Gate: scope-guard 0
+  BLOCKER → trellis-check PASS → milestone-verifier M7 DONE (6 VERIFY + feature-spec #5). Live
+  D.8–D.11 smoke (needs key) → ToFill.md §3.
+
 ## Convention tracker
 <!-- naming, structure, style rules discovered in this repo -->
 - Project docs are staged in `Z-NeededUpdate/docs/` until M0 promotes them to `docs/`.

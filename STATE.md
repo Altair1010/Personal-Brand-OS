@@ -8,16 +8,31 @@
   `/clear` session, VERIFY-gated.
 
 ## In-progress
-- **M7 chia 2 phiên — 7a DONE (commit `M7a` 797e5b6), 7b NEXT.** 7b = UI: `studio/page.tsx`
-  (list) + `studio/[draftId]/page.tsx` (editor 3 textarea Hook/Body/Ending, plain text) +
-  `calendar/page.tsx` + `components/content/*` + `studio/actions.ts`. Owner trellis-implement;
-  gate scope-guard → trellis-check → milestone-verifier (M7 full). Plan:
-  `~/.claude/plans/read-f-codex-personal-brand-resilient-shell.md`. Fresh `/clear` cho 7b.
+- (none) — M7 FULL DONE. Next mốc: **M8 — Performance Lab**.
 
 ## Blocked
 - (none)
 
 ## Completed this session
+- **M7 phiên B (7b) — Content Studio UI + Calendar PASS → M7 FULL DONE (commit `M7` 30c645d).**
+  UI layer: `studio/actions.ts` (server action: getStudioData/getDraft/getCalendarData/
+  createDraftFromIdea/saveDraft/approveDraftAction — DTO serializable, USER_ID="local",
+  ActionResult, revalidatePath), `studio/page.tsx` (list draft + tạo từ ContentIdea),
+  `studio/[draftId]/page.tsx` (editor), `calendar/page.tsx` (30 ngày theo DailyPlan active
+  strategy). 12 `components/content/*`: StructuredEditor (3 textarea Hook/Body/Ending plain
+  text, KHÔNG TipTap), ObjectiveSelect/FrameworkSelect/EnumSelect (enum từ constants),
+  HookGeneratorPanel/CtaGeneratorPanel/ToneRewriter (fetch route `/api/ai/*`, không import key
+  client), StatusStepper (POST_STATUS), CalendarMonth/DayCell/PostChip (OBJECTIVE_COLORS).
+  saveDraft → bumpDraftVersion (+1) + update analytic dims (z.enum-guard, giá trị ngoài enum bị
+  bỏ). approveDraftAction → engine approveDraft (throw nếu thiếu strategyVersionId/dailyPlanId,
+  UI hiện lỗi không nuốt). **Fix BLOCKER (scope-guard bắt): hook.ts + cta.ts thiếu
+  sanitizeExternal cho user-controlled fields (topic/persona/goal/offer) — đã bọc
+  `sanitizeExternal(...,"paste")` theo pattern post-writer/tone; DraftEditor thêm enum-guard
+  `inEnum()` cho AI output.** Verified: build 0 err · vitest **43/43** (9 file) · seed 2×
+  idempotent (PromptTemplate=10). Gate: pbos-scope-guard **0 BLOCKER** (2 WARN nhẹ đã xử) →
+  trellis-check **PASS 0 issue** → pbos-milestone-verifier **M7 DONE** (6 VERIFY gate + feature-
+  spec #5). Orchestration: trellis-implement (UI) + main (fix BLOCKER); gate 3 agent. Live
+  D.8–D.11 smoke (cần key) vẫn deferred → ToFill.md §3.
 - **M7a — Content AI modules + routes + engine PASS (partial M7).** D.8 `post-writer` (temp 0.7,
   out hook/body/ending/hashtags≤8/imageSuggestion + hookStyle/ctaIntensity/format `z.enum` từ
   constants + estimatedReadTime), D.9 `hook`, D.10 `cta`, D.11 `tone` (temp 0.5). Mọi enum
@@ -128,9 +143,9 @@
   folder `{docs,prisma,data\seed}`. Docs content now internally consistent.
 
 ## Next
-- Run **M6 — Strategy Builder 30d + Versioning + Export** ⭐ (mốc lớn): layered generator
-  (D.4 arc + weekly themes → D.6 weekly→daily ×5 → assemble 30 days in code), StrategyVersion v1
-  (reason non-null + assumptions), export Markdown, set `AppState.activeStrategyId`. Gate is already
-  wired (audienceApprovedAt). **KHUYẾN NGHỊ chia 2 phiên** (a: prompts+2 routes+engine; b: UI+export
-  +test). Fresh `/clear` session.
+- Run **M8 — Performance Lab (manual tối giản)**: bảng inline nhập 4 field (reach/engagement/
+  comments/saves) + note → 1 MetricSnapshot/Post (@@unique, tự tính daysSincePost); charts
+  group-by pillar/hook/cta/format (dùng mirror dims trên Post); AI insight có evidence+confidence
+  (D.x performance module). Điều kiện tiên quyết ĐÃ đủ (M7 có Post + attribution + mirror dims).
+  Fresh `/clear` session.
 - Git: repo init'd, `master` branch, identity = minhkhang.guru (local config). No remote yet.
