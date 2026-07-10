@@ -41,7 +41,7 @@
 - [ ] **Smoke test D.15 (Weekly Review / Revision)** · **Ở đâu:** `npm run dev` → Đánh giá tuần → "Sinh đề xuất điều chỉnh" → "Áp dụng — tạo version mới"
   · **Vì sao:** M9 verify bằng mock/unit. Sau khi điền key + model: sinh phải ra adjustmentPlan (mỗi mục có reason) + revisedContentRatio (tổng=100); bấm áp dụng tạo `StrategyVersion` v(n+1) có `reason` non-null, clone WeeklyPlan+DailyPlan (Calendar vẫn đủ), Dashboard hiện card "Điều chỉnh gần nhất". (M9)
 
-- [ ] **Smoke test M11 (boot production Electron)** · **Ở đâu:** `npm run build:desktop && npm run app:prod` · **Vì sao:** verify M11 headless đã chứng minh mọi phần không-GUI (standalone server boot HTTP 200, DB→userData, migrate deploy, seed, route đọc DB). Bước cuối cần MÀN HÌNH: chạy 2 lệnh trên → cửa sổ Electron "Personal Brand OS" mở + load app; DB tạo ở `<userData>/pbos.db`. (M11)
+- [x] **Smoke test M11 (boot production Electron)** — ĐÃ chạy `npm run build:desktop && npm run app:prod`: Electron mở, first-run migrate+seed chạy, server ready HTTP 200, DB tạo ở `AppData\Roaming\Electron\pbos.db` (299KB). (M11)
 
 ## 4. Placeholder cho milestone sau (M5→M10 append vào đây khi phát sinh)
 

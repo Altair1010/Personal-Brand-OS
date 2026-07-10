@@ -19,8 +19,8 @@
 ## Completed
 - **M0–M10 DONE** (M10 = Settings + Backup + Polish — web MVP mốc cuối). Detail + patterns → MEMORY.md.
 - **M11 DONE** (Desktop runtime — Electron production boot standalone + DB→userData + first-run migrate/seed
-  + key từ `userData/pbos.env`). Verify headless full (build/migrate/seed/boot 200/route đọc DB), vitest 67/67,
-  scope-guard PASS. Còn 1 bước MANUAL: boot GUI Electron (`npm run app:prod`) — headless env không mở màn hình (ToFill §3).
+  + key từ `userData/pbos.env`). Verify FULL kể cả GUI: `npm run app:prod` mở Electron, first-run migrate+seed,
+  server 200, DB ở `AppData\Roaming\Electron\pbos.db`. vitest 67/67, scope-guard PASS.
 - Live D.1–D.15 AI smoke (needs API key) still deferred → ToFill.md §3.
 - Desktop scope M11 cũ (Electron gộp) đã **tách đôi** → M11 runtime + M12 packaging (milestones.md PHẦN 3B).
 

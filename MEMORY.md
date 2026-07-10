@@ -271,8 +271,9 @@
   `server.js` thật→HTTP 200 `/`+`/settings` · `/api/backup` (đọc DB) trả seeded "Khang Guru" =
   Prisma client+engine trong standalone query đúng DB userData-relocated. vitest **67/67** 0
   regression. Gate: scope-guard PASS 4/4 (rule-3 `.env` sạch, 0 hardcoded path/model, DB behind
-  DATABASE_URL, 0 entity/feature creep). **Còn 1 bước MANUAL user (headless env không mở GUI):** chạy
-  `npm run build:desktop && npm run app:prod` xác nhận cửa sổ Electron mở + load app (→ToFill.md §3).
+  DATABASE_URL, 0 entity/feature creep). **GUI boot cũng verify:** `npm run app:prod`→Electron mở,
+  first-run migrate+seed chạy, server ready 200, DB ghi `%APPDATA%\Roaming\Electron\pbos.db` (299KB) —
+  userData='Electron' khi unpackaged (M12 packaged→productName). **Full gate M11 PASS.**
   **M12 TODO đã note trong code:** packaged build cần bundle tsx+seed+prisma CLI qua extraResources
   (`runtime.js` schemaDir=root chỉ đúng cho unpackaged).
 
