@@ -69,19 +69,25 @@ extraResources:
   - from: prisma/migrations
     to: prisma/migrations
     filter: ["**"]
+  # seedCore.ts deps: `import { OBJECTIVES } from "../lib/constants"` (pure, no imports)
+  # + `readFileSync(__dirname/../data/seed/<domain>.json)`. Ship both so tsx resolves them.
+  - from: lib/constants.ts
+    to: lib/constants.ts
+  - from: data/seed
+    to: data/seed
+    filter: ["**"]
   # Prisma CLI (spawned for `migrate deploy`).
   - from: node_modules/prisma
     to: node_modules/prisma
     filter: ["build/**", "*.node", "package.json"]
-  # Prisma engines (schema-engine for migrate; query engine).
-  - from: node_modules/@prisma/engines
-    to: node_modules/@prisma/engines
-    filter: ["*.node", "*.exe", "package.json"]
-  # Generated client + its engine — the seed does `import { PrismaClient }`, resolved
-  # from resourcesPath/node_modules (NOT the standalone subtree).
-  - from: node_modules/@prisma/client
-    to: node_modules/@prisma/client
+  # Whole @prisma scope — the spawned prisma CLI + seed `require('@prisma/engines')`
+  # (schema-engine for migrate) + `@prisma/client`, and those pull sibling helper
+  # packages (@prisma/get-platform, @prisma/debug, ...). Ship the scope so every
+  # transitive require resolves from resourcesPath/node_modules (NOT the asar).
+  - from: node_modules/@prisma
+    to: node_modules/@prisma
     filter: ["**"]
+  # Generated client + its query engine (seed does `new PrismaClient()`).
   - from: node_modules/.prisma/client
     to: node_modules/.prisma/client
     filter: ["**"]

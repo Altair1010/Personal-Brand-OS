@@ -306,6 +306,17 @@
   đè lên `release/` cũ → `rm -rf release` trước khi retry. **Verify:** installer `Personal Brand OS
   Setup 0.1.0.exe` **187.7M** · 14/14 spawn-path tồn tại trong `win-unpacked/resources` · vitest 67/67
   · scope-guard PASS 4/4. GUI install/launch + Mac .dmg CI = user tự làm (ToFill §4).
+  **[fix sau đóng gói lần đầu — bắt bởi automated packaged smoke]:** first-run SEED packaged vỡ vì
+  `prisma/seedCore.ts` phụ thuộc `../lib/constants` (OBJECTIVES/OBJECTIVE_COLORS) + đọc
+  `readFileSync(__dirname/../data/seed/<domain>.json)` — cả hai KHÔNG được ship (M11 unpackaged seed
+  từ repo root nên không lộ). Và `require('@prisma/engines')` cần package JS + sibling
+  `@prisma/get-platform`/`debug` (filter cũ chỉ chép binary → MODULE_NOT_FOUND). **Fix extraResources:**
+  thêm `lib/constants.ts` + `data/seed/**`; ship **cả scope `node_modules/@prisma/**`** (hết
+  whack-a-mole transitive require). **Automated packaged smoke (reusable, KHÔNG cần GUI/key):** chạy
+  `electron.exe` với `ELECTRON_RUN_AS_NODE=1` trên `release/win-unpacked/resources` — migrate deploy
+  (packaged prisma CLI) → seed (packaged tsx+seed.ts, DATABASE_URL=temp) → boot `.next/standalone/
+  server.js` → curl `/`=200 `/settings`=200 `/api/backup`="Khang Guru". Chứng minh chuỗi runtime
+  packaged chạy thật TRƯỚC khi user cài. Installer sau fix = **199.8M**.
 
 ## Desktop (M11 + M12) — scope & quyết định [2026-07-11]
 Desktop tách 2 mốc (viết ở `docs/milestones.md` PHẦN 3B). Web M0–M10 vốn cross-platform (audit path
