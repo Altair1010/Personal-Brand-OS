@@ -39,6 +39,18 @@ same Next server + Prisma — no feature/entity change.
   locally; `.dmg` (Mac) built via GitHub Actions `macos-latest` runner (no cross-build from Win).
 See RULES.md > "Approved scope exceptions".
 
+**Approved extension — Extended Milestone 1 (EM1), post-M12 (user-approved 2026-07-11):**
+deliberate expansion beyond the MVP lock. Overrides the "out of scope" items it names
+(Meta/FB API, multi-user/auth/cloud) — IN scope for EM1 only, logged (not drift). Split
+`EM1a → EM1b → EM1c` (order-locked). See `docs/milestones.md` PHẦN 4 + RULES.md.
+- **EM1a — Key-in-UI + Help icons:** enter/name API key + pick model (Claude/GPT preset,
+  level tag) in Settings; "!" help affordance on every user-fill input; content-gen
+  transparency. Replaces manual `pbos.env`.
+- **EM1b — Account + cloud backup:** Supabase Auth + Storage (free); encrypted snapshot
+  restore on another machine; **secrets excluded from backup**. Local SQLite stays primary.
+- **EM1c — Multi-Facebook + auto-fetch:** `FacebookAccount` per account, page switcher,
+  Performance Lab pulls metrics via pasted Page token (Graph API; paste post URL → fill).
+
 ## Constraints (hard — full list in RULES.md)
 - Stack: Next.js App Router + TS + Tailwind + shadcn/ui + Prisma + SQLite + Recharts +
   Zustand + TanStack Query. Node ≥ 20, Next ≥ 15. Plain structured editor, no rich text.
@@ -50,7 +62,9 @@ See RULES.md > "Approved scope exceptions".
 `M3` Onboarding wizard · `M4` AI Layer + Guard + Brand Analyzer · `M5` Audience & Pillars
 + REVIEW GATE · `M6` ⭐ Strategy Builder 30d + Versioning + Export · `M7` ⭐ Content Studio
 + Calendar · `M8` Performance Lab (manual) · `M9` Weekly Review / Revision Engine ·
-`M10` Settings + Backup + Polish. Order: `M0->M1->...->M10`; M6 & M7 split into 2 sessions.
+`M10` Settings + Backup + Polish · `M11`/`M12` Desktop runtime + packaging ·
+`EM1a`/`EM1b`/`EM1c` Extended (key-in-UI · account+cloud backup · multi-Facebook).
+Order: `M0->...->M10->M11->M12->EM1a->EM1b->EM1c`; M6 & M7 (and optionally EM1b) split into 2 sessions.
 
 ## Acceptance criteria (verifier-checkable)
 - Each milestone: `npm run build` passes with no type errors; the milestone VERIFY block

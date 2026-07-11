@@ -471,8 +471,79 @@ Trả lại JSON ĐÚNG schema sau, chỉ sửa phần sai, giữ nguyên phần
 
 ---
 
+# PHẦN 4 — EXTENDED MILESTONES (post-M12, đã duyệt scope: RULES.md > "Approved scope exceptions")
+
+> **EM1 = mở rộng CÓ CHỦ ĐÍCH ngoài MVP lock** (user duyệt 2026-07-11): nhập API key +
+> chọn model trong Settings; tài khoản cá nhân + backup cloud để khôi phục máy khác; đa
+> trang Facebook + Performance Lab tự fetch. Tách 3 sub-milestone, **mỗi mốc 1 phiên
+> `/clear`**, VERIFY riêng. Thứ tự bắt buộc **EM1a → EM1b → EM1c** (EM1c cần tài khoản EM1b).
+> Nguyên tắc bảo mật xuyên suốt: **secret (API key, FB Page token) lưu DB cục bộ `userData`,
+> KHÔNG bao giờ vào backup cloud** — máy mới nhập lại.
+
+## ════ EM1a — API Keys trong Settings + Help Icons + Minh bạch content-gen ════
+**① Điều kiện tiên quyết:** M12 pass. Không đụng auth/FB — độc lập, ship ngay.
+**② Output:** Settings nhập API key + đặt tên + chọn model từ dropdown Claude/GPT (nhãn mức độ Low/Medium/High/Extra); adapter đọc key từ DB (fallback env); mọi ô input user-fill có icon "!" giải thích tiếng Việt; panel "Cách AI tạo nội dung". Bỏ bước sửa `pbos.env` tay.
+**③ Gate:** [ ] `npm run build` pass, 0 lỗi type [ ] thêm profile (provider+model preset+key+tên+default) → lưu → resolveModelConfig trả đúng model+key [ ] adapter chạy chỉ với key trong DB (không cần env) — unit/mock [ ] hover "!" ≥1 field mỗi form chính hiện mô tả VN [ ] model preset là DỮ LIỆU config, không hardcode trong đường gọi.
+**④ Prompt:**
+- **Vai trò:** Full-stack engineer (Settings + UX affordance).
+- **Nhiệm vụ:** mở rộng AIModelConfig lưu key; dropdown model preset; help-icon toàn app; panel minh bạch content-gen. KHÔNG đụng auth/FB.
+- **Đọc theo thứ tự:** `prisma/schema.prisma` (AIModelConfig) → `lib/ai/{adapter,anthropic,openai}.ts` → `components/settings/AiModelConfigForm.tsx` + `app/(dashboard)/settings/actions.ts` → `components/ui/{label,input}.tsx` + `components.json` → `CLAUDE.md` (rule không hardcode model).
+- **Tạo/sửa file + cấu trúc:**
+  - `prisma/schema.prisma`: `AIModelConfig` thêm `apiKey String?`. Migration cộng dồn, không phá seed.
+  - `lib/ai/models.ts` (MỚI): mảng preset `{provider, model, label, level}`, `level ∈ Low|Medium|High|Extra`, chỉ Claude + GPT.
+  - `lib/ai/adapter.ts`: `resolveModelConfig()` trả thêm `apiKey`; adapter dùng `config.apiKey ?? process.env.*_API_KEY`.
+  - `lib/ai/{anthropic,openai}.ts`: nhận key qua tham số thay vì đọc thẳng env.
+  - Mã hoá key: nếu Electron `safeStorage` khả dụng → mã hoá ciphertext trước khi lưu; không thì lưu thô (desktop 1 user cục bộ — ghi trade-off vào MEMORY).
+  - `components/ui/tooltip.tsx` (MỚI, shadcn/Radix popover), `components/ui/field-help.tsx` (MỚI: nút tròn "!" lucide `Info`/`HelpCircle` → tooltip; kèm `LabelWithHelp` wrapper).
+  - `lib/help-text.ts` (MỚI): map helpText tiếng Việt thông dụng cho từng field, gom 1 chỗ.
+  - Áp `LabelWithHelp` vào: `components/brand/BrandDnaForm.tsx`, `components/forms/GoalForm.tsx`, `components/audience/PersonaEditor.tsx`, `components/content/DraftEditor.tsx`, `components/settings/AiModelConfigForm.tsx`.
+  - `AiModelConfigForm.tsx`: ô model → dropdown preset (giữ ô custom); thêm ô API key (password + hiện/ẩn) + ô đặt tên (label). `saveModelConfig` validate apiKey + model (zod).
+  - Panel "Cách AI tạo nội dung" (collapsible) trong Settings + 1 đoạn xác nhận template+inject trong `docs/`.
+- **Không được làm:** không đụng auth/tài khoản/FB (EM1b/c); không hardcode model string trong đường gọi AI; không đưa key vào client component; không sửa cơ chế prompt (template+inject giữ nguyên).
+- **Báo cáo:** ảnh Settings có key+dropdown+"!"; kết quả build; xác nhận adapter đọc key DB.
+- **Ước lượng token:** ~70–85K (~35–43%). Nhiều file UI nhưng cơ học. 1 phiên; nếu vượt 70% → commit AI-layer rồi `/clear`, làm help-icon sau.
+
+## ════ EM1b — Tài khoản cá nhân + Đồng bộ backup cloud (Supabase free) ════
+**① Điều kiện tiên quyết:** EM1a pass. User đã tạo Supabase project free + điền `SUPABASE_URL`+`SUPABASE_ANON_KEY` (ToFill).
+**② Output:** đăng ký/đăng nhập (Supabase Auth); gate chặn khi chưa login; nút sao lưu/khôi phục cloud; snapshot mã hoá **loại secret**; máy mới đăng nhập → khôi phục data.
+**③ Gate:** [ ] `npm run build` pass [ ] đăng ký→đăng nhập→gate hoạt động (chưa login không vào dashboard) [ ] "Sao lưu lên cloud" → file mã hoá trên Supabase Storage, KHÔNG chứa apiKey/FB token [ ] mô phỏng máy mới (reset DB) → đăng nhập → khôi phục → data đầy đủ [ ] seed idempotent, không phá dữ liệu.
+**④ Prompt:**
+- **Vai trò:** Full-stack engineer (auth + đồng bộ).
+- **Nhiệm vụ:** tích hợp Supabase Auth (email/password) + Storage backup; gate; push/pull snapshot mã hoá. Có thể chia 2 phiên: (1) auth gate, (2) backup sync.
+- **Đọc theo thứ tự:** `lib/import-export/backup.ts` (export/import JSON sẵn) → `components/settings/BackupPanel.tsx` → `app/layout.tsx` + `components/layout/AppShell.tsx` (gate) → `prisma/schema.prisma` (AppState) → context7 Supabase docs.
+- **Tạo/sửa file + cấu trúc:**
+  - `lib/supabase.ts` (MỚI): client (URL + anon key từ config/env, KHÔNG commit).
+  - `lib/cloud-backup.ts` (MỚI): `pushSnapshot()`/`pullSnapshot()` tái dùng `backup.ts`, thêm **mã hoá** + **loại secret** (apiKey, FB token) trước upload.
+  - `AccountBinding` (bảng nhỏ mới HOẶC mở rộng `AppState`): `supabaseUserId` + trạng thái sync.
+  - `app/(auth)/{login,signup}/page.tsx` (MỚI): form email/password → Supabase Auth.
+  - Gate: middleware / layout check session; chưa login → /login. Login lần đầu trên máy có data → gắn data hiện tại vào tài khoản.
+  - `BackupPanel.tsx`: nút "Sao lưu lên cloud" + "Khôi phục từ cloud"; auto push khi logout/đóng app/theo mốc (debounce); máy mới đăng nhập → hỏi khôi phục → pull → import (upsert) → báo user nhập lại secret.
+- **Không được làm:** không đưa secret vào snapshot cloud; không realtime multi-device (chỉ snapshot); không tự dựng server (dùng Supabase hosted); không đụng FB (EM1c).
+- **Báo cáo:** luồng đăng ký→login→gate; nội dung snapshot (đã loại secret); kết quả khôi phục máy-mới mô phỏng.
+- **Ước lượng token:** ~75–90K (~38–45%). Nếu vượt 70% → commit auth gate rồi `/clear`, làm backup sync sau (đúng gợi ý chia 2 phiên).
+
+## ════ EM1c — Đa trang Facebook + Performance Lab tự fetch ════
+**① Điều kiện tiên quyết:** EM1b pass (có tài khoản). User đã tạo Facebook Developer App + lấy Page Access Token dài hạn (ToFill).
+**② Output:** một tài khoản quản nhiều trang FB; switcher chọn trang đang làm việc; PerLab **dán link post → tự điền metric** (Graph API); nhập tay 4 field vẫn là fallback.
+**③ Gate:** [ ] `npm run build` pass [ ] kết nối 1 FacebookAccount (dán token page mình) → hiện trong switcher [ ] dán link 1 post → metric tự điền (source="facebook_api"), 1 MetricSnapshot/Post; không token → nhập tay chạy [ ] đổi trang trong switcher → Post/Performance đổi theo scope [ ] token trong DB, KHÔNG lọt backup cloud (kiểm lại snapshot EM1b).
+**④ Prompt:**
+- **Vai trò:** Full-stack engineer (tích hợp Graph API + workspace switcher).
+- **Nhiệm vụ:** entity FacebookAccount scope theo tài khoản; switcher trang; Graph API resolve post-id từ URL → fetch insights → upsert MetricSnapshot. KHÔNG OAuth đầy đủ (chỉ dán token).
+- **Đọc theo thứ tự:** `prisma/schema.prisma` (Post, MetricSnapshot) → `lib/performance-engine/aggregate.ts` + `components/performance/*` → `components/layout/{Sidebar,Topbar}.tsx` → `docs/feature-spec.md` (#6) → context7 Facebook Graph API docs.
+- **Tạo/sửa file + cấu trúc:**
+  - `prisma/schema.prisma`: `FacebookAccount` (MỚI: `id, ownerRef, pageId, pageName, accessToken` [encrypted, loại khỏi backup], `tokenExpiresAt, linkedAt`); `Post` thêm `facebookAccountId String?` (FK); `MetricSnapshot` mở rộng `source="facebook_api"` + `postUrl String?` + `fbRawResponse Json?` + `fetchedAt DateTime?`.
+  - `lib/facebook/graph.ts` (MỚI): `resolvePostId(url)` + `fetchPostInsights(pageToken, postId)` → map reach/engagement/comments/shares/saves; token hết hạn → báo user cập nhật (không tự OAuth).
+  - Form kết nối: dán Page Access Token + pageId (server-side, mã hoá lưu).
+  - `components/layout/AccountSwitcher.tsx` (MỚI): chỉ báo + đổi trang FB (Zustand `activeFacebookAccountId`), đặt header Sidebar hoặc phải Topbar.
+  - Performance page: ô dán link post → Graph API → tự điền `MetricInlineTable`; không token → giữ nhập tay. Scope Post/Metric theo trang đang chọn.
+- **Không được làm:** không OAuth Facebook đầy đủ / không xin app review (chỉ token page của user); không auto-publish; không scrape; token không được vào backup cloud.
+- **Báo cáo:** kết nối 1 page + dán link post tự điền metric + đổi trang scope; xác nhận token không lọt snapshot.
+- **Ước lượng token:** ~70–85K (~35–43%). 1 phiên; nếu vượt 70% → commit schema+graph rồi `/clear`, làm UI switcher/PerLab sau.
+
+---
+
 ## Thứ tự & phụ thuộc
-`M0→M1→M2→M3→M4→M5(gate)→M6⭐→M7⭐→M8→M9→M10` (web MVP) `→M11→M12` (desktop post-MVP). M6, M7 nên chia 2 phiên. Sau mỗi mốc: commit `Mx: <goal>`, `/clear` trước mốc kế.
+`M0→M1→M2→M3→M4→M5(gate)→M6⭐→M7⭐→M8→M9→M10` (web MVP) `→M11→M12` (desktop post-MVP) `→EM1a→EM1b→EM1c` (extended, post-M12). M6, M7 nên chia 2 phiên; EM1b có thể chia 2. Sau mỗi mốc: commit `Mx: <goal>` / `EM1x: <goal>`, `/clear` trước mốc kế.
 
 ## §I Nguyên tắc chia task trong 1 mốc
 validator → API route → component → page wiring → test. API AI luôn theo pattern P0.3. Không tạo file ngoài mốc. Enum chỉ từ `lib/constants.ts`. Không hardcode model string.

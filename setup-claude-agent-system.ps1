@@ -6,7 +6,7 @@
     Cai + wire mot he thong agent hoan chinh vao bat ky repo nao:
       - Token pipeline 4 lop: headroom (cache+context) -> rtk (CLI output) ->
         codebase-memory-mcp/token-optimizer-mcp (file-read/grep) -> caveman (response prose)
-      - Foundation files: CLAUDE/AGENTS/MEMORY/SPEC/RULES/STATE/LOOP/plan/todo.md
+      - Foundation files: CLAUDE/AGENTS/MEMORY/SPEC/RULES/STATE/LOOP/plan/todo/ToFill.md
       - Hooks: PreToolUse(rtk, cbm) / PostToolUse(context-counter) / SessionEnd(headroom learn)
       - Skills auto vs manual mapping; MCP servers; index khoi tao
     Idempotent: chay lai an toan. Pause-on-fail: buoc nao loi -> hoi [F]ix/[S]kip/[A]bort.
@@ -373,7 +373,7 @@ function Install-GlobalTools {
 # Doc thu muc de tro dung path: liet ke *.md top-level + folder tai lieu -> markdown bullets cho SPEC.md.
 function Get-ProjectDocRefs {
     param([string]$Root)
-    $skip = @('CLAUDE.md','AGENTS.md','MEMORY.md','SPEC.md','RULES.md','STATE.md','LOOP.md','plan.md','todo.md','README.md')
+    $skip = @('CLAUDE.md','AGENTS.md','MEMORY.md','SPEC.md','RULES.md','STATE.md','LOOP.md','plan.md','todo.md','ToFill.md','README.md')
     $bullets = @()
     Get-ChildItem -Path $Root -Filter '*.md' -File -ErrorAction SilentlyContinue |
         Where-Object { $skip -notcontains $_.Name } |
@@ -475,9 +475,11 @@ function Write-FoundationFiles {
 Files live in the project root.
 
 ### Read order (every session start — read BEFORE acting, in this order)
-1. **`STATE.md`** — sprint view: where we are, what's next, what's blocked.
+1. **`STATE.md`** — sprint POINTER: where we are, what's next, what's blocked.
+   Milestone id + one-line status ONLY; no technical detail (that's MEMORY's job).
 2. **`plan.md`** + **`todo.md`** — the active task's live "how" + checklist (skip if empty).
-3. **`MEMORY.md`** — lasting decisions/patterns/bug-workarounds so you don't relitigate.
+3. **`MEMORY.md`** — the RECORD: lasting decisions/patterns/bug-workarounds, one entry
+   per task holding the full detail, so you don't relitigate. STATE points here.
 4. **`RULES.md`** — hard rules (project + engine) that gate every change.
 5. **`SPEC.md`** — Goal/Scope/Acceptance contract; re-read when scope is in question.
 6. **`LOOP.md`** — pick which loop to run (milestone loop vs triage loop).
@@ -489,13 +491,21 @@ Files live in the project root.
 - **`LOOP.md`** — whenever a task appears that needs a repeatable, effective *thinking
   journey* (a reusable loop worth naming), define or refine that loop here.
 - **`MEMORY.md`** — after **every** task is done: distill the lasting decision/pattern
-  here *before* clearing plan.md/todo.md. One entry = one fact.
+  here *before* clearing plan.md/todo.md. One entry = one fact. This is where ALL durable
+  technical detail lives — STATE.md only points at it (RULES.md > "STATE vs MEMORY").
 - **`plan.md`** — when a new plan forms. In **plan mode**, write the plan to `plan.md`
   and reference its path — do NOT paste hundreds of plan lines into CLAUDE.md or the chat.
 - **`todo.md`** — add the checklist for the active task; tick items as you go.
 - **`RULES.md`** — append a project rule the moment a new hard constraint surfaces.
 - **`SPEC.md`** — keep the Trellis spec (Goal / Scope / Acceptance) in sync when scope changes.
-- **`STATE.md`** — sprint-level view; agent-managed. Update at session start/end.
+- **`STATE.md`** — sprint-level POINTER; agent-managed. Update at session start/end. When a
+  task passes: write full detail to MEMORY, collapse STATE to one pointer line. Never let a
+  technical paragraph live in STATE (RULES.md > "STATE vs MEMORY").
+- **`ToFill.md`** — the moment a milestone introduces anything the USER must do by hand
+  before go-live (fill an API key/secret, pick a config value, run a live smoke-test that
+  needs a key), append it there — one line per item, grouped by section. Single home for
+  manual pre-launch actions; never scatter across STATE/MEMORY. Tick items as the user
+  reports them done. Secrets themselves never go in the file (RULES.md > Secrets).
 
 ## 4. Karpathy Guidelines (VERBATIM — do not summarize)
 
@@ -607,8 +617,11 @@ implementation rather than after mistakes.
     Write-Template (Join-Path $Root 'MEMORY.md') @'
 # MEMORY.md — persistent decisions & patterns
 
-> Long-lived knowledge. When a plan.md/todo.md goal is done, distill any lasting
-> decision here before deleting those files. One entry = one fact; keep it terse.
+> Long-lived knowledge = the RECORD. When a plan.md/todo.md goal is done, distill any
+> lasting decision here before deleting those files. One entry = one fact; keep it terse.
+> This is where ALL durable technical detail lives (file names, migrations, patterns,
+> test counts). STATE.md only POINTS here — never duplicate a paragraph across both
+> (RULES.md > "STATE vs MEMORY").
 
 ## Architecture decisions log
 <!-- [YYYY-MM-DD] Decision — why — alternatives rejected -->
@@ -681,6 +694,16 @@ $docRefs
 4. **caveman**: in-agent skill (auto-on). Trims PROSE in the RESPONSE only — never code/JSON.
 > Each layer handles a DIFFERENT payload type -> never compress the same payload twice.
 
+## STATE vs MEMORY (different jobs — never duplicate content)
+- **STATE.md = a POINTER, time-axis.** Answers "where are we now / next / blocked".
+  Sprint-level ONLY: milestone/task id + one-line status. It carries NO technical detail
+  (no file names, migrations, test counts, patterns). It is overwritten as work moves.
+- **MEMORY.md = the RECORD, knowledge-axis.** Answers "why did we choose this / what
+  pattern must hold". Append-only; one entry per task holds ALL the durable detail.
+- **The handoff:** when a task passes, write the full detail as ONE MEMORY entry, then
+  collapse it in STATE to a single pointer line (`X DONE — detail -> MEMORY.md`). Never
+  paste the same paragraph into both. If STATE grows a technical paragraph, move it to MEMORY.
+
 ## plan.md & todo.md lifecycle
 - **Create** at task start (or reuse the existing files); do not start real work without them.
 - **Update after every step**: tick todo.md items, append a plan.md checkpoint
@@ -689,6 +712,15 @@ $docRefs
 - **Never leave stale**: if you paused mid-task, the files must reflect reality.
 - **Delete when done**: once the Done criteria are verified, remove plan.md and todo.md;
   promote any lasting decision into MEMORY.md.
+
+## ToFill.md — user manual pre-launch actions
+- The moment a milestone introduces something the USER must do by hand before the app can
+  run for real (fill an API key/secret, choose a config value that isn't hardcodable, run a
+  live smoke-test that needs a key), **append one line to `ToFill.md`** — grouped by section,
+  with what / where / why / milestone. Tick items when the user confirms them done.
+- `ToFill.md` is the single home for these; do not scatter them across STATE.md/MEMORY.md.
+- NEVER write an actual secret value into `ToFill.md` (it is tracked) — reference the env
+  key name only, per "Secrets & API keys" above.
 
 ## Agent escalation
 - Same step fails twice in a row -> stop and ask the user.
@@ -704,8 +736,10 @@ $docRefs
     Write-Template (Join-Path $Root 'STATE.md') @'
 # STATE.md — loop state tracker
 
-> Sprint-level view. Read this first each session, then drill into plan.md (the how)
-> and todo.md (the checklist). Keep all three in sync (see RULES.md).
+> Sprint-level POINTER, not a logbook. Read first each session, then drill into
+> plan.md (the how) + todo.md (the checklist). Keep all three in sync (RULES.md).
+> **No technical detail here** — task id + one-line status only. Full decisions/patterns
+> live in MEMORY.md (one entry per task). See RULES.md > "STATE vs MEMORY".
 
 ## Sprint goals
 - (none yet)
@@ -716,8 +750,11 @@ $docRefs
 ## Blocked
 - (empty — record blockers with the reason and what would unblock them)
 
-## Completed this session
-- (empty)
+## Completed
+- (empty — one pointer line per done task: `X DONE — detail -> MEMORY.md`)
+
+## Next
+- (empty — the next task to pick up)
 '@
 
     Write-Template (Join-Path $Root 'LOOP.md') @'
@@ -798,6 +835,34 @@ $docRefs
 
 ## Done
 - [x] (completed items — cleared when the task closes)
+'@
+
+    Write-Template (Join-Path $Root 'ToFill.md') @'
+# ToFill.md — user manual pre-launch actions
+
+> **Role:** the SINGLE file that collects everything the USER must do BY HAND before the
+> app can run for real (fill an API key/secret, choose a config value that isn't hardcodable,
+> run a live smoke-test that needs a key) — things code CANNOT do itself and that gate
+> go-live. Whenever a milestone introduces such an action, APPEND it here — never scatter it
+> across STATE.md/MEMORY.md. Tick each item when the user confirms it done.
+>
+> Line format: `- [ ] (todo) / [x] (done) — ACTION · **Where:** … · **Why:** … · (milestone)`
+> Secrets (keys/tokens) are NEVER committed — reference the env key name only, per
+> RULES.md > "Secrets & API keys".
+
+---
+
+## 1. Secrets & environment (`.env` — gitignored)
+- (none yet — append an env key the moment a milestone needs one)
+
+## 2. Config choices (must be chosen, never hardcoded)
+- (none yet)
+
+## 3. Live verification still pending (do after filling keys above)
+- (none yet)
+
+## 4. Placeholder for later milestones (append here as they surface)
+- _(later milestones add their own lines above)_
 '@
 }
 
@@ -1096,7 +1161,7 @@ function Test-Setup {
         try { Get-Content $settings -Raw | ConvertFrom-Json | Out-Null; Write-Ok 'settings.json hop le JSON' }
         catch { Write-Fail 'settings.json KHONG hop le JSON' }
     }
-    $foundation = @('CLAUDE.md','AGENTS.md','MEMORY.md','SPEC.md','RULES.md','STATE.md','LOOP.md','plan.md','todo.md')
+    $foundation = @('CLAUDE.md','AGENTS.md','MEMORY.md','SPEC.md','RULES.md','STATE.md','LOOP.md','plan.md','todo.md','ToFill.md')
     $found = $foundation | Where-Object { Test-Path (Join-Path $Root $_) }
     Write-Ok ("Foundation files: {0}/{1}" -f $found.Count, $foundation.Count)
     Write-Info "Trong Claude Code chay /mcp de xac nhan servers; rtk gain de xem token savings."

@@ -7,8 +7,9 @@
 4. Verify against the Done criteria.
 5. On pass: move item to Done, sync STATE.md, distill decisions to MEMORY.md.
 
-## Milestone execution loop (the thinking journey for every Mx task)
-> One milestone per `/clear` session. This is the default loop for project work.
+## Milestone execution loop (the thinking journey for every Mx / EMx task)
+> One milestone per `/clear` session. This is the default loop for project work —
+> applies to Extended Milestones EM1a/EM1b/EM1c too (milestones.md PHẦN 4).
 1. `/clear`, then read ONLY the milestone's section of `docs/milestones.md` (+ files it
    lists). Do not read the whole doc — protect context.
 2. Write plan.md (Context/Goal/Assumptions/Steps/Done) + todo.md checklist for this Mx.
