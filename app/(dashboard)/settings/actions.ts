@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { resolveModelConfig } from "@/lib/ai/adapter";
+import { encryptString } from "@/lib/ai/keystore";
 import { wipeAll } from "@/lib/import-export/backup";
 import { seedCore } from "@/prisma/seedCore";
 
@@ -23,6 +24,8 @@ export type AiModelConfigDTO = {
   temperature: number | null;
   maxTokens: number | null;
   isDefault: boolean;
+  // NEVER expose the encrypted/raw key to the client — only whether one is stored.
+  hasKey: boolean;
   createdAt: string;
 };
 
@@ -57,6 +60,7 @@ export async function getSettingsData(): Promise<SettingsData> {
       temperature: r.temperature,
       maxTokens: r.maxTokens,
       isDefault: r.isDefault,
+      hasKey: !!r.apiKey,
       createdAt: r.createdAt.toISOString(),
     })),
     active,
@@ -69,11 +73,14 @@ export async function getSettingsData(): Promise<SettingsData> {
 
 const saveModelConfigSchema = z.object({
   provider: z.enum(["anthropic", "openai"]),
+  // Accept a preset model id OR any non-empty custom string (RULES #3: presets are DATA,
+  // not a hard whitelist — a custom model must still be allowed).
   model: z.string().min(1),
   label: z.string().optional(),
   temperature: z.number().optional(),
   maxTokens: z.number().int().optional(),
   isDefault: z.boolean().optional(),
+  apiKey: z.string().min(1).optional(),
 });
 
 export type SaveModelConfigInput = z.input<typeof saveModelConfigSchema>;
@@ -87,6 +94,19 @@ export async function saveModelConfig(
   }
   const v = parsed.data;
   const isDefault = v.isDefault ?? true;
+
+  // Encrypt the key BEFORE any DB write — plaintext never reaches the database.
+  let encryptedKey: string | null = null;
+  if (v.apiKey) {
+    try {
+      encryptedKey = encryptString(v.apiKey);
+    } catch (e) {
+      return {
+        ok: false,
+        error: e instanceof Error ? e.message : "Mã hóa API key thất bại.",
+      };
+    }
+  }
 
   try {
     const created = await db.$transaction(async (tx) => {
@@ -103,6 +123,7 @@ export async function saveModelConfig(
           temperature: v.temperature ?? null,
           maxTokens: v.maxTokens ?? null,
           isDefault,
+          apiKey: encryptedKey,
         },
         select: { id: true },
       });

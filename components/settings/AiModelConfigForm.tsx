@@ -2,12 +2,15 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Check, Trash2 } from "lucide-react";
+import { Loader2, Check, Trash2, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LabelWithHelp } from "@/components/ui/field-help";
 import { Badge } from "@/components/ui/badge";
+import { MODEL_PRESETS, type ModelProvider } from "@/lib/ai/models";
+import { HELP_TEXT } from "@/lib/help-text";
 import {
   saveModelConfig,
   deleteModelConfig,
@@ -21,6 +24,9 @@ interface AiModelConfigFormProps {
 
 const PROVIDERS = ["anthropic", "openai"] as const;
 
+// Sentinel value for the "custom model" dropdown choice — reveals the free-text input.
+const CUSTOM_MODEL = "__custom__";
+
 function toNum(v: string): number | undefined {
   if (v.trim() === "") return undefined;
   const n = Number(v);
@@ -31,11 +37,14 @@ export function AiModelConfigForm({ configs, active }: AiModelConfigFormProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
-  const [provider, setProvider] = useState<(typeof PROVIDERS)[number]>(
-    "anthropic",
-  );
-  const [model, setModel] = useState("");
+  const [provider, setProvider] = useState<ModelProvider>("anthropic");
+  // `modelChoice` drives the dropdown: a preset model id or CUSTOM_MODEL. When custom,
+  // the free-text `customModel` input supplies the actual model string.
+  const [modelChoice, setModelChoice] = useState<string>(CUSTOM_MODEL);
+  const [customModel, setCustomModel] = useState("");
   const [label, setLabel] = useState("");
+  const [apiKey, setApiKey] = useState("");
+  const [showKey, setShowKey] = useState(false);
   const [temperature, setTemperature] = useState("");
   const [maxTokens, setMaxTokens] = useState("");
   const [isDefault, setIsDefault] = useState(true);
@@ -43,18 +52,30 @@ export function AiModelConfigForm({ configs, active }: AiModelConfigFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
+  const presets = MODEL_PRESETS.filter((p) => p.provider === provider);
+  const isCustom = modelChoice === CUSTOM_MODEL;
+
+  function onProviderChange(next: ModelProvider) {
+    setProvider(next);
+    // Reset model choice to custom so we never keep another provider's preset selected.
+    setModelChoice(CUSTOM_MODEL);
+    setCustomModel("");
+  }
+
   function onSave() {
     setError(null);
     setSaved(false);
-    if (model.trim() === "") {
+    const model = isCustom ? customModel.trim() : modelChoice;
+    if (model === "") {
       setError("Nhập tên model.");
       return;
     }
     startTransition(async () => {
       const res = await saveModelConfig({
         provider,
-        model: model.trim(),
+        model,
         label: label.trim() || undefined,
+        apiKey: apiKey.trim() || undefined,
         temperature: toNum(temperature),
         maxTokens:
           toNum(maxTokens) != null ? Math.trunc(toNum(maxTokens)!) : undefined,
@@ -65,8 +86,11 @@ export function AiModelConfigForm({ configs, active }: AiModelConfigFormProps) {
         return;
       }
       setSaved(true);
-      setModel("");
+      setModelChoice(CUSTOM_MODEL);
+      setCustomModel("");
       setLabel("");
+      setApiKey("");
+      setShowKey(false);
       setTemperature("");
       setMaxTokens("");
       router.refresh();
@@ -114,6 +138,7 @@ export function AiModelConfigForm({ configs, active }: AiModelConfigFormProps) {
                   <p className="flex items-center gap-2 truncate text-sm font-medium text-foreground">
                     {c.provider}/{c.model || "—"}
                     {c.isDefault && <Badge variant="default">mặc định</Badge>}
+                    {c.hasKey && <Badge variant="secondary">🔑 đã có key</Badge>}
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {[
@@ -149,7 +174,7 @@ export function AiModelConfigForm({ configs, active }: AiModelConfigFormProps) {
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 value={provider}
                 onChange={(e) =>
-                  setProvider(e.target.value as (typeof PROVIDERS)[number])
+                  onProviderChange(e.target.value as ModelProvider)
                 }
               >
                 {PROVIDERS.map((p) => (
@@ -161,13 +186,28 @@ export function AiModelConfigForm({ configs, active }: AiModelConfigFormProps) {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="model">Tên model</Label>
-              <Input
+              <Label htmlFor="model">Model</Label>
+              <select
                 id="model"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                placeholder="ví dụ: claude-... hoặc gpt-..."
-              />
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                value={modelChoice}
+                onChange={(e) => setModelChoice(e.target.value)}
+              >
+                {presets.map((p) => (
+                  <option key={p.model} value={p.model}>
+                    {p.label} · {p.level}
+                  </option>
+                ))}
+                <option value={CUSTOM_MODEL}>Tùy chỉnh…</option>
+              </select>
+              {isCustom && (
+                <Input
+                  className="mt-2"
+                  value={customModel}
+                  onChange={(e) => setCustomModel(e.target.value)}
+                  placeholder="ví dụ: claude-... hoặc gpt-..."
+                />
+              )}
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -177,6 +217,35 @@ export function AiModelConfigForm({ configs, active }: AiModelConfigFormProps) {
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
               />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <LabelWithHelp htmlFor="apiKey" help={HELP_TEXT.aiApiKey}>
+                API key (tùy chọn)
+              </LabelWithHelp>
+              <div className="relative">
+                <Input
+                  id="apiKey"
+                  type={showKey ? "text" : "password"}
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder="sk-..."
+                  className="pr-10"
+                  autoComplete="off"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowKey((v) => !v)}
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+                  aria-label={showKey ? "Ẩn API key" : "Hiện API key"}
+                >
+                  {showKey ? (
+                    <EyeOff className="size-4" />
+                  ) : (
+                    <Eye className="size-4" />
+                  )}
+                </button>
+              </div>
             </div>
 
             <div className="flex flex-col gap-1.5">

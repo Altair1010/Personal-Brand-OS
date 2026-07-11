@@ -5,6 +5,7 @@
 import { db } from "@/lib/db";
 import { createAnthropicAdapter } from "./anthropic";
 import { createOpenAIAdapter } from "./openai";
+import { decryptString } from "./keystore";
 
 export interface AIAdapter {
   call(req: {
@@ -18,6 +19,7 @@ export interface AIAdapter {
 export async function resolveModelConfig(): Promise<{
   provider: string;
   model: string;
+  apiKey?: string;
 }> {
   const row =
     (await db.aIModelConfig.findFirst({ where: { isDefault: true } })) ??
@@ -33,18 +35,22 @@ export async function resolveModelConfig(): Promise<{
     );
   }
 
-  return { provider, model };
+  // Decrypt the stored key if present; env fallback happens inside the adapter.
+  const apiKey = row?.apiKey ? decryptString(row.apiKey) : undefined;
+
+  return { provider, model, apiKey };
 }
 
 export function getAdapter(cfg: {
   provider: string;
   model: string;
+  apiKey?: string;
 }): AIAdapter {
   switch (cfg.provider) {
     case "anthropic":
-      return createAnthropicAdapter(cfg.model);
+      return createAnthropicAdapter(cfg.model, cfg.apiKey);
     case "openai":
-      return createOpenAIAdapter(cfg.model);
+      return createOpenAIAdapter(cfg.model, cfg.apiKey);
     default:
       throw new Error(`Provider AI không hỗ trợ: ${cfg.provider}`);
   }

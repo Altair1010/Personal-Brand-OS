@@ -433,6 +433,7 @@ model AIModelConfig {
   label       String?
   temperature Float?
   maxTokens   Int?
+  apiKey      String?
   isDefault   Boolean  @default(false)
   createdAt   DateTime @default(now())
 }

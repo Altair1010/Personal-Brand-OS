@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/layout/PageHeader";
 import { AiModelConfigForm } from "@/components/settings/AiModelConfigForm";
+import { ContentGenInfoPanel } from "@/components/settings/ContentGenInfoPanel";
 import { BackupPanel } from "@/components/settings/BackupPanel";
 import { DangerZone } from "@/components/settings/DangerZone";
 import { getSettingsData } from "./actions";
@@ -17,6 +18,7 @@ export default async function SettingsPage() {
       />
       <div className="space-y-6">
         <AiModelConfigForm configs={data.configs} active={data.active} />
+        <ContentGenInfoPanel />
         <BackupPanel />
         <DangerZone />
       </div>

@@ -2,10 +2,12 @@
 
 import { useOnboardingStore } from "@/lib/stores/onboarding";
 import { Label } from "@/components/ui/label";
+import { LabelWithHelp } from "@/components/ui/field-help";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { KpiEditor } from "./KpiEditor";
 import { ContentRatioSlider } from "./ContentRatioSlider";
+import { HELP_TEXT } from "@/lib/help-text";
 
 // Step 2 — Goal. name + goalType required; time range + narrative fields optional.
 
@@ -17,7 +19,9 @@ export function GoalForm() {
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1">
-          <Label htmlFor="goal-name">Tên mục tiêu *</Label>
+          <LabelWithHelp htmlFor="goal-name" help={HELP_TEXT.goalName}>
+            Tên mục tiêu *
+          </LabelWithHelp>
           <Input
             id="goal-name"
             value={goal.name}
@@ -25,7 +29,9 @@ export function GoalForm() {
           />
         </div>
         <div className="space-y-1">
-          <Label htmlFor="goal-type">Loại mục tiêu *</Label>
+          <LabelWithHelp htmlFor="goal-type" help={HELP_TEXT.goalType}>
+            Loại mục tiêu *
+          </LabelWithHelp>
           <Input
             id="goal-type"
             value={goal.goalType}

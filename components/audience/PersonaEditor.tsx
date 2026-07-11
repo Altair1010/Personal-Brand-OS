@@ -4,7 +4,8 @@ import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import { LabelWithHelp } from "@/components/ui/field-help";
+import { HELP_TEXT } from "@/lib/help-text";
 import type { PersonaDraft } from "./types";
 
 // Editable card for one persona — the 9 acceptance fields. Pure controlled inputs;
@@ -25,6 +26,12 @@ const FIELDS: {
   { key: "cta", label: "CTA" },
   { key: "offer", label: "Offer" },
 ];
+
+// Per-field help text — only the keys present here show a help icon.
+const FIELD_HELP: Partial<Record<(typeof FIELDS)[number]["key"], string>> = {
+  name: HELP_TEXT.personaName,
+  pain: HELP_TEXT.personaPain,
+};
 
 interface PersonaEditorProps {
   persona: PersonaDraft;
@@ -61,9 +68,13 @@ export function PersonaEditor({
       <div className="grid gap-3 sm:grid-cols-2">
         {FIELDS.map(({ key, label, textarea }) => (
           <div key={key} className={textarea ? "sm:col-span-2" : ""}>
-            <Label htmlFor={`${persona._key}-${key}`} className="mb-1 block">
+            <LabelWithHelp
+              htmlFor={`${persona._key}-${key}`}
+              help={FIELD_HELP[key]}
+              className="mb-1"
+            >
               {label}
-            </Label>
+            </LabelWithHelp>
             {textarea ? (
               <Textarea
                 id={`${persona._key}-${key}`}

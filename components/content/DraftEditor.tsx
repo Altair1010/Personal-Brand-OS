@@ -8,6 +8,7 @@ import { Loader2, Save, CheckCircle2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { LabelWithHelp } from "@/components/ui/field-help";
 import { Input } from "@/components/ui/input";
 import { AiLoading } from "@/components/AiLoading";
 import { ErrorState } from "@/components/ErrorState";
@@ -16,6 +17,7 @@ import {
   CTA_INTENSITY,
   FORMATS,
 } from "@/lib/constants";
+import { HELP_TEXT } from "@/lib/help-text";
 import { StructuredEditor } from "./StructuredEditor";
 import { ObjectiveSelect } from "./ObjectiveSelect";
 import { FrameworkSelect } from "./FrameworkSelect";
@@ -286,7 +288,9 @@ export function DraftEditor({
             onChange={setFormat}
           />
           <div className="space-y-1.5">
-            <Label htmlFor="fld-tone">Giọng điệu</Label>
+            <LabelWithHelp htmlFor="fld-tone" help={HELP_TEXT.draftTone}>
+              Giọng điệu
+            </LabelWithHelp>
             <Input
               id="fld-tone"
               value={tone}

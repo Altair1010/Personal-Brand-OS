@@ -5,10 +5,11 @@ import type { AIAdapter } from "./adapter";
 
 const ENDPOINT = "https://api.openai.com/v1/chat/completions";
 
-export function createOpenAIAdapter(model: string): AIAdapter {
+// `key` is the resolved DB-stored key (decrypted upstream); falls back to env.
+export function createOpenAIAdapter(model: string, key?: string): AIAdapter {
   return {
     async call(req) {
-      const apiKey = process.env.OPENAI_API_KEY;
+      const apiKey = key ?? process.env.OPENAI_API_KEY;
       if (!apiKey) {
         throw new Error(
           "Thiếu OPENAI_API_KEY — đặt biến môi trường trước khi gọi AI.",

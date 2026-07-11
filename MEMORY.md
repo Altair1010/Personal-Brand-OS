@@ -344,6 +344,54 @@ sạch: mọi path qua `path.join/resolve`+`__dirname`, 0 hardcoded `C:\`/`/User
   Prompt 2 (customize SPEC/RULES/STATE/LOOP + spawn `<proj>-*` agents). Docs = single
   source of truth; scaffold only points to them; Prompt 2 owns the merge (no hand-merge).
 
+- [2026-07-11] **EM1 PLANNED** (approved extension beyond MVP lock — plan file
+  `~/.claude/plans/4-c-i-exe-majestic-hinton.md`; milestones.md PHẦN 4). Split into
+  **EM1a→EM1b→EM1c**, order-locked (EM1c needs EM1b account). Durable decisions:
+  1. **Content-gen = template + inject** (confirmed from code, NOT changed): static
+     `system`+few-shot in `lib/prompts/<module>.ts` + user data via `buildUser()`. No
+     user-authored prompts; LLM never sets enums. EM1a only surfaces this to the user.
+  2. **API key moves into Settings** (EM1a): `AIModelConfig.apiKey` col; adapter uses
+     `config.apiKey ?? process.env.*` (env fallback kept). Model = **preset dropdown**
+     (`lib/ai/models.ts`, Claude/GPT + level Low/Med/High/Extra) — preset is config DATA,
+     still no hardcoded model in the call path (rule 3 intact). Key encryption: Electron
+     `safeStorage` if available, else plaintext in local `userData` SQLite (single-user
+     desktop — accepted trade-off). Replaces manual `pbos.env` step (ToFill M11/M12).
+  3. **Persistence = local SQLite + cloud backup snapshot** (option B, chosen over
+     cloud-primary Postgres): keep SQLite, add **Supabase** (free) Auth + Storage. Push
+     **encrypted** snapshot (reuse `lib/import-export/backup.ts`), pull on new machine.
+     Rejected cloud-primary (needs online, sqlite→postgres refactor, free-tier limits).
+     Snapshot **excludes secrets** (apiKey, FB token) → re-enter on new machine.
+  4. **Facebook = paste Page Access Token → Graph API fetch** (EM1c), NOT full OAuth:
+     own-page token needs no app review. Manual metric entry = **paste post URL** →
+     `resolvePostId` → Graph insights → `MetricSnapshot(source="facebook_api")`; typing
+     4 fields stays as fallback. `FacebookAccount` scoped to account; `Post.facebookAccountId`.
+  5. **New hard rule:** secrets never enter cloud backup (RULES.md). EM1 loosens scope-lock
+     items (auth/cloud, Meta/FB API, key-in-UI) — logged as approved exception, not drift.
+
+- [2026-07-11] **EM1a DONE** (gate PASS: build 0-err, vitest 70/70 incl new
+  `tests/ai/adapter-db-key.test.ts`, seed idempotent, scope-guard PASS). Deltas vs plan:
+  1. **Keystore = Node crypto AES-256-GCM** (NOT plaintext fallback — user decision
+     2026-07-11): `lib/ai/keystore.ts` `encryptString`/`decryptString`. Per-install secret
+     `crypto.randomBytes(32)` at `<userData>/.pbos-key` (0o600), userData dir derived from
+     `DATABASE_URL` dir, dev fallback `prisma/.pbos-key`. Prefix scheme: `v1:` = crypto
+     (base64 iv|tag|ciphertext), `ss1:` = Electron safeStorage (tried only if genuinely
+     available). Malformed/missing key → clear throw, never crash pipeline. Reason:
+     `safeStorage` unreachable from the `ELECTRON_RUN_AS_NODE` Next server child.
+  2. **Presets** (`lib/ai/models.ts`, `MODEL_PRESETS` + `findPreset`/`isPresetModel`):
+     anthropic claude-haiku-4-5 (Low) / claude-sonnet-4-6 (High) / claude-opus-4-8 (Extra);
+     openai gpt-4o-mini (Low) / gpt-4o (Medium) / gpt-4.1 (High). DATA only, referenced
+     just inside models.ts — no model literal in call path (adapter/anthropic/openai/run).
+  3. **Key never leaves server**: `AiModelConfigDTO` exposes `hasKey: boolean` only
+     (`getSettingsData` maps `!!r.apiKey`); `saveModelConfig` encrypts before DB write;
+     form field is write-only password + show/hide. Adapter: `config.apiKey ?? process.env.*`.
+  4. **Help-icon infra**: `components/ui/tooltip.tsx` (+`@radix-ui/react-tooltip`),
+     `components/ui/field-help.tsx` (`FieldHelp` + `LabelWithHelp` drop-in), `lib/help-text.ts`
+     (VN map). Applied ≥1 field on BrandDnaForm/GoalForm/PersonaEditor/DraftEditor/AiModelConfigForm.
+  5. **Transparency**: `components/settings/ContentGenInfoPanel.tsx` (collapsible,
+     `@radix-ui/react-collapsible`, `components/ui/collapsible.tsx`) + `docs/content-gen-transparency.md`
+     — describes real 6-step pipeline, mechanism unchanged.
+  Migration `20260711024222_aimodelconfig_apikey` (`ALTER TABLE AIModelConfig ADD apiKey TEXT`).
+
 ## Bug workaround registry
 <!-- symptom -> root cause -> workaround -> permanent fix ref -->
 - (none yet)

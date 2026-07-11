@@ -10,10 +10,11 @@ const ANTHROPIC_VERSION = "2023-06-01";
 // Omit temperature entirely for them. NOT a default-model choice.
 const NO_TEMPERATURE = /(?:opus-4-(?:7|8)|fable-5)/;
 
-export function createAnthropicAdapter(model: string): AIAdapter {
+// `key` is the resolved DB-stored key (decrypted upstream); falls back to env.
+export function createAnthropicAdapter(model: string, key?: string): AIAdapter {
   return {
     async call(req) {
-      const apiKey = process.env.ANTHROPIC_API_KEY;
+      const apiKey = key ?? process.env.ANTHROPIC_API_KEY;
       if (!apiKey) {
         throw new Error(
           "Thiếu ANTHROPIC_API_KEY — đặt biến môi trường trước khi gọi AI.",

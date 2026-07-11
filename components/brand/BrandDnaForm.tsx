@@ -2,10 +2,12 @@
 
 import { useOnboardingStore } from "@/lib/stores/onboarding";
 import { Label } from "@/components/ui/label";
+import { LabelWithHelp } from "@/components/ui/field-help";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { FileDropzone } from "./FileDropzone";
 import { AiSuggestionPanel } from "./AiSuggestionPanel";
+import { HELP_TEXT } from "@/lib/help-text";
 import type { BrandDnaInput } from "@/lib/validators/brandDna";
 
 // Step 1 — Brand DNA (11 core fields) + company context. Longform fields are textareas.
@@ -58,7 +60,9 @@ export function BrandDnaForm() {
       )}
 
       <div className="space-y-1">
-        <Label>3 từ khoá thương hiệu</Label>
+        <LabelWithHelp help={HELP_TEXT.brandThreeWords}>
+          3 từ khoá thương hiệu
+        </LabelWithHelp>
         <div className="grid grid-cols-3 gap-2">
           {[0, 1, 2].map((i) => (
             <Input

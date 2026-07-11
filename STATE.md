@@ -7,11 +7,12 @@
 > "STATE vs MEMORY".
 
 ## Sprint goals
-- Ship the Personal Brand OS MVP across `M0 -> M10` (see SPEC.md), one milestone per
-  `/clear` session, VERIFY-gated.
+- MVP `M0 -> M12` DONE. Sprint kế: **Extended Milestone 1 (EM1a → EM1b → EM1c)** —
+  key-in-UI, tài khoản + backup cloud, đa Facebook. Plan: milestones.md PHẦN 4. One
+  milestone per `/clear`, VERIFY-gated.
 
 ## In-progress
-- (none) — **web MVP M0–M10 + M11 (runtime) + M12 (packaging) hoàn tất**. Milestone cuối xong.
+- (none) — EM1a DONE. Kế: EM1b (cần user tạo Supabase project + điền config, ToFill §5).
 
 ## Blocked
 - (none)
@@ -25,10 +26,15 @@
 - Desktop scope M11 cũ (Electron gộp) đã **tách đôi** → M11 runtime + M12 packaging (milestones.md PHẦN 3B).
 - **M12 DONE** (Packaging unsigned — electron-builder nsis `.exe` 187.7M build local + CI `.dmg` Mac).
   Detail + winCodeSign local workaround → MEMORY.md. GUI install/launch + tải `.dmg` = user (ToFill §4).
+- **EM1a DONE** (Key-in-UI + Help icons + minh bạch content-gen). Gate PASS: build 0-err, vitest 70/70
+  (+`tests/ai/adapter-db-key.test.ts`), seed idempotent, scope-guard PASS. Keystore = Node crypto
+  AES-256-GCM (không plaintext). Detail → MEMORY.md. Việc user: nhập key trong Settings (ToFill §5).
 
 ## Next
-- (none) — **toàn bộ roadmap M0→M12 xong.** Còn: live AI smoke D.1–D.15 (cần key, ToFill §3) +
-  user cài `.exe`/test GUI + tag `v0.1.0` chạy CI Mac (ToFill §4).
+- **EM1b** — Tài khoản + backup cloud (Supabase free). Cần user tạo Supabase project + điền
+  `SUPABASE_URL`/`SUPABASE_ANON_KEY` (ToFill §5) trước khi code. Có thể chia 2 phiên. Rồi EM1c.
+- Còn treo (không chặn EM1b): live AI smoke D.1–D.15 (giờ nhập key qua Settings, ToFill §3) + user
+  cài `.exe`/test GUI + tag CI Mac (ToFill §4).
 
 ## Env
 - Git: repo init'd, `master` branch, identity = minhkhang.guru (local).
