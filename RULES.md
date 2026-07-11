@@ -16,6 +16,16 @@
   sits in `settings.local.json` → `env.CONTEXT7_API_KEY`.
 - Before any commit/push: verify no raw key (`ctx7sk-`, `sk-`, tokens) appears in
   `git diff --cached`. If found, move it to `settings.local.json` and re-placeholder.
+- **Secrets NEVER enter a cloud backup snapshot (EM1).** `AIModelConfig.apiKey` and
+  `FacebookAccount.accessToken` live only in the local `userData` DB; `lib/cloud-backup.ts`
+  MUST strip them before upload. On a new machine the user re-enters them. A snapshot that
+  contains any key/token is a bug — fail the EM1b/EM1c gate.
+  - Implemented via `STRIP_FIELDS` in `lib/cloud-backup.ts` (`stripSecrets` nulls the fields
+    before encrypt+upload; also strips `AppState.supabaseUserId` so a restore never clobbers
+    the local account binding). EM1c adds `FacebookAccount: ["accessToken"]`. Covered by
+    `tests/cloud-backup/cloud-backup.test.ts` (asserts the snapshot string carries no secret).
+  - Snapshot encryption uses a **user passphrase** (scrypt), NOT `lib/ai/keystore.ts` (whose
+    per-install `.pbos-key` doesn't exist on a new machine → would be undecryptable there).
 
 ## Code style
 - Match the existing style. Surgical changes only (Karpathy §3). No out-of-scope refactors.
@@ -115,3 +125,14 @@
        a path the user picks (file dialog), not a fixed cwd-relative file.
     5. **Node-only deps stay externalized.** `serverExternalPackages` (pdf-parse/pdfjs-dist/
        mammoth) — M12 `asarUnpack`s them. Don't move these into client bundles.
+- **[2026-07-11] Extended Milestone 1 (EM1), done AFTER M12.** User-approved deliberate
+  expansion beyond the MVP lock. These project-rule-1 "never build" items are UNLOCKED for
+  EM1 only (logged, not drift): **Meta/FB API** (EM1c — own-page Page token + Graph API,
+  no OAuth app review, no auto-publish), **multi-user/auth/cloud** (EM1b — Supabase Auth +
+  Storage snapshot backup; local SQLite stays primary), **API-key-in-UI** (EM1a — Settings
+  key entry + model preset dropdown). Split `EM1a → EM1b → EM1c` (order-locked). Guardrails
+  that STILL hold: no hardcoded model in the call path (preset list is config data);
+  key/token stay server-side + excluded from cloud backup; prompt mechanism unchanged
+  (template + inject); ratio/enum rules intact. scope-guard: treat auth/`lib/supabase.ts`/
+  `lib/cloud-backup.ts`/`lib/facebook/*`/`app/(auth)/*` as authorized for EM1; still flag
+  creep beyond the three EM1 sub-milestones. See milestones.md PHẦN 4.

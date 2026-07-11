@@ -392,6 +392,44 @@ sạch: mọi path qua `path.join/resolve`+`__dirname`, 0 hardcoded `C:\`/`/User
      — describes real 6-step pipeline, mechanism unchanged.
   Migration `20260711024222_aimodelconfig_apikey` (`ALTER TABLE AIModelConfig ADD apiKey TEXT`).
 
+- [2026-07-11] **EM1b DONE** (Tài khoản Supabase + backup cloud mã hoá). Gate PASS: build
+  0-err, vitest **77/77** (+7 `tests/cloud-backup/cloud-backup.test.ts`), seed idempotent
+  (migration `appstate_supabase_binding` additive-only), scope-guard 0 violation, verifier DONE.
+  Chia 2 phiên/commit: `EM1b-1: auth gate` (e5a0367) + `EM1b: account + cloud backup sync`.
+  **Quyết định load-bearing:**
+  1. **Snapshot mã hoá bằng PASSPHRASE (scrypt), KHÔNG dùng `lib/ai/keystore.ts`.** keystore
+     dùng secret per-install `<userData>/.pbos-key` → máy mới KHÔNG có secret đó → snapshot
+     bất khả giải mã ⇒ vỡ mục tiêu khôi phục. `lib/cloud-backup.ts` tự derive:
+     `scryptSync(passphrase, salt, 32)` + AES-256-GCM, blob = `MAGIC("PBOS1")|salt(16)|iv(12)|
+     tag(16)|ct`. Passphrase KHÔNG lên cloud; sai passphrase → GCM auth fail → throw.
+  2. **Secret loại khỏi snapshot qua `STRIP_FIELDS`** = `{AIModelConfig:["apiKey"],
+     AppState:["supabaseUserId"]}` (EM1c thêm `FacebookAccount:["accessToken"]`). `stripSecrets`
+     deep-clone + null field (giữ row). `supabaseUserId` strip để restore KHÔNG đè binding máy
+     mới. Tái dùng NGUYÊN `lib/import-export/backup.ts` (export/import/`backupEnvelopeSchema`) —
+     không sửa. `pushSnapshot` = export→strip→encrypt→Storage upload upsert `<userId>/latest.enc`;
+     `pullSnapshot` = download→decrypt→`safeParse`(chặn file hỏng TRƯỚC ghi DB)→importBackup.
+  3. **Supabase server-side KHÔNG service key.** `lib/cloud-backup/actions.ts` build client =
+     anon key + `global.headers.Authorization: Bearer <accessToken>` (token client truyền vào),
+     RE-VERIFY `auth.getUser(token)` trước mọi Storage op → RLS `(storage.foldername(name))[1] =
+     auth.uid()` giới hạn user chỉ đụng thư mục mình. Gate UI là UX, verify token là biên bảo mật.
+  4. **Hard gate client-side (không middleware).** App single-user Electron/standalone → tránh
+     middleware. `components/auth/AuthGate.tsx` (client) bọc `AppShell` trong MỚI
+     `app/(dashboard)/layout.tsx`; root `app/layout.tsx` BỎ AppShell (chỉ Providers); group
+     `(auth)` (login/signup + `AuthForm` dùng chung) ngoài gate, layout tối giản. AuthGate:
+     `getSession`+`onAuthStateChange` → authed render children + `bindAccount(user.id)`; unauthed
+     → `router.replace("/login")`; config thiếu → màn "Chưa cấu hình Supabase".
+  5. **Config Supabase qua env, KHÔNG NEXT_PUBLIC.** `SUPABASE_URL`/`SUPABASE_ANON_KEY` đọc
+     `process.env` (dev `.env`; prod `pbos.env` — `loadUserEnv` parse mọi KEY=VALUE nên KHÔNG
+     cần sửa `electron/runtime.js`). Client lấy runtime qua server action `getSupabaseConfig()`
+     (anon key publishable, an toàn lộ renderer); `lib/supabase.ts` lazy-cache browser client,
+     cache chỉ khi thành công (typo config retry được sau khi user sửa).
+  6. **`bindAccount` chống đè chủ khác:** chỉ ghi `AppState.supabaseUserId` khi null; nếu đã có
+     và KHÁC user hiện tại → trả `mismatch`, không overwrite.
+  Migration `20260711041623_appstate_supabase_binding` (+`supabaseUserId String?` +
+  `lastCloudSyncAt DateTime?`). Dep +`@supabase/supabase-js`. Live push/pull (cần Supabase
+  project + private bucket `backups` + RLS) → ToFill §5. Delegated: pbos-data-modeler (schema/
+  migration), scope-guard + milestone-verifier (gate); code/UI/test inline.
+
 ## Bug workaround registry
 <!-- symptom -> root cause -> workaround -> permanent fix ref -->
 - (none yet)

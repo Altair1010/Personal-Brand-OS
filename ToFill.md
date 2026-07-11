@@ -49,8 +49,38 @@
 - [ ] (M10, tuỳ chọn) **Chọn model trong Settings thay cho env** · **Ở đâu:** `npm run dev` → Cài đặt → nhập provider + model + tick "mặc định" · **Vì sao:** thay cho `AI_DEFAULT_MODEL` trong `.env`; row `isDefault=true` được adapter ưu tiên. Không bắt buộc nếu đã đặt env. (M10)
 - (M11, sau M10) Desktop runtime cross-platform: boot production trong Electron + dời SQLite sang OS user-data dir + first-run migrate — task build, không phải user-fill.
 - (M12, sau M11) Đóng gói: installer `.exe` (Win) + `.dmg` (Mac qua CI) + bundle Prisma engine, unsigned — task build.
-- [ ] **(M12) Tạo GitHub repo + push remote** · **Ở đâu:** repo `Altair1010/Personal-Brand-OS`. Assistant sẽ `git remote add` + `git push` + push tag `v0.1.0` trong phiên. **Vì sao:** artifact Mac (.dmg) chỉ build được trên GitHub Actions `macos-latest` (không cross-build từ Win); workflow `desktop-build.yml` chạy khi push tag `v*`. (M12)
+- [x] **(M12) Tạo GitHub repo + push remote** · ĐÃ push `master` + tag `v0.1.0` lên `Altair1010/Personal-Brand-OS` → CI `desktop-build.yml` đã kích hoạt. **Vì sao:** artifact Mac (.dmg) chỉ build được trên GitHub Actions `macos-latest` (không cross-build từ Win); workflow `desktop-build.yml` chạy khi push tag `v*`. (M12)
 - [ ] **(M12) Cài + mở app từ `.exe`** · **Ở đâu:** `release/Personal Brand OS Setup 0.1.0.exe` (build local) · **Vì sao:** verify GUI: chạy installer → có shortcut Desktop + icon → mở app chạy full UI → DB tạo ở `%APPDATA%\Personal Brand OS\pbos.db`. SmartScreen cảnh báo (unsigned) → "More info → Run anyway". (M12)
 - [ ] **(M12) Điền key cho app đã cài** · **Ở đâu:** `%APPDATA%\Personal Brand OS\pbos.env` dòng `ANTHROPIC_API_KEY=...` (lưu ý productName folder = "Personal Brand OS", KHÁC folder "Electron" của bản `app:prod` chưa đóng gói) · **Vì sao:** app đóng gói không mang `.env` repo; thiếu file → call AI báo thiếu key. (M12)
 - [ ] **(M12) Tải artifact `.dmg`** · **Ở đâu:** GitHub → Actions → run "Desktop Build" (tag v0.1.0) → job `macos` → artifact `macos-dmg` · **Vì sao:** Mac chỉ build trên CI; Gatekeeper cảnh báo (unsigned) → chuột phải → Open. (M12)
 - _(các mốc sau tự thêm dòng của mình bên trên)_
+
+## 5. Extended Milestone 1 (EM1) — key-in-UI · tài khoản+cloud · Facebook
+
+> EM1a **thay** bước "điền `pbos.env`" (mục §1 dòng cuối + §4 M12) bằng nhập trong Settings.
+> Sau khi EM1a xong: không cần sửa `pbos.env` tay nữa — vào **Cài đặt → nhập API key + chọn model**.
+
+- [ ] **(EM1a) Nhập API key + chọn model trong Settings** · **Ở đâu:** app → Cài đặt → thêm
+  profile (nhà cung cấp Claude/OpenAI, chọn model từ dropdown, dán key, đặt tên, tick mặc định)
+  · **Vì sao:** thay `pbos.env`; adapter đọc key từ DB. Key chỉ nằm máy này, KHÔNG lên cloud backup. (EM1a)
+- [ ] **(EM1b) Tạo Supabase project free + điền config** · **Ở đâu:** supabase.com → New project (free)
+  → Settings → API → lấy `Project URL` + `anon public key` → điền vào `.env` (dev, dòng
+  `SUPABASE_URL=...` + `SUPABASE_ANON_KEY=...`) hoặc `pbos.env` (bản đóng gói, cùng thư mục
+  userData với `pbos.env` AI key)
+  · **Vì sao:** dùng Supabase Auth (đăng nhập) + Storage (lưu backup mã hoá) để khôi phục máy khác.
+  anon key là publishable (không phải secret). Free tier đủ dùng cá nhân. Thiếu config → app hiện
+  màn "Chưa cấu hình Supabase", không vào được dashboard (hard gate). (EM1b)
+- [ ] **(EM1b) Tạo private bucket `backups` + RLS** · **Ở đâu:** Supabase → Storage → New bucket
+  tên `backups`, **KHÔNG public** → Policies, thêm policy cho `authenticated` trên cả SELECT/INSERT/
+  UPDATE với điều kiện `(storage.foldername(name))[1] = auth.uid()` (mỗi user chỉ đụng thư mục của
+  chính mình) · **Vì sao:** snapshot đẩy lên đường dẫn `<userId>/latest.enc`; RLS đảm bảo không ai
+  đọc được backup của người khác. App KHÔNG dùng service key (chỉ anon + token user). (EM1b)
+- [ ] **(EM1b) Smoke test cloud sync (cần Supabase thật)** · **Ở đâu:** app → Cài đặt → "Sao lưu
+  đám mây": đăng ký/đăng nhập → nhập passphrase (≥8 ký tự, GHI NHỚ) → "Sao lưu lên cloud" → kiểm file
+  `<userId>/latest.enc` trên Storage → reset DB (Cài đặt → Danger Zone) → "Khôi phục từ cloud" (nhập
+  đúng passphrase) → data đầy đủ, phải nhập lại API key · **Vì sao:** EM1b verify hermetic bằng test
+  (không có project Supabase lúc build); luồng push/pull thật cần tài khoản + bucket ở 2 mục trên. (EM1b)
+- [ ] **(EM1c) Tạo Facebook Developer App + lấy Page Access Token** · **Ở đâu:** developers.facebook.com
+  → tạo App → lấy **Page Access Token dài hạn** cho page BẠN là admin → dán vào app (Kết nối Facebook)
+  · **Vì sao:** Performance Lab tự kéo metric (dán link post → tự điền). Page của chính bạn nên KHÔNG cần
+  app review/business verification. Token chỉ nằm máy này, KHÔNG lên cloud backup. (EM1c)

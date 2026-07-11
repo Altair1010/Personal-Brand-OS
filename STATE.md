@@ -12,7 +12,8 @@
   milestone per `/clear`, VERIFY-gated.
 
 ## In-progress
-- (none) — EM1a DONE. Kế: EM1b (cần user tạo Supabase project + điền config, ToFill §5).
+- (none) — EM1b DONE. Kế: EM1c (đa trang Facebook + Performance Lab tự fetch; cần EM1b account +
+  user tạo FB Developer App + Page Access Token, ToFill §5).
 
 ## Blocked
 - (none)
@@ -29,6 +30,11 @@
 - **EM1a DONE** (Key-in-UI + Help icons + minh bạch content-gen). Gate PASS: build 0-err, vitest 70/70
   (+`tests/ai/adapter-db-key.test.ts`), seed idempotent, scope-guard PASS. Keystore = Node crypto
   AES-256-GCM (không plaintext). Detail → MEMORY.md. Việc user: nhập key trong Settings (ToFill §5).
+- **EM1b DONE** (Tài khoản Supabase + backup cloud mã hoá passphrase, loại secret). Gate PASS: build
+  0-err, vitest 77/77 (+cloud-backup), seed idempotent (migration `appstate_supabase_binding`),
+  scope-guard 0 violation, verifier DONE. Hard gate client-side; snapshot scrypt+AES-GCM; server dùng
+  anon key + user Bearer (no service key). Detail → MEMORY.md. Việc user: Supabase project + bucket
+  `backups` + RLS + config + live smoke (ToFill §5).
 
 ## Next
 - **EM1b** — Tài khoản + backup cloud (Supabase free). Cần user tạo Supabase project + điền
