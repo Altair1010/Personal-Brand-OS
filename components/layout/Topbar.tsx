@@ -6,6 +6,7 @@ import { Cpu, Plus, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getSupabaseClient } from "@/lib/supabase";
+import { AccountSwitcher } from "./AccountSwitcher";
 
 const BREADCRUMB_MAP: Record<string, string> = {
   "/": "Bảng điều khiển",
@@ -68,6 +69,9 @@ export function Topbar() {
 
       {/* Right side */}
       <div className="flex items-center gap-3">
+        {/* Facebook page scope switcher */}
+        <AccountSwitcher />
+
         {/* AI model chip — placeholder, no logic */}
         <Badge variant="outline" className="flex items-center gap-1.5 text-xs">
           <Cpu className="h-3 w-3" />

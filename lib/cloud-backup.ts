@@ -29,10 +29,11 @@ export const snapshotPath = (userId: string) => `${userId}/latest.enc`;
 //   - AIModelConfig.apiKey  → SECRET (encrypted API key). Never leaves the local DB.
 //   - AppState.supabaseUserId → account binding; stripped so a restore never clobbers the
 //     new machine's own binding (set locally by bindAccount).
-// EM1c will add: FacebookAccount: ["accessToken"].
+//   - FacebookAccount.accessToken → SECRET (encrypted Page token). Never leaves the local DB.
 export const STRIP_FIELDS: Partial<Record<BackupModel, string[]>> = {
   AIModelConfig: ["apiKey"],
   AppState: ["supabaseUserId"],
+  FacebookAccount: ["accessToken"],
 };
 
 /** Return a deep copy of the envelope with STRIP_FIELDS nulled on every row (rows kept). */

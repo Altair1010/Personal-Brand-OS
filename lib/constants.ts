@@ -35,12 +35,15 @@ export const POST_STATUS = [
   "analyzed",
 ] as const;
 
+export const METRIC_SOURCES = ["manual", "facebook_api"] as const;
+
 // Inferred union types
 export type Objective = (typeof OBJECTIVES)[number];
 export type HookStyle = (typeof HOOK_STYLES)[number];
 export type CtaIntensity = (typeof CTA_INTENSITY)[number];
 export type Format = (typeof FORMATS)[number];
 export type PostStatus = (typeof POST_STATUS)[number];
+export type MetricSource = (typeof METRIC_SOURCES)[number];
 
 // UI tag color map for Objective — Tailwind color tokens
 export const OBJECTIVE_COLORS: Record<Objective, string> = {

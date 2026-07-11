@@ -6,7 +6,11 @@ import { Loader2, BarChart2, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/EmptyState";
-import { saveMetric, type PostRow } from "@/app/(dashboard)/performance/actions";
+import {
+  saveMetric,
+  fetchMetricFromUrl,
+  type PostRow,
+} from "@/app/(dashboard)/performance/actions";
 
 interface MetricInlineTableProps {
   rows: PostRow[];
@@ -52,9 +56,25 @@ function MetricRow({ row }: { row: PostRow }) {
   const [saved, setSaved] = useState(false);
   const [pending, startTransition] = useTransition();
 
+  const [postUrl, setPostUrl] = useState("");
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [fetching, startFetch] = useTransition();
+
   function set<K extends keyof RowDraft>(key: K, value: string) {
     setDraft((d) => ({ ...d, [key]: value }));
     setSaved(false);
+  }
+
+  function onFetchFromFacebook() {
+    setFetchError(null);
+    startFetch(async () => {
+      const res = await fetchMetricFromUrl({ postId: row.postId, postUrl });
+      if (!res.ok) {
+        setFetchError(res.error);
+        return;
+      }
+      router.refresh();
+    });
   }
 
   function onSave() {
@@ -105,6 +125,36 @@ function MetricRow({ row }: { row: PostRow }) {
           Lưu
         </Button>
       </div>
+
+      {row.facebookAccountId && (
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
+          <label className="flex flex-1 flex-col gap-1">
+            <span className="text-xs text-muted-foreground">
+              Dán link bài viết Facebook
+            </span>
+            <Input
+              value={postUrl}
+              onChange={(e) => setPostUrl(e.target.value)}
+              placeholder="https://facebook.com/…/posts/…"
+            />
+          </label>
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            disabled={fetching}
+            onClick={onFetchFromFacebook}
+          >
+            {fetching ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : null}
+            Tự điền từ Facebook
+          </Button>
+        </div>
+      )}
+      {fetchError && (
+        <p className="mt-2 text-sm text-destructive">{fetchError}</p>
+      )}
 
       <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {(

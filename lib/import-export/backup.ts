@@ -13,11 +13,13 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 export type BackupDb = PrismaClient;
 export type BackupTx = Prisma.TransactionClient;
 
-// --- the 22 model names, in PARENT→CHILD order (FK-safe for insert/upsert) ---
+// --- all model names, in PARENT→CHILD order (FK-safe for insert/upsert) ---
+// EM1c: FacebookAccount added after AppState, before Post (Post.facebookAccountId FK).
 // PromptRun is placed BEFORE StrategyVersion/ContentDraft/PerformanceInsight because
 // those hold an optional aiPromptRunId FK → PromptRun must exist first.
 export const IMPORT_ORDER = [
   "AppState",
+  "FacebookAccount",
   "UserProfile",
   "BrandDNA",
   "Goal",
@@ -49,6 +51,7 @@ export const RESET_ORDER = [...IMPORT_ORDER].reverse() as BackupModel[];
 // Map model name → Prisma delegate name (note the odd casings Prisma generates).
 const DELEGATE: Record<BackupModel, keyof PrismaClient> = {
   AppState: "appState",
+  FacebookAccount: "facebookAccount",
   UserProfile: "userProfile",
   BrandDNA: "brandDNA",
   Goal: "goal",

@@ -6,12 +6,21 @@ import { PerformanceCharts } from "@/components/performance/PerformanceCharts";
 import { PillarPerfTable } from "@/components/performance/PillarPerfTable";
 import { HookPerfTable } from "@/components/performance/HookPerfTable";
 import { LatestInsightCard } from "@/components/performance/LatestInsightCard";
-import { getPerformanceData } from "./actions";
+import { ConnectFacebookForm } from "@/components/performance/ConnectFacebookForm";
+import { getPerformanceData, listFacebookAccounts } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function PerformancePage() {
-  const data = await getPerformanceData();
+export default async function PerformancePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ fb?: string }>;
+}) {
+  const { fb } = await searchParams;
+  const [data, accounts] = await Promise.all([
+    getPerformanceData(fb ?? null),
+    listFacebookAccounts(),
+  ]);
 
   return (
     <>
@@ -19,6 +28,13 @@ export default async function PerformancePage() {
         title="Hiệu suất"
         description="Theo dõi chỉ số reach, engagement, comments và saves"
       />
+
+      <section className="mb-8 space-y-3">
+        <h2 className="text-sm font-semibold text-muted-foreground">
+          Kết nối Facebook
+        </h2>
+        <ConnectFacebookForm accounts={accounts} />
+      </section>
 
       {data.rows.length === 0 ? (
         <EmptyState

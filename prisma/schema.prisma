@@ -327,6 +327,7 @@ model Post {
   userId            String
   strategyVersionId String?
   dailyPlanId       String?
+  facebookAccountId String?
   publishedAt       DateTime?
   platform          String           @default("facebook")
   permalink         String?
@@ -345,10 +346,27 @@ model Post {
   user              UserProfile      @relation(fields: [userId], references: [id], onDelete: Cascade)
   strategyVersion   StrategyVersion? @relation(fields: [strategyVersionId], references: [id], onDelete: SetNull)
   dailyPlan         DailyPlan?       @relation(fields: [dailyPlanId], references: [id], onDelete: SetNull)
+  facebookAccount   FacebookAccount? @relation(fields: [facebookAccountId], references: [id])
   metrics           MetricSnapshot[]
 
   @@index([userId])
   @@index([strategyVersionId])
+  @@index([facebookAccountId])
+}
+
+// EM1c: linked Facebook Page(s). accessToken stored ENCRYPTED via lib/ai/keystore
+// (connect action encrypts; schema stores the ciphertext string, never plaintext).
+model FacebookAccount {
+  id             String    @id @default(cuid())
+  ownerRef       String    @default("local")
+  pageId         String
+  pageName       String
+  accessToken    String
+  tokenExpiresAt DateTime?
+  linkedAt       DateTime  @default(now())
+  posts          Post[]
+
+  @@unique([ownerRef, pageId])
 }
 
 // MVP: 1 bản/Post (@@unique). daysSincePost để chuẩn hóa so sánh. Bỏ sentiment.
@@ -365,6 +383,9 @@ model MetricSnapshot {
   inboxNote      String?
   conversionNote String?
   source         String   @default("manual")
+  postUrl        String?
+  fbRawResponse  Json?
+  fetchedAt      DateTime?
   post           Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
 }
 

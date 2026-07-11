@@ -76,6 +76,29 @@ describe("stripSecrets (pure)", () => {
   it("declares apiKey as a stripped AIModelConfig field", () => {
     expect(STRIP_FIELDS.AIModelConfig).toContain("apiKey");
   });
+
+  it("EM1c: nulls FacebookAccount.accessToken, keeps pageId/pageName", () => {
+    const envelope = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      data: {
+        FacebookAccount: [
+          { id: "f1", ownerRef: "local", pageId: "111", pageName: "Khang Guru", accessToken: "v1:FB-TOKEN" },
+        ],
+      },
+    } as unknown as Parameters<typeof stripSecrets>[0];
+
+    const out = stripSecrets(envelope);
+    expect(out.data.FacebookAccount[0].accessToken).toBeNull();
+    expect(out.data.FacebookAccount[0].pageId).toBe("111"); // untouched
+    expect(out.data.FacebookAccount[0].pageName).toBe("Khang Guru"); // untouched
+    // original not mutated
+    expect(envelope.data.FacebookAccount[0].accessToken).toBe("v1:FB-TOKEN");
+  });
+
+  it("EM1c: declares accessToken as a stripped FacebookAccount field", () => {
+    expect(STRIP_FIELDS.FacebookAccount).toContain("accessToken");
+  });
 });
 
 // ---------------------------------------------------------------------------

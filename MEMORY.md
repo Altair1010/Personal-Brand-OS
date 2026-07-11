@@ -430,6 +430,39 @@ sạch: mọi path qua `path.join/resolve`+`__dirname`, 0 hardcoded `C:\`/`/User
   project + private bucket `backups` + RLS) → ToFill §5. Delegated: pbos-data-modeler (schema/
   migration), scope-guard + milestone-verifier (gate); code/UI/test inline.
 
+- [2026-07-11] **EM1c DONE** (Đa trang Facebook + Performance Lab tự fetch). Gate PASS: build
+  0-err, vitest **89/89** (+10 `tests/facebook/graph.test.ts`, +2 strip FacebookAccount token),
+  seed idempotent 3×, migration `20260711082356_em1c_facebook` additive-only, scope-guard 0
+  violation, verifier DONE. 1 phiên (không cần chia). Delegated: pbos-data-modeler (P1 schema),
+  trellis-implement (P2/P4/P5 actions+UI), scope-guard + milestone-verifier (gate); graph lib +
+  fix inline. **Quyết định load-bearing:**
+  1. **Chỉ Page Access Token dán tay — KHÔNG OAuth/app-review.** Page user tự admin → không cần
+     app review. `lib/facebook/graph.ts` (fetch injectable để test): `resolvePostId(url)` parse
+     3 dạng URL → `{pageId}_{postId}` (pfbid không resolve → lỗi typed); `verifyPageToken` (khi
+     kết nối); `fetchPostInsights` **1 call gộp** field-expansion. `GRAPH_VERSION="v23.0"` đặt 1
+     chỗ (post_impressions_unique deprecate từ v26 → field lỗi coi null).
+  2. **Map metric + fallback null:** reach=`post_impressions_unique`, engagement=`post_engaged_users`
+     (fallback reactions+comments+shares), comments=`comments.summary.total_count`,
+     shares=`shares.count`(vắng→0), **saves=`post_activity_by_action_type.save` thường vắng cho
+     post → null** → user nhập tay bù. Lưu full JSON vào `MetricSnapshot.fbRawResponse`. Mapping
+     đầy đủ: `research/graph-api-mapping.md`.
+  3. **Token FB tái dùng `lib/ai/keystore` encryptString/decryptString** (AES-256-GCM/safeStorage),
+     lưu `FacebookAccount.accessToken` ciphertext; decrypt chỉ trong action `"use server"`; KHÔNG
+     trả client (`listFacebookAccounts` select id/pageId/pageName), KHÔNG log. Strip khỏi cloud
+     backup: `STRIP_FIELDS.FacebookAccount=["accessToken"]` (khớp seam EM1b), test phủ.
+  4. **`source` là source-of-truth từ constants:** `METRIC_SOURCES=["manual","facebook_api"]`;
+     `const [SOURCE_MANUAL, SOURCE_FACEBOOK]=METRIC_SOURCES` — không rải literal. Auto-fetch upsert
+     **1 MetricSnapshot/Post** (`where{postId}`, `source=facebook_api`,`postUrl`,`fbRawResponse`,
+     `fetchedAt`); manual `saveMetric` giữ nguyên `source=manual`. Field null vẫn ghi (Int? cho phép).
+  5. **Switcher scope qua URL `?fb=`, không middleware.** `lib/stores/facebook.ts` (Zustand
+     `activeFacebookAccountId`) + `components/layout/AccountSwitcher.tsx` (native select, phải
+     Topbar — Topbar là client nên tự fetch qua action, không truyền prop từ server). Đổi trang →
+     `router.push('/performance?fb=<id>')`; `page.tsx` đọc `searchParams.fb` → `getPerformanceData
+     (facebookAccountId?)` thêm `where.facebookAccountId` khi non-null (null = tất cả trang).
+  Schema: `FacebookAccount`(ownerRef@default"local",`@@unique([ownerRef,pageId])`) + `Post.
+  facebookAccountId?`(FK SetNull) + `MetricSnapshot`(+postUrl/fbRawResponse/fetchedAt). Live smoke
+  (cần FB Developer App + Page token dài hạn) → ToFill §5, deferred (user).
+
 ## Bug workaround registry
 <!-- symptom -> root cause -> workaround -> permanent fix ref -->
 - (none yet)

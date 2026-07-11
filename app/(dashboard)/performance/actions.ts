@@ -15,9 +15,20 @@ import {
   performanceModule,
   enforceLowConfidence,
 } from "@/lib/prompts/performance";
+import {
+  verifyPageToken,
+  resolvePostId,
+  fetchPostInsights,
+  FacebookGraphError,
+} from "@/lib/facebook/graph";
+import { encryptString, decryptString } from "@/lib/ai/keystore";
+import { METRIC_SOURCES } from "@/lib/constants";
 
 // Single-user local app: fixed ids match the seed (prisma/seed.ts).
 const USER_ID = "local";
+
+// MetricSnapshot.source — source of truth là lib/constants (không rải literal).
+const [SOURCE_MANUAL, SOURCE_FACEBOOK] = METRIC_SOURCES;
 
 type ActionResult<T = undefined> =
   | { ok: true; data: T }
@@ -45,6 +56,7 @@ export type PostRow = {
   format: string | null;
   publishedAt: string | null;
   daysSincePost: number;
+  facebookAccountId: string | null;
   metrics: PostMetricsDTO | null;
 };
 
@@ -122,10 +134,17 @@ async function loadPerfPosts(): Promise<PerfPost[]> {
   });
 }
 
-export async function getPerformanceData(): Promise<PerformanceData> {
+export async function getPerformanceData(
+  facebookAccountId?: string | null,
+): Promise<PerformanceData> {
+  const postWhere =
+    facebookAccountId != null
+      ? { userId: USER_ID, facebookAccountId }
+      : { userId: USER_ID };
+
   const [posts, pillars, insights] = await Promise.all([
     db.post.findMany({
-      where: { userId: USER_ID },
+      where: postWhere,
       include: { metrics: true },
       orderBy: { createdAt: "desc" },
     }),
@@ -180,6 +199,7 @@ export async function getPerformanceData(): Promise<PerformanceData> {
       format: post.format,
       publishedAt: post.publishedAt ? post.publishedAt.toISOString() : null,
       daysSincePost: computeDaysSincePost(post),
+      facebookAccountId: post.facebookAccountId,
       metrics: snap
         ? {
             reach: snap.reach,
@@ -257,7 +277,7 @@ export async function saveMetric(
 
   await db.metricSnapshot.upsert({
     where: { postId: v.postId },
-    create: { postId: v.postId, source: "manual", ...data },
+    create: { postId: v.postId, source: SOURCE_MANUAL, ...data },
     update: data,
   });
 
@@ -316,4 +336,149 @@ export async function runInsight(): Promise<
       weakPillars: out.weakPillars,
     },
   };
+}
+
+// ============================================================
+// Facebook (EM1c) — connect account, list, auto-fetch metric
+// ============================================================
+
+const connectFacebookAccountSchema = z.object({
+  pageId: z.string().min(1),
+  pageAccessToken: z.string().min(20),
+});
+
+export type ConnectFacebookAccountInput = z.input<
+  typeof connectFacebookAccountSchema
+>;
+
+export async function connectFacebookAccount(
+  input: ConnectFacebookAccountInput,
+): Promise<ActionResult<{ pageId: string; pageName: string }>> {
+  const parsed = connectFacebookAccountSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "Thông tin không hợp lệ (pageId trống hoặc token quá ngắn).",
+    };
+  }
+  const { pageId, pageAccessToken } = parsed.data;
+
+  let pageName: string;
+  try {
+    ({ pageName } = await verifyPageToken(pageId, pageAccessToken));
+  } catch (e) {
+    if (e instanceof FacebookGraphError) {
+      return { ok: false, error: e.message };
+    }
+    return { ok: false, error: "Không kết nối được trang Facebook." };
+  }
+
+  const accessToken = encryptString(pageAccessToken);
+
+  await db.facebookAccount.upsert({
+    where: { ownerRef_pageId: { ownerRef: USER_ID, pageId } },
+    create: { ownerRef: USER_ID, pageId, pageName, accessToken },
+    update: { pageName, accessToken },
+  });
+
+  revalidatePath("/performance");
+  return { ok: true, data: { pageId, pageName } };
+}
+
+export type FacebookAccountDTO = {
+  id: string;
+  pageId: string;
+  pageName: string;
+};
+
+export async function listFacebookAccounts(): Promise<FacebookAccountDTO[]> {
+  return db.facebookAccount.findMany({
+    where: { ownerRef: USER_ID },
+    select: { id: true, pageId: true, pageName: true },
+    orderBy: { linkedAt: "desc" },
+  });
+}
+
+const fetchMetricFromUrlSchema = z.object({
+  postId: z.string().min(1),
+  postUrl: z.string().min(1),
+});
+
+export type FetchMetricFromUrlInput = z.input<typeof fetchMetricFromUrlSchema>;
+
+export async function fetchMetricFromUrl(
+  input: FetchMetricFromUrlInput,
+): Promise<ActionResult<{ postId: string }>> {
+  const parsed = fetchMetricFromUrlSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: "Thiếu link bài viết hoặc bài đăng." };
+  }
+  const { postId, postUrl } = parsed.data;
+
+  const post = await db.post.findUnique({
+    where: { id: postId },
+    select: {
+      id: true,
+      userId: true,
+      publishedAt: true,
+      createdAt: true,
+      facebookAccountId: true,
+    },
+  });
+  if (!post || post.userId !== USER_ID) {
+    return { ok: false, error: "Không tìm thấy bài đăng." };
+  }
+  if (!post.facebookAccountId) {
+    return {
+      ok: false,
+      error:
+        "Bài đăng chưa gắn trang Facebook — kết nối trang rồi thử lại, hoặc nhập tay.",
+    };
+  }
+
+  const account = await db.facebookAccount.findUnique({
+    where: { id: post.facebookAccountId },
+    select: { accessToken: true },
+  });
+  if (!account) {
+    return {
+      ok: false,
+      error: "Không tìm thấy trang Facebook đã gắn — kết nối lại rồi thử.",
+    };
+  }
+
+  let insights;
+  try {
+    const token = decryptString(account.accessToken);
+    const graphPostId = resolvePostId(postUrl);
+    insights = await fetchPostInsights(token, graphPostId);
+  } catch (e) {
+    if (e instanceof FacebookGraphError) {
+      return { ok: false, error: e.message };
+    }
+    return { ok: false, error: "Không lấy được số liệu từ Facebook." };
+  }
+
+  const daysSincePost = computeDaysSincePost(post);
+
+  const data = {
+    reach: insights.reach,
+    engagement: insights.engagement,
+    comments: insights.comments,
+    saves: insights.saves,
+    daysSincePost,
+    source: SOURCE_FACEBOOK,
+    postUrl,
+    fbRawResponse: insights.raw as never,
+    fetchedAt: new Date(),
+  };
+
+  await db.metricSnapshot.upsert({
+    where: { postId },
+    create: { postId, ...data },
+    update: data,
+  });
+
+  revalidatePath("/performance");
+  return { ok: true, data: { postId } };
 }

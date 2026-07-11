@@ -12,8 +12,8 @@
   milestone per `/clear`, VERIFY-gated.
 
 ## In-progress
-- (none) — EM1b DONE. Kế: EM1c (đa trang Facebook + Performance Lab tự fetch; cần EM1b account +
-  user tạo FB Developer App + Page Access Token, ToFill §5).
+- (none) — **EM1c DONE**. Extended Milestone 1 (EM1a→EM1b→EM1c) hoàn tất. Còn treo: live smoke
+  (AI D.1–D.15 + Supabase cloud sync + FB token) — đều là user-fill (ToFill §3/§5).
 
 ## Blocked
 - (none)
@@ -35,12 +35,15 @@
   scope-guard 0 violation, verifier DONE. Hard gate client-side; snapshot scrypt+AES-GCM; server dùng
   anon key + user Bearer (no service key). Detail → MEMORY.md. Việc user: Supabase project + bucket
   `backups` + RLS + config + live smoke (ToFill §5).
+- **EM1c DONE** (Đa trang Facebook + Performance Lab tự fetch). Gate PASS: build 0-err, vitest
+  89/89 (+`tests/facebook/graph.test.ts` +strip FacebookAccount), seed idempotent, migration
+  `20260711082356_em1c_facebook` additive, scope-guard 0 violation, verifier DONE. Page token dán
+  tay (không OAuth), mã hoá keystore + strip khỏi backup; auto-fetch 1 snapshot/Post; switcher
+  scope qua `?fb=`. Detail → MEMORY.md. Việc user: FB Developer App + Page token (ToFill §5).
 
 ## Next
-- **EM1b** — Tài khoản + backup cloud (Supabase free). Cần user tạo Supabase project + điền
-  `SUPABASE_URL`/`SUPABASE_ANON_KEY` (ToFill §5) trước khi code. Có thể chia 2 phiên. Rồi EM1c.
-- Còn treo (không chặn EM1b): live AI smoke D.1–D.15 (giờ nhập key qua Settings, ToFill §3) + user
-  cài `.exe`/test GUI + tag CI Mac (ToFill §4).
+- (none — EM1 xong). Còn treo, đều user-fill: live AI smoke D.1–D.15 (ToFill §3), Supabase cloud
+  sync (ToFill §5), FB Page token + dán link post thật (ToFill §5), cài `.exe`/test GUI (ToFill §4).
 
 ## Env
 - Git: repo init'd, `master` branch, identity = minhkhang.guru (local).
