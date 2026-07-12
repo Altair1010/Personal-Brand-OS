@@ -1,11 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
-import { Cpu, Plus, LogOut } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { Cpu, Plus, LogOut, FileText, CalendarRange, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import { getSupabaseClient } from "@/lib/supabase";
+import { createBlankDraft } from "@/app/(dashboard)/studio/actions";
 import { AccountSwitcher } from "./AccountSwitcher";
 
 const BREADCRUMB_MAP: Record<string, string> = {
@@ -30,8 +37,17 @@ function getBreadcrumb(pathname: string): string {
 
 export function Topbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const label = getBreadcrumb(pathname);
   const [email, setEmail] = useState<string | null>(null);
+  const [creating, startCreate] = useTransition();
+
+  function onNewDraft() {
+    startCreate(async () => {
+      const res = await createBlankDraft();
+      if (res.ok) router.push(`/studio/${res.data.draftId}`);
+    });
+  }
 
   useEffect(() => {
     let active = true;
@@ -79,10 +95,28 @@ export function Topbar() {
         </Badge>
 
         {/* Quick action */}
-        <Button size="sm" className="gap-1.5">
-          <Plus className="h-3.5 w-3.5" />
-          Tạo mới
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" className="gap-1.5" disabled={creating}>
+              <Plus className="h-3.5 w-3.5" />
+              Tạo mới
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={onNewDraft}>
+              <FileText className="h-3.5 w-3.5" />
+              Bản nháp mới
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => router.push("/strategy")}>
+              <CalendarRange className="h-3.5 w-3.5" />
+              Chiến lược mới
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => router.push("/audience-pillars")}>
+              <Users className="h-3.5 w-3.5" />
+              Thêm persona
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* Account */}
         {email && (

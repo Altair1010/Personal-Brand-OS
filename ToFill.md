@@ -74,7 +74,8 @@
   tên `backups`, **KHÔNG public** → Policies, thêm policy cho `authenticated` trên cả SELECT/INSERT/
   UPDATE với điều kiện `(storage.foldername(name))[1] = auth.uid()` (mỗi user chỉ đụng thư mục của
   chính mình) · **Vì sao:** snapshot đẩy lên đường dẫn `<userId>/latest.enc`; RLS đảm bảo không ai
-  đọc được backup của người khác. App KHÔNG dùng service key (chỉ anon + token user). (EM1b)
+  đọc được backup của người khác. App KHÔNG dùng service key (chỉ anon + token user). Tên bucket
+  phải đúng chính xác `backups`; chưa tạo → app báo hướng dẫn (không còn lỗi thô "Bucket not found"). (EM1b/EM2b)
 - [ ] **(EM1b) Smoke test cloud sync (cần Supabase thật)** · **Ở đâu:** app → Cài đặt → "Sao lưu
   đám mây": đăng ký/đăng nhập → nhập passphrase (≥8 ký tự, GHI NHỚ) → "Sao lưu lên cloud" → kiểm file
   `<userId>/latest.enc` trên Storage → reset DB (Cài đặt → Danger Zone) → "Khôi phục từ cloud" (nhập

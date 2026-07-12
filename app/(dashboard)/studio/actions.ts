@@ -317,6 +317,31 @@ export async function createDraftFromIdea(
   return { ok: true, data: { draftId: draft.id } };
 }
 
+// Quick-create (EM2b T5): a blank draft, no ContentIdea attached. Studio treats a null
+// contentIdea by falling back to `topic` for the title.
+export async function createBlankDraft(): Promise<
+  ActionResult<{ draftId: string }>
+> {
+  try {
+    const draft = await db.contentDraft.create({
+      data: {
+        userId: USER_ID,
+        version: 1,
+        status: "draft",
+        topic: "Bản nháp mới",
+      },
+      select: { id: true },
+    });
+    revalidatePath("/studio");
+    return { ok: true, data: { draftId: draft.id } };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Tạo bản nháp thất bại.",
+    };
+  }
+}
+
 const saveDraftSchema = z.object({
   hook: z.string().optional(),
   body: z.string().optional(),

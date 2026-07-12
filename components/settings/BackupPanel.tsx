@@ -211,6 +211,10 @@ export function BackupPanel() {
             Đẩy snapshot đã mã hoá lên tài khoản của bạn để khôi phục trên máy khác.
             API key/secret KHÔNG được đưa lên cloud — máy mới nhập lại.
           </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Cần trước một lần: vào Supabase → Storage, tạo bucket riêng tư tên{" "}
+            <span className="font-medium text-foreground">backups</span>.
+          </p>
         </div>
 
         <div className="space-y-1.5">

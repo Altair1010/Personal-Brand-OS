@@ -488,6 +488,31 @@ sạch: mọi path qua `path.join/resolve`+`__dirname`, 0 hardcoded `C:\`/`/User
   **Bug scope-guard bắt (reusable):** `prisma/.pbos-key` (keystore master key AES per-install,
   dev fallback) KHÔNG được `.gitignore` → nguy cơ commit secret. Fix: thêm `.pbos-key`+`*.pbos-key`
   vào `.gitignore`. Live AI smoke (cần key) qua nhánh structured → vẫn ToFill §3.
+- [2026-07-12] **EM2b DONE** (smoketest fixes T4–T8). Gate PASS: build 0-err, vitest **94/94**
+  (+2 `tests/settings/set-default.test.ts`), scope-guard 0 violation. Commit `EM2b:`. Điểm
+  load-bearing:
+  1. **Hydration (T4):** `<Badge>` (là `<div>`) KHÔNG được lồng trong `<p>` → hydration error.
+     `AiModelConfigForm.tsx` đổi `<p>` bọc badge → `<div>` (giữ class). Quy tắc chung: badge/div
+     inline phải nằm trong `<div>`, không `<p>`.
+  2. **Quick-create menu (T5):** `components/ui/dropdown-menu.tsx` (new, radix
+     `@radix-ui/react-dropdown-menu`) — shadcn trimmed. Topbar "Tạo mới" thành dropdown 3 item
+     (Bản nháp mới → `createBlankDraft` server action tạo `ContentDraft` trống rồi
+     `router.push('/studio/[id]')`; Chiến lược mới → `/strategy`; Thêm persona →
+     `/audience-pillars`). `createBlankDraft` (studio/actions.ts) chỉ tạo draft (contentIdeaId
+     null OK), KHÔNG chạm Post/attribution.
+  3. **Cloud bucket UX (T6):** `lib/cloud-backup.ts` — helper `isBucketMissing` regex
+     `/bucket not found/i` trên `error.message`; push+pull ném message VN hướng dẫn tạo bucket
+     `backups` thay vì lỗi thô. Không auto-create được (anon key + RLS). BackupPanel thêm hint
+     setup; ToFill §5 nhấn tên bucket phải đúng `backups`.
+  4. **Set-default model (T7):** `setDefaultModelConfig(id)` (settings/actions.ts) — `$transaction`:
+     findUnique (không có → throw), `updateMany isDefault:false`, `update target isDefault:true`.
+     KHÔNG tạo row mới. Button "Đặt mặc định" mỗi row `!isDefault`. Test hermetic: `vi.mock('@/lib/db')`
+     trỏ temp PrismaClient (vi.hoisted holder) + `vi.mock('next/cache')` no-op revalidatePath →
+     test server action thật trên temp SQLite (pattern tái dùng cho mọi server action đọc `db`).
+  5. **Persona/pillar helpers (T8):** `lib/help-text.ts` +9 persona +4 pillar key; PersonaEditor
+     FIELD_HELP phủ mọi field + placeholder ví dụ; PillarBoard đổi `Label`→`LabelWithHelp` +
+     placeholder. `ReferenceSamplePanel.tsx` (new, collapsible) = mẫu Khang Guru read-only, KHÔNG
+     auto-fill; wired đầu AudiencePillarsBoard.
 
 ## Bug workaround registry
 <!-- symptom -> root cause -> workaround -> permanent fix ref -->

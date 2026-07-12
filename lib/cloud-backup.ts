@@ -25,6 +25,16 @@ import {
 export const CLOUD_BUCKET = "backups";
 export const snapshotPath = (userId: string) => `${userId}/latest.enc`;
 
+// Supabase returns a raw "Bucket not found" when the private bucket hasn't been created.
+// We can't auto-create it (anon key + RLS), so turn that into an actionable instruction.
+const BUCKET_SETUP_HINT =
+  `Bucket '${CLOUD_BUCKET}' chưa tồn tại. Vào Supabase → Storage, tạo một bucket riêng tư ` +
+  `tên '${CLOUD_BUCKET}', rồi thử lại.`;
+
+function isBucketMissing(message: string | undefined): boolean {
+  return !!message && /bucket not found/i.test(message);
+}
+
 // Fields nulled out before a snapshot leaves the machine.
 //   - AIModelConfig.apiKey  → SECRET (encrypted API key). Never leaves the local DB.
 //   - AppState.supabaseUserId → account binding; stripped so a restore never clobbers the
@@ -117,7 +127,10 @@ export async function pushSnapshot(
       upsert: true,
       contentType: "application/octet-stream",
     });
-  if (error) throw new Error(`Tải snapshot lên cloud thất bại: ${error.message}`);
+  if (error) {
+    if (isBucketMissing(error.message)) throw new Error(BUCKET_SETUP_HINT);
+    throw new Error(`Tải snapshot lên cloud thất bại: ${error.message}`);
+  }
   await db.appState.update({
     where: { id: "singleton" },
     data: { lastCloudSyncAt: new Date() },
@@ -138,6 +151,7 @@ export async function pullSnapshot(
     .from(CLOUD_BUCKET)
     .download(snapshotPath(userId));
   if (error || !data) {
+    if (isBucketMissing(error?.message)) throw new Error(BUCKET_SETUP_HINT);
     throw new Error(
       `Không tải được snapshot từ cloud: ${error?.message ?? "không tìm thấy"}.`,
     );

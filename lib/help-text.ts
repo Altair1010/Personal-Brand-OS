@@ -22,6 +22,29 @@ export const HELP_TEXT = {
   personaName: "Đặt tên gợi nhớ cho nhóm khán giả này để dễ tham chiếu về sau.",
   personaPain:
     "Vấn đề, khó khăn cụ thể mà nhóm khán giả này đang gặp phải và muốn giải quyết.",
+  personaFalseBelief:
+    "Niềm tin sai lầm khiến họ mắc kẹt — điều bạn cần đính chính qua nội dung.",
+  personaFear:
+    "Nỗi sợ sâu bên trong khiến họ chần chừ, chưa dám hành động.",
+  personaDesire:
+    "Kết quả, trạng thái mơ ước họ muốn đạt được — đích đến của hành trình.",
+  personaLanguage:
+    "Cách họ tự mô tả vấn đề (từ ngữ, giọng điệu) — dùng lại để nội dung thấy 'trúng'.",
+  personaContentAngle:
+    "Góc tiếp cận nội dung phù hợp nhất với nhóm này (ví dụ: câu chuyện, số liệu, phản biện).",
+  personaCta:
+    "Lời kêu gọi hành động phù hợp với mức độ sẵn sàng của nhóm này.",
+  personaOffer:
+    "Sản phẩm/dịch vụ hoặc bước tiếp theo bạn muốn dẫn nhóm này tới.",
+
+  // Pillar (components/audience/PillarBoard.tsx)
+  pillarName: "Tên trụ cột nội dung — một chủ đề lớn xuyên suốt.",
+  pillarRatio:
+    "Tỷ trọng tương đối của trụ cột này. Hệ thống tự chuẩn hoá tổng các trụ cột về 100.",
+  pillarDescription:
+    "Mô tả ngắn phạm vi trụ cột: nói về gì, phục vụ mục tiêu nào.",
+  pillarObjectiveMix:
+    "Phân bổ 6 mục tiêu cố định trong trụ cột này — chỉ chỉnh giá trị, không thêm mục tiêu mới.",
 
   // Draft editor (components/content/DraftEditor.tsx)
   draftTone:

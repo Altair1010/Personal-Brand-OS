@@ -4,7 +4,8 @@ import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import { LabelWithHelp } from "@/components/ui/field-help";
+import { HELP_TEXT } from "@/lib/help-text";
 import { OBJECTIVES } from "@/lib/constants";
 import { EmptyState } from "@/components/EmptyState";
 import { Target } from "lucide-react";
@@ -79,19 +80,28 @@ export function PillarBoard({ pillars, onChange }: PillarBoardProps) {
                 </div>
                 <div className="grid gap-3 sm:grid-cols-3">
                   <div className="sm:col-span-2">
-                    <Label htmlFor={`${p._key}-name`} className="mb-1 block">
+                    <LabelWithHelp
+                      htmlFor={`${p._key}-name`}
+                      help={HELP_TEXT.pillarName}
+                      className="mb-1"
+                    >
                       Tên trụ cột
-                    </Label>
+                    </LabelWithHelp>
                     <Input
                       id={`${p._key}-name`}
                       value={p.name}
                       onChange={(e) => patchAt(idx, { name: e.target.value })}
+                      placeholder="vd: Tâm lý giao dịch"
                     />
                   </div>
                   <div>
-                    <Label htmlFor={`${p._key}-ratio`} className="mb-1 block">
+                    <LabelWithHelp
+                      htmlFor={`${p._key}-ratio`}
+                      help={HELP_TEXT.pillarRatio}
+                      className="mb-1"
+                    >
                       Tỷ trọng (ratioPercent)
-                    </Label>
+                    </LabelWithHelp>
                     <Input
                       id={`${p._key}-ratio`}
                       type="number"
@@ -102,29 +112,35 @@ export function PillarBoard({ pillars, onChange }: PillarBoardProps) {
                           ratioPercent: Number(e.target.value) || 0,
                         })
                       }
+                      placeholder="vd: 30"
                     />
                   </div>
                 </div>
                 <div>
-                  <Label
+                  <LabelWithHelp
                     htmlFor={`${p._key}-desc`}
-                    className="mb-1 block"
+                    help={HELP_TEXT.pillarDescription}
+                    className="mb-1"
                   >
                     Mô tả
-                  </Label>
+                  </LabelWithHelp>
                   <Textarea
                     id={`${p._key}-desc`}
                     value={p.description}
                     onChange={(e) =>
                       patchAt(idx, { description: e.target.value })
                     }
+                    placeholder="vd: Bài về kiểm soát cảm xúc, kỷ luật vào/thoát lệnh."
                     className="min-h-[60px]"
                   />
                 </div>
                 <div>
-                  <Label className="mb-1 block">
+                  <LabelWithHelp
+                    help={HELP_TEXT.pillarObjectiveMix}
+                    className="mb-1"
+                  >
                     Objective mix (6 mục tiêu cố định)
-                  </Label>
+                  </LabelWithHelp>
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                     {OBJECTIVES.map((obj) => (
                       <div key={obj} className="flex items-center gap-2">

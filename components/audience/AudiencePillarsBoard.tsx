@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { PersonaBoard } from "./PersonaBoard";
 import { PillarBoard } from "./PillarBoard";
 import { ApproveGate } from "./ApproveGate";
+import { ReferenceSamplePanel } from "./ReferenceSamplePanel";
 import {
   coerceObjectiveMix,
   newKey,
@@ -236,6 +237,8 @@ export function AudiencePillarsBoard({
   return (
     <div className="space-y-8">
       {aiError && <ErrorState message={aiError} />}
+
+      <ReferenceSamplePanel />
 
       <section className="space-y-4">
         <PageHeader

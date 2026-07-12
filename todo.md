@@ -8,13 +8,13 @@ Plan: `~/.claude/plans/c-3-repo-u-delightful-frog.md`
 - [x] T3 KPI summary
 - [x] checkpoint EM2a: build 0-err + vitest 92/92 + scope-guard (fix 2), commit `EM2a:`
 
-## EM2b — smoketest fixes (phiên sau)
-- [ ] T4 fix hydration Badge-in-p
-- [ ] T5 Tạo mới context menu
-- [ ] T6 cloud bucket-not-found UX
-- [ ] T7 set-default model
-- [ ] T8 persona/pillar help+placeholder+sample panel
-- [ ] checkpoint EM2b, commit `EM2b:`
+## EM2b — smoketest fixes (DONE)
+- [x] T4 fix hydration Badge-in-p (`<p>`→`<div>`)
+- [x] T5 Tạo mới context menu (dropdown-menu.tsx + createBlankDraft)
+- [x] T6 cloud bucket-not-found UX (bucket-missing msg + hint + ToFill)
+- [x] T7 set-default model (setDefaultModelConfig + button + test)
+- [x] T8 persona/pillar help+placeholder+sample panel (ReferenceSamplePanel)
+- [x] checkpoint EM2b: build 0-err + vitest 94/94 + scope-guard 0, commit `EM2b:`
 
 ## EM2c — editing + Excel (phiên sau)
 - [ ] T9 manual edit Strategy+Calendar (migration editedAt)

@@ -5,21 +5,21 @@
 > promote any lasting decision into MEMORY.md. See RULES.md > "plan.md & todo.md lifecycle".
 
 ## Context
-- (why this task exists; the problem/need it addresses)
+- EM2b = smoketest fixes T4–T8 (plan `~/.claude/plans/c-3-repo-u-delightful-frog.md` §EM2b).
 
 ## Goal
-- (one verifiable success criterion — Karpathy §4)
-
-## Assumptions
-- (state assumptions explicitly; if uncertain, ask before coding — Karpathy §1)
+- build 0-err + vitest pass + scope-guard clean; commit `EM2b:`.
 
 ## Steps
-1. [step] -> verify: [check]
-2. [step] -> verify: [check]
-3. [step] -> verify: [check]
+1. T4 hydration Badge-in-p: AiModelConfigForm `<p>`→`<div>` -> verify: build
+2. T5 Topbar "Tạo mới" dropdown + createBlankDraft action + dropdown-menu.tsx -> verify: build
+3. T6 cloud bucket-missing msg (cloud-backup.ts push/pull + BackupPanel hint + ToFill) -> verify: build
+4. T7 setDefaultModelConfig action + "Đặt mặc định" button + test -> verify: vitest
+5. T8 help-text persona/pillar + PersonaEditor/PillarBoard placeholders + ReferenceSamplePanel -> verify: build
+6. checkpoint: build+vitest+scope-guard, commit
 
 ## Checkpoints (append-only log)
-- [HH:MM] (step) -> (verify result)
+- (append as we go)
 
 ## Done criteria
-- (the exact conditions the verifier must confirm before this task is closed)
+- npm run build 0-err; vitest all pass + setDefault test; scope-guard 0 BLOCKER.

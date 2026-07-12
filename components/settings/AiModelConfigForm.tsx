@@ -14,6 +14,7 @@ import { HELP_TEXT } from "@/lib/help-text";
 import {
   saveModelConfig,
   deleteModelConfig,
+  setDefaultModelConfig,
   type AiModelConfigDTO,
 } from "@/app/(dashboard)/settings/actions";
 
@@ -109,6 +110,18 @@ export function AiModelConfigForm({ configs, active }: AiModelConfigFormProps) {
     });
   }
 
+  function onSetDefault(id: string) {
+    setError(null);
+    startTransition(async () => {
+      const res = await setDefaultModelConfig(id);
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
   return (
     <Card>
       <CardContent className="space-y-6 py-6">
@@ -135,11 +148,11 @@ export function AiModelConfigForm({ configs, active }: AiModelConfigFormProps) {
                 className="flex items-center justify-between gap-4 rounded-lg border p-3"
               >
                 <div className="min-w-0">
-                  <p className="flex items-center gap-2 truncate text-sm font-medium text-foreground">
+                  <div className="flex items-center gap-2 truncate text-sm font-medium text-foreground">
                     {c.provider}/{c.model || "—"}
                     {c.isDefault && <Badge variant="default">mặc định</Badge>}
                     {c.hasKey && <Badge variant="secondary">🔑 đã có key</Badge>}
-                  </p>
+                  </div>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {[
                       c.label,
@@ -150,15 +163,28 @@ export function AiModelConfigForm({ configs, active }: AiModelConfigFormProps) {
                       .join(" · ") || "—"}
                   </p>
                 </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={pending}
-                  onClick={() => onDelete(c.id)}
-                >
-                  <Trash2 className="size-4" />
-                </Button>
+                <div className="flex shrink-0 items-center gap-2">
+                  {!c.isDefault && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={pending}
+                      onClick={() => onSetDefault(c.id)}
+                    >
+                      Đặt mặc định
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={pending}
+                    onClick={() => onDelete(c.id)}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
               </div>
             ))}
           </div>

@@ -138,6 +138,29 @@ export async function saveModelConfig(
   }
 }
 
+export async function setDefaultModelConfig(
+  id: string,
+): Promise<ActionResult> {
+  try {
+    await db.$transaction(async (tx) => {
+      const target = await tx.aIModelConfig.findUnique({ where: { id } });
+      if (!target) throw new Error("Không tìm thấy cấu hình model.");
+      await tx.aIModelConfig.updateMany({ data: { isDefault: false } });
+      await tx.aIModelConfig.update({
+        where: { id },
+        data: { isDefault: true },
+      });
+    });
+    revalidatePath("/settings");
+    return { ok: true, data: undefined };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Đặt mặc định thất bại.",
+    };
+  }
+}
+
 export async function deleteModelConfig(id: string): Promise<ActionResult> {
   try {
     await db.aIModelConfig.delete({ where: { id } });

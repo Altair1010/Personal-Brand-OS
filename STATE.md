@@ -13,9 +13,10 @@
 
 ## In-progress
 - **EM2 đang chạy** (plan `~/.claude/plans/c-3-repo-u-delightful-frog.md`; todo.md). Chia
-  EM2a→EM2b→EM2c, 1 sub-milestone/`/clear`. **EM2a DONE** (AI SDK generateObject + PostPreview +
-  KPI summary — build 0-err, vitest 92/92, scope-guard fix 2). **Kế: EM2b** (hydration fix,
-  Tạo-mới menu, cloud bucket msg, set-default model, persona/pillar helpers).
+  EM2a→EM2b→EM2c, 1 sub-milestone/`/clear`. **EM2a + EM2b DONE** (detail → MEMORY). EM2b =
+  hydration fix + Tạo-mới menu + cloud bucket msg + set-default + persona/pillar helpers; gate PASS
+  (build 0-err, vitest 94/94, scope-guard 0). **Kế: EM2c** (manual-edit Strategy/Calendar +
+  migration `editedAt` + Excel export exceljs).
 - EM1 (EM1a→EM1b→EM1c) hoàn tất. Còn treo: live smoke (AI + Supabase cloud sync + FB token) —
   user-fill (ToFill §3/§5).
 
