@@ -463,6 +463,32 @@ sạch: mọi path qua `path.join/resolve`+`__dirname`, 0 hardcoded `C:\`/`/User
   facebookAccountId?`(FK SetNull) + `MetricSnapshot`(+postUrl/fbRawResponse/fetchedAt). Live smoke
   (cần FB Developer App + Page token dài hạn) → ToFill §5, deferred (user).
 
+- [2026-07-12] **EM2a DONE** (3 repo integrations). Gate PASS: build 0-err, vitest **92/92**
+  (+3 `tests/ai/structured-adapter.test.ts`), scope-guard 2 finding đã fix. Commit `EM2a:`.
+  EM2 = mở rộng có phê duyệt vượt MVP lock (giống EM1) — plan `~/.claude/plans/
+  c-3-repo-u-delightful-frog.md`. Quyết định load-bearing:
+  1. **Vercel AI SDK `generateObject` = seam bổ sung, KHÔNG thay text path.** Thêm method
+     optional `callStructured` vào interface `AIAdapter` (`lib/ai/adapter.ts`); real adapter
+     (`anthropic.ts`/`openai.ts`) implement qua `generateObject({model,schema,system,prompt,
+     maxOutputTokens,temperature})` — GIỮ NGUYÊN `call` (raw fetch, proven). `lib/ai/run.ts`
+     ưu tiên `callStructured` khi có, else fallback text→safeJsonParse→repairOnce (mock test chỉ
+     có `call` nên 89 test cũ đi nhánh text, xanh nguyên). **Re-validate `outputSchema.safeParse`
+     trên `res.object` TRƯỚC normalize** (defensive: mock adapter trả object verbatim, prod thì
+     generateObject đã validate — vẫn safeParse để enum contract đúng mọi nguồn). SDK v7:
+     `usage.inputTokens/outputTokens` (không phải promptTokens). NO_TEMPERATURE guard
+     (opus-4-8/fable-5) port sang nhánh structured. Model vẫn từ resolveModelConfig (rule 3 giữ).
+     Dep +`ai@7`, `@ai-sdk/anthropic@4`, `@ai-sdk/openai@4`.
+  2. **PostPreview (mượn Postiz composer)**: `components/content/PostPreview.tsx` (new) = FB-style
+     read-only, ghép hook+body+ending (`\n\n`) + hashtags, live theo state; char counter mỗi
+     section trong `StructuredEditor.tsx`; wired 2 cột lg trong `DraftEditor.tsx`. Plain text,
+     KHÔNG TipTap.
+  3. **KpiSummary (Tremor-style tự build, 0 dep)**: `components/performance/KpiSummary.tsx` (new)
+     = 4 card (tổng post, reach TB, engagement TB, pillar mạnh nhất) từ `data.rows`+`aggregates`;
+     đầu `performance/page.tsx` trên PerformanceCharts. GIỮ recharts.
+  **Bug scope-guard bắt (reusable):** `prisma/.pbos-key` (keystore master key AES per-install,
+  dev fallback) KHÔNG được `.gitignore` → nguy cơ commit secret. Fix: thêm `.pbos-key`+`*.pbos-key`
+  vào `.gitignore`. Live AI smoke (cần key) qua nhánh structured → vẫn ToFill §3.
+
 ## Bug workaround registry
 <!-- symptom -> root cause -> workaround -> permanent fix ref -->
 - (none yet)

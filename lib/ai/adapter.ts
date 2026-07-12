@@ -2,18 +2,30 @@
 // a concrete provider. Model + provider resolve from the default AIModelConfig row with
 // env fallback — never hardcode a model string (RULES #3).
 
+import type { ZodType } from "zod";
 import { db } from "@/lib/db";
 import { createAnthropicAdapter } from "./anthropic";
 import { createOpenAIAdapter } from "./openai";
 import { decryptString } from "./keystore";
 
 export interface AIAdapter {
+  // Free-text call — kept for the repair loop and for injected mock adapters in tests.
   call(req: {
     system: string;
     user: string;
     temperature?: number;
     maxTokens?: number;
   }): Promise<{ text: string; tokensIn?: number; tokensOut?: number }>;
+
+  // Schema-constrained call (Vercel AI SDK generateObject). Optional so a mock adapter can
+  // omit it; run.ts prefers this path when present, else falls back to `call` + JSON parse.
+  callStructured?<T>(req: {
+    system: string;
+    user: string;
+    schema: ZodType<T>;
+    temperature?: number;
+    maxTokens?: number;
+  }): Promise<{ object: T; tokensIn?: number; tokensOut?: number }>;
 }
 
 export async function resolveModelConfig(): Promise<{

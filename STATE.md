@@ -12,8 +12,12 @@
   milestone per `/clear`, VERIFY-gated.
 
 ## In-progress
-- (none) — **EM1c DONE**. Extended Milestone 1 (EM1a→EM1b→EM1c) hoàn tất. Còn treo: live smoke
-  (AI D.1–D.15 + Supabase cloud sync + FB token) — đều là user-fill (ToFill §3/§5).
+- **EM2 đang chạy** (plan `~/.claude/plans/c-3-repo-u-delightful-frog.md`; todo.md). Chia
+  EM2a→EM2b→EM2c, 1 sub-milestone/`/clear`. **EM2a DONE** (AI SDK generateObject + PostPreview +
+  KPI summary — build 0-err, vitest 92/92, scope-guard fix 2). **Kế: EM2b** (hydration fix,
+  Tạo-mới menu, cloud bucket msg, set-default model, persona/pillar helpers).
+- EM1 (EM1a→EM1b→EM1c) hoàn tất. Còn treo: live smoke (AI + Supabase cloud sync + FB token) —
+  user-fill (ToFill §3/§5).
 
 ## Blocked
 - (none)

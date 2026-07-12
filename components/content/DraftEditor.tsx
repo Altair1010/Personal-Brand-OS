@@ -19,6 +19,7 @@ import {
 } from "@/lib/constants";
 import { HELP_TEXT } from "@/lib/help-text";
 import { StructuredEditor } from "./StructuredEditor";
+import { PostPreview } from "./PostPreview";
 import { ObjectiveSelect } from "./ObjectiveSelect";
 import { FrameworkSelect } from "./FrameworkSelect";
 import { StatusStepper } from "./StatusStepper";
@@ -340,27 +341,39 @@ export function DraftEditor({
         </CardContent>
       </Card>
 
-      {/* Structured editor */}
-      <Card>
-        <CardContent className="py-4">
-          <StructuredEditor
+      {/* Structured editor + live FB preview */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardContent className="py-4">
+            <StructuredEditor
+              hook={hook}
+              body={body}
+              ending={ending}
+              hashtags={hashtags}
+              imageSuggestion={imageSuggestion}
+              disabled={busy || isApproved}
+              onChange={(patch) => {
+                if (patch.hook !== undefined) setHook(patch.hook);
+                if (patch.body !== undefined) setBody(patch.body);
+                if (patch.ending !== undefined) setEnding(patch.ending);
+                if (patch.hashtags !== undefined) setHashtags(patch.hashtags);
+                if (patch.imageSuggestion !== undefined)
+                  setImageSuggestion(patch.imageSuggestion);
+              }}
+            />
+          </CardContent>
+        </Card>
+        <div className="lg:sticky lg:top-4 lg:self-start">
+          <PostPreview
+            brandName={context.goalName ?? ""}
             hook={hook}
             body={body}
             ending={ending}
             hashtags={hashtags}
             imageSuggestion={imageSuggestion}
-            disabled={busy || isApproved}
-            onChange={(patch) => {
-              if (patch.hook !== undefined) setHook(patch.hook);
-              if (patch.body !== undefined) setBody(patch.body);
-              if (patch.ending !== undefined) setEnding(patch.ending);
-              if (patch.hashtags !== undefined) setHashtags(patch.hashtags);
-              if (patch.imageSuggestion !== undefined)
-                setImageSuggestion(patch.imageSuggestion);
-            }}
           />
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* AI helper panels */}
       {!isApproved && (

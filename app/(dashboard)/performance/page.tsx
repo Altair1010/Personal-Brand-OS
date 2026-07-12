@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { MetricInlineTable } from "@/components/performance/MetricInlineTable";
 import { PerformanceCharts } from "@/components/performance/PerformanceCharts";
+import { KpiSummary } from "@/components/performance/KpiSummary";
 import { PillarPerfTable } from "@/components/performance/PillarPerfTable";
 import { HookPerfTable } from "@/components/performance/HookPerfTable";
 import { LatestInsightCard } from "@/components/performance/LatestInsightCard";
@@ -44,6 +45,10 @@ export default async function PerformancePage({
         />
       ) : (
         <div className="space-y-8">
+          <section>
+            <KpiSummary rows={data.rows} aggregates={data.aggregates} />
+          </section>
+
           <section className="space-y-3">
             <h2 className="text-sm font-semibold text-muted-foreground">
               Nhập số liệu

@@ -1,6 +1,9 @@
-// OpenAI Chat Completions via raw fetch (no SDK). Server-only: reads OPENAI_API_KEY.
+// OpenAI Chat Completions. Free-text `call` uses raw fetch; `callStructured` uses the Vercel
+// AI SDK generateObject for schema-enforced output. Server-only: reads OPENAI_API_KEY.
 // OpenAI accepts temperature, so no capability guard is needed here.
 
+import { createOpenAI } from "@ai-sdk/openai";
+import { generateObject } from "ai";
 import type { AIAdapter } from "./adapter";
 
 const ENDPOINT = "https://api.openai.com/v1/chat/completions";
@@ -51,6 +54,31 @@ export function createOpenAIAdapter(model: string, key?: string): AIAdapter {
         text: json.choices?.[0]?.message?.content ?? "",
         tokensIn: json.usage?.prompt_tokens,
         tokensOut: json.usage?.completion_tokens,
+      };
+    },
+
+    async callStructured(req) {
+      const apiKey = key ?? process.env.OPENAI_API_KEY;
+      if (!apiKey) {
+        throw new Error(
+          "Thiếu OPENAI_API_KEY — đặt biến môi trường trước khi gọi AI.",
+        );
+      }
+      const openai = createOpenAI({ apiKey });
+      const result = await generateObject({
+        model: openai(model),
+        schema: req.schema,
+        system: req.system,
+        prompt: req.user,
+        maxOutputTokens: req.maxTokens,
+        ...(req.temperature !== undefined
+          ? { temperature: req.temperature }
+          : {}),
+      });
+      return {
+        object: result.object,
+        tokensIn: result.usage?.inputTokens,
+        tokensOut: result.usage?.outputTokens,
       };
     },
   };

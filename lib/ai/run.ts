@@ -66,6 +66,73 @@ export async function runModule<I, O>(
     return { ok: false, error: errMsg(e), status: "error" };
   }
 
+  // Preferred path: schema-constrained output via the AI SDK (generateObject). Used by the
+  // real provider adapters; injected mock adapters (tests) omit callStructured → text path.
+  if (adapter.callStructured) {
+    const started = Date.now();
+    try {
+      const res = await adapter.callStructured({
+        system,
+        user: userPrompt,
+        schema: module.outputSchema,
+        temperature: module.temperature,
+        maxTokens: MAX_TOKENS,
+      });
+      // Re-validate defensively: generateObject validates in prod, but an injected mock
+      // adapter returns its object verbatim — safeParse keeps the enum/shape contract for
+      // every caller regardless of adapter source.
+      const checked = module.outputSchema.safeParse(res.object);
+      if (!checked.success) {
+        const errorSummary = summarizeZod(checked.error);
+        await savePromptRun({
+          module,
+          provider,
+          model,
+          input,
+          rawOutput: JSON.stringify(res.object),
+          parsedOutput: null,
+          status: "invalid_json",
+          latencyMs: Date.now() - started,
+          tokensIn: res.tokensIn,
+          tokensOut: res.tokensOut,
+          error: errorSummary,
+        });
+        return { ok: false, error: errorSummary, status: "invalid_json" };
+      }
+      const data = module.normalize
+        ? module.normalize(checked.data)
+        : checked.data;
+      await savePromptRun({
+        module,
+        provider,
+        model,
+        input,
+        rawOutput: JSON.stringify(res.object),
+        parsedOutput: data,
+        status: "ok",
+        latencyMs: Date.now() - started,
+        tokensIn: res.tokensIn,
+        tokensOut: res.tokensOut,
+        error: null,
+      });
+      return { ok: true, data, status: "ok" };
+    } catch (e) {
+      // generateObject throws when it cannot produce a schema-valid object.
+      await savePromptRun({
+        module,
+        provider,
+        model,
+        input,
+        rawOutput: "",
+        parsedOutput: null,
+        status: "invalid_json",
+        latencyMs: Date.now() - started,
+        error: errMsg(e),
+      });
+      return { ok: false, error: errMsg(e), status: "invalid_json" };
+    }
+  }
+
   let rawOutput = "";
   let tokensIn: number | undefined;
   let tokensOut: number | undefined;

@@ -1,6 +1,9 @@
-// Anthropic Messages API via raw fetch (no SDK — zero-dep, Electron-friendly).
+// Anthropic Messages API. Free-text `call` uses raw fetch (zero-dep, Electron-friendly);
+// `callStructured` uses the Vercel AI SDK generateObject for schema-enforced output.
 // Server-only: reads ANTHROPIC_API_KEY from process.env. Never import from a client.
 
+import { createAnthropic } from "@ai-sdk/anthropic";
+import { generateObject } from "ai";
 import type { AIAdapter } from "./adapter";
 
 const ENDPOINT = "https://api.anthropic.com/v1/messages";
@@ -55,6 +58,32 @@ export function createAnthropicAdapter(model: string, key?: string): AIAdapter {
         text: json.content?.[0]?.text ?? "",
         tokensIn: json.usage?.input_tokens,
         tokensOut: json.usage?.output_tokens,
+      };
+    },
+
+    async callStructured(req) {
+      const apiKey = key ?? process.env.ANTHROPIC_API_KEY;
+      if (!apiKey) {
+        throw new Error(
+          "Thiếu ANTHROPIC_API_KEY — đặt biến môi trường trước khi gọi AI.",
+        );
+      }
+      const anthropic = createAnthropic({ apiKey });
+      const result = await generateObject({
+        model: anthropic(model),
+        schema: req.schema,
+        system: req.system,
+        prompt: req.user,
+        maxOutputTokens: req.maxTokens,
+        // Same capability guard as `call`: opus-4-7/4-8 & fable-5 reject temperature.
+        ...(req.temperature !== undefined && !NO_TEMPERATURE.test(model)
+          ? { temperature: req.temperature }
+          : {}),
+      });
+      return {
+        object: result.object,
+        tokensIn: result.usage?.inputTokens,
+        tokensOut: result.usage?.outputTokens,
       };
     },
   };

@@ -34,7 +34,10 @@ export function StructuredEditor({
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
-        <Label htmlFor="ed-hook">Hook</Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="ed-hook">Hook</Label>
+          <span className="text-xs text-muted-foreground">{hook.length} ký tự</span>
+        </div>
         <Textarea
           id="ed-hook"
           value={hook}
@@ -45,7 +48,10 @@ export function StructuredEditor({
         />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="ed-body">Nội dung</Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="ed-body">Nội dung</Label>
+          <span className="text-xs text-muted-foreground">{body.length} ký tự</span>
+        </div>
         <Textarea
           id="ed-body"
           value={body}
@@ -56,7 +62,10 @@ export function StructuredEditor({
         />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="ed-ending">Kết bài & CTA</Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="ed-ending">Kết bài & CTA</Label>
+          <span className="text-xs text-muted-foreground">{ending.length} ký tự</span>
+        </div>
         <Textarea
           id="ed-ending"
           value={ending}
