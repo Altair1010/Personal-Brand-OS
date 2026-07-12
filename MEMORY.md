@@ -514,6 +514,43 @@ sạch: mọi path qua `path.join/resolve`+`__dirname`, 0 hardcoded `C:\`/`/User
      placeholder. `ReferenceSamplePanel.tsx` (new, collapsible) = mẫu Khang Guru read-only, KHÔNG
      auto-fill; wired đầu AudiencePillarsBoard.
 
+- [2026-07-12] **EM2c DONE** (manual-edit Strategy/Calendar + Excel export). Gate PASS: build
+  0-err, vitest **99/99** (+4 `tests/strategy/update-daily-plan.test.ts`, +1
+  `tests/import-export/excel.test.ts`), seed idempotent (PromptTemplate=12), scope-guard 0
+  BLOCKER (1 fixed), verifier DONE. Commit `EM2c:`. Load-bearing:
+  1. **Manual edit = SỬA TẠI CHỖ, KHÔNG tạo version mới.** Migration additive
+     `20260712060653_em2c_strategy_editedat` (`StrategyVersion.editedAt DateTime?`).
+     `updateDailyPlan(dailyPlanId, {plannedObjective?,suggestedTopic?,suggestedCta?,pillarId?})`
+     + `updateStrategyFrame(versionId, {contentRatio?,kpiToTrack?,doNotList?})` trong
+     `strategy/actions.ts`. Cả hai CHỈ sửa version của `AppState.activeStrategyId` (guard
+     `strategyId === activeStrategyId`), update DailyPlan/StrategyVersion tại chỗ + set
+     `editedAt=new Date()`. **Post giữ nguyên dailyPlanId** → attribution không đổi.
+     `plannedObjective` = `z.enum(OBJECTIVES)` (bỏ field nếu sai enum); `pillarId` phải thuộc
+     goal active (`contentPillar.findFirst {id,userId,goalId:activeGoalId,status:active}`);
+     `contentRatio` chuẩn hoá 100 bằng `normalizeRecordTo100` trong CODE (sum client bỏ qua).
+  2. **DTO thêm `dailyPlanId` + `pillarId`** vào `StrategyDailyPlanDTO`, `dailyPlanId`+`suggestedCta`
+     vào `CalendarDayDTO` để UI biết target id. `StrategyDTO.editedAt` hiện badge "đã chỉnh tay".
+  3. **UI edit mode:** `StrategyPreview.tsx` (client) nhận thêm prop `pillars`, nút "Chỉnh sửa"
+     toggle → mỗi ngày thành `DailyPlanEditRow` (native `<select>` OBJECTIVES + pillar + Input
+     topic/cta + Lưu) + `FrameEditor` (6 number input ratio + textarea KPI/tránh). Sau lưu
+     `router.refresh()` (state row giữ giá trị mới ngay). `DayCell.tsx` chuyển sang client, thêm
+     inline edit (pencil → select objective + input topic/cta) gọi cùng `updateDailyPlan`. Không
+     có `select` component trong repo → dùng native `<select>` styled như input.
+  4. **Excel = exceljs@4.4** (+`serverExternalPackages:["exceljs"]`). `lib/import-export/excel.ts`
+     (new): `strategyVersionToWorkbook(version)` (PURE, nhận version-with-plans như markdown.ts)
+     → 6 tab **Tổng quan/Tỷ trọng/30 ngày/CTA/Bản đồ chủ đề/KPI & Tránh**; `dataReportToWorkbook(db)`
+     → **Persona/Trụ cột/Chiến lược (active)/30 ngày/Bài đăng/Chỉ số** (báo cáo người-đọc-được,
+     KHÔNG dump 22 bảng thô). Helper `addSheet` = header bold+fill+freeze+border. Cả 2 trả Buffer.
+  5. **Routes:** `/api/export/xlsx?versionId=` (GET, T10, ghi ExportHistory{kind:"excel"}) +
+     `/api/backup?format=xlsx` (GET branch, T11). Client tải bằng anchor navigation (route set
+     Content-Disposition attachment). Nút "Xuất Excel" cạnh Markdown (StrategyWizard) + cạnh Backup
+     (BackupPanel). **Gotcha (reusable): route trả binary phải `new NextResponse(new Uint8Array(buffer))`**
+     (không truyền thẳng Buffer). **tsc gotcha:** `wb.xlsx.load(buf)` báo TS2345 vì Node
+     `Buffer<ArrayBufferLike>` ≠ ExcelJS `Buffer` param → cast `buf as unknown as
+     Parameters<typeof wb.xlsx.load>[0]` (Next build KHÔNG typecheck test nên build xanh, nhưng
+     scope-guard chạy tsc bắt được — fix cho sạch). Pre-existing TS2352 ở
+     `tests/ai/adapter-db-key.test.ts` (EM1a) không thuộc EM2c.
+
 ## Bug workaround registry
 <!-- symptom -> root cause -> workaround -> permanent fix ref -->
 - (none yet)

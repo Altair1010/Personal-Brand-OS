@@ -219,6 +219,7 @@ model StrategyVersion {
   kpiToTrack           Json?
   doNotList            Json?
   aiPromptRunId        String?
+  editedAt             DateTime? // EM2c: đánh dấu version bị chỉnh sửa tay
   createdAt            DateTime     @default(now())
   strategy             Strategy     @relation(fields: [strategyId], references: [id], onDelete: Cascade)
   promptRun            PromptRun?   @relation(fields: [aiPromptRunId], references: [id], onDelete: SetNull)

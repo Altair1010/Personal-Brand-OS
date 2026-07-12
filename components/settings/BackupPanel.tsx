@@ -2,7 +2,14 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Download, Upload, CloudUpload, CloudDownload } from "lucide-react";
+import {
+  Loader2,
+  Download,
+  Upload,
+  CloudUpload,
+  CloudDownload,
+  FileSpreadsheet,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -170,6 +177,22 @@ export function BackupPanel() {
           <Button type="button" variant="outline" onClick={onExport}>
             <Download className="size-4" />
             Xuất backup
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              // Route sets Content-Disposition attachment → navigation downloads the .xlsx.
+              const a = document.createElement("a");
+              a.href = "/api/backup?format=xlsx";
+              document.body.appendChild(a);
+              a.click();
+              a.remove();
+            }}
+          >
+            <FileSpreadsheet className="size-4" />
+            Xuất Excel
           </Button>
 
           <Button

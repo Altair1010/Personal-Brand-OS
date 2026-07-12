@@ -16,8 +16,8 @@ Plan: `~/.claude/plans/c-3-repo-u-delightful-frog.md`
 - [x] T8 persona/pillar help+placeholder+sample panel (ReferenceSamplePanel)
 - [x] checkpoint EM2b: build 0-err + vitest 94/94 + scope-guard 0, commit `EM2b:`
 
-## EM2c — editing + Excel (phiên sau)
-- [ ] T9 manual edit Strategy+Calendar (migration editedAt)
-- [ ] T10 Excel export Chiến lược (exceljs multi-tab)
-- [ ] T11 Excel report Settings
-- [ ] checkpoint EM2c: build+vitest+scope-guard+verifier, commit `EM2c:`
+## EM2c — editing + Excel (DONE)
+- [x] T9 manual edit Strategy+Calendar (migration editedAt) — updateDailyPlan/updateStrategyFrame, sửa tại chỗ
+- [x] T10 Excel export Chiến lược (exceljs 6-tab) — /api/export/xlsx
+- [x] T11 Excel report Settings (exceljs 6-tab readable) — /api/backup?format=xlsx
+- [x] checkpoint EM2c: build 0-err + vitest 99/99 + scope-guard 0 BLOCKER + verifier DONE, commit `EM2c:`

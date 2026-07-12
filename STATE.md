@@ -12,11 +12,10 @@
   milestone per `/clear`, VERIFY-gated.
 
 ## In-progress
-- **EM2 đang chạy** (plan `~/.claude/plans/c-3-repo-u-delightful-frog.md`; todo.md). Chia
-  EM2a→EM2b→EM2c, 1 sub-milestone/`/clear`. **EM2a + EM2b DONE** (detail → MEMORY). EM2b =
-  hydration fix + Tạo-mới menu + cloud bucket msg + set-default + persona/pillar helpers; gate PASS
-  (build 0-err, vitest 94/94, scope-guard 0). **Kế: EM2c** (manual-edit Strategy/Calendar +
-  migration `editedAt` + Excel export exceljs).
+- **EM2 HOÀN TẤT** (plan `~/.claude/plans/c-3-repo-u-delightful-frog.md`). EM2a+EM2b+EM2c đều
+  DONE (detail → MEMORY). EM2c = manual-edit Strategy/Calendar sửa-tại-chỗ (migration `editedAt`)
+  + Excel export exceljs (strategy 6-tab + report 6-tab). Gate PASS: build 0-err, vitest 99/99,
+  scope-guard 0 BLOCKER, verifier DONE. Còn treo: live smoke (AI + Supabase + FB token) — user-fill.
 - EM1 (EM1a→EM1b→EM1c) hoàn tất. Còn treo: live smoke (AI + Supabase cloud sync + FB token) —
   user-fill (ToFill §3/§5).
 

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
-import { Download, Loader2, Sparkles, Target } from "lucide-react";
+import { Download, FileSpreadsheet, Loader2, Sparkles, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { AiLoading } from "@/components/AiLoading";
@@ -151,6 +151,24 @@ export function StrategyWizard({
                 Xuất Markdown
               </Button>
             )}
+            {strategy && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  // Route sets Content-Disposition attachment → navigation downloads the .xlsx.
+                  const a = document.createElement("a");
+                  a.href = `/api/export/xlsx?versionId=${strategy.versionId}`;
+                  document.body.appendChild(a);
+                  a.click();
+                  a.remove();
+                }}
+                disabled={generating}
+              >
+                <FileSpreadsheet className="size-4" />
+                Xuất Excel
+              </Button>
+            )}
           </div>
           <p className="text-xs text-muted-foreground">
             Nguồn: {personas.length} persona · {pillars.length} trụ cột ·{" "}
@@ -171,7 +189,7 @@ export function StrategyWizard({
           </CardContent>
         </Card>
       ) : strategy ? (
-        <StrategyPreview strategy={strategy} />
+        <StrategyPreview strategy={strategy} pillars={pillars} />
       ) : (
         <EmptyState
           icon={Sparkles}

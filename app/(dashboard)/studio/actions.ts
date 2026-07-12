@@ -114,10 +114,12 @@ export type CalendarPostDTO = {
 };
 
 export type CalendarDayDTO = {
+  dailyPlanId: string;
   dayIndex: number;
   plannedObjective: string | null;
   pillarName: string | null;
   suggestedTopic: string | null;
+  suggestedCta: string | null;
   post: CalendarPostDTO | null;
 };
 
@@ -277,10 +279,12 @@ export async function getCalendarData(): Promise<CalendarData> {
     .map((d) => {
       const post = d.posts[0] ?? null;
       return {
+        dailyPlanId: d.id,
         dayIndex: d.dayIndex,
         plannedObjective: d.plannedObjective,
         pillarName: d.plannedPillar?.name ?? null,
         suggestedTopic: d.suggestedTopic,
+        suggestedCta: d.suggestedCta,
         post: post ? { id: post.id, status: post.status } : null,
       };
     });

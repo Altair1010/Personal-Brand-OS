@@ -5,17 +5,35 @@ import {
   importBackup,
   backupEnvelopeSchema,
 } from "@/lib/import-export/backup";
+import { dataReportToWorkbook } from "@/lib/import-export/excel";
 
 // M10 full-DB backup route — server-only. GET exports all 22 entities as one JSON
 // envelope; POST validates then restores. A bad file returns 400 without touching the DB.
+// EM2c T11: GET ?format=xlsx returns a human-readable multi-tab Excel report instead.
 export const runtime = "nodejs";
 
 const USER_ID = "local";
 
-export async function GET() {
-  const envelope = await exportBackup(db);
-
+export async function GET(req: NextRequest) {
   const date = new Date().toISOString().slice(0, 10);
+
+  if (req.nextUrl.searchParams.get("format") === "xlsx") {
+    const buffer = await dataReportToWorkbook(db);
+    const filename = `personal-brand-report-${date}.xlsx`;
+    await db.exportHistory.create({
+      data: { userId: USER_ID, kind: "excel", scope: "report", filename },
+    });
+    return new NextResponse(new Uint8Array(buffer), {
+      status: 200,
+      headers: {
+        "Content-Type":
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Disposition": `attachment; filename="${filename}"`,
+      },
+    });
+  }
+
+  const envelope = await exportBackup(db);
   const filename = `personal-brand-backup-${date}.json`;
 
   await db.exportHistory.create({
