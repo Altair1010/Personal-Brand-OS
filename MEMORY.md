@@ -317,6 +317,13 @@
   (packaged prisma CLI) → seed (packaged tsx+seed.ts, DATABASE_URL=temp) → boot `.next/standalone/
   server.js` → curl `/`=200 `/settings`=200 `/api/backup`="Khang Guru". Chứng minh chuỗi runtime
   packaged chạy thật TRƯỚC khi user cài. Installer sau fix = **199.8M**.
+  **[fix 2026-07-12 — boot failed "prisma migrate deploy exited 1"]:** prisma mới, CLI load
+  `@prisma/config` require top-level dep NGOÀI scope `@prisma` (`effect`,`c12`,`deepmerge-ts`,
+  `empathic` + closure) → `Cannot find module 'effect'`, migrate exit 1. Scope-copy `@prisma/**` KHÔNG
+  bắt được. **Fix extraResources:** 1 entry `from:node_modules` filter 23 gói closure (kèm nested
+  node_modules). Closure tính bằng `scripts/compute-prisma-cli-closure.js` (walk-up resolver từ
+  `node_modules/prisma`); **chạy lại sau mỗi lần upgrade prisma** rồi cập nhật filter. win-unpacked đã
+  vá tại chỗ; build lại để ăn fix vĩnh viễn.
 
 ## Desktop (M11 + M12) — scope & quyết định [2026-07-11]
 Desktop tách 2 mốc (viết ở `docs/milestones.md` PHẦN 3B). Web M0–M10 vốn cross-platform (audit path

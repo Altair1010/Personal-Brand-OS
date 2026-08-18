@@ -91,6 +91,38 @@ extraResources:
   - from: node_modules/.prisma/client
     to: node_modules/.prisma/client
     filter: ["**"]
+  # `prisma migrate deploy` loads `@prisma/config`, which requires top-level packages
+  # OUTSIDE the @prisma scope (effect, c12, ...) plus their transitive closure. These are
+  # NOT under node_modules/@prisma, so the scope copy above misses them → "Cannot find
+  # module 'effect'" and migrate exits 1. Ship the full closure (each dir incl. nested
+  # node_modules) so every require resolves from resourcesPath. Regenerate with
+  # scripts/compute-prisma-cli-closure.js after a prisma upgrade.
+  - from: node_modules
+    to: node_modules
+    filter:
+      - "@standard-schema/spec/**"
+      - "c12/**"
+      - "citty/**"
+      - "confbox/**"
+      - "consola/**"
+      - "deepmerge-ts/**"
+      - "defu/**"
+      - "destr/**"
+      - "dotenv/**"
+      - "effect/**"
+      - "empathic/**"
+      - "exsolve/**"
+      - "fast-check/**"
+      - "giget/**"
+      - "node-fetch-native/**"
+      - "nypm/**"
+      - "ohash/**"
+      - "pathe/**"
+      - "perfect-debounce/**"
+      - "pkg-types/**"
+      - "pure-rand/**"
+      - "rc9/**"
+      - "tinyexec/**"
   # tsx (runs seed.ts) + esbuild (its transpiler) + platform binary (npm installs the
   # correct @esbuild/<os> per runner — glob matches whichever is present).
   - from: node_modules/tsx
