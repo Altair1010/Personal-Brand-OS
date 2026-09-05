@@ -1,12 +1,28 @@
 {
   "schemaVersion": "1.0",
   "workOrderId": "PIL-WO-20260906-006-cloud-control-plane",
-  "status": "BLOCKED_PENDING_OWNER_CONTRACT_APPROVAL",
-  "updatedAt": "2026-09-06T03:19:12+07:00",
+  "status": "IN_PROGRESS",
+  "updatedAt": "2026-09-06T03:47:42+07:00",
   "baseRef": "decb72cfae5749037020cf29c5b48b1f4f4fd3f8",
   "headRef": "refs/heads/work/PIL-WO-20260906-006-cloud-control-plane",
   "branch": "work/PIL-WO-20260906-006-cloud-control-plane",
-  "blockingReason": "Owner approval is required for proposed P3 Worker-Tenant Authorization R1 before schema or application mutation.",
+  "blockingReason": null,
+  "ownerApproval": {
+    "decision": "APPROVED",
+    "date": "2026-09-06",
+    "reviewedContractSha": "1d5f2c1891a61d09eb7bf3ccb23960ca6c309fbe",
+    "scope": "Bounded P3 implementation on the current P3 branch",
+    "exclusions": [
+      "master integration",
+      "production migration",
+      "deployment",
+      "P4",
+      "P5",
+      "Codex integration",
+      "machine enrollment credentials",
+      "public Worker mutation transport"
+    ]
+  },
   "contractProposal": "P3_WORKER_TENANT_AUTHORIZATION_ADDENDUM.md",
   "adrProposal": "docs/adr/0002-worker-tenant-authorization.md",
   "schemaMutation": "NONE",

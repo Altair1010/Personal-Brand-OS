@@ -2,9 +2,13 @@
 
 ## Status
 
-PROPOSED
+APPROVED
 
-Owner approval is required before this proposal may authorize P3 schema or application changes.
+The Owner approved Worker-Tenant Authorization R1 on 2026-09-06 against reviewed proposal commit
+`1d5f2c1891a61d09eb7bf3ccb23960ca6c309fbe`. Approval authorizes bounded P3 implementation on
+`work/PIL-WO-20260906-006-cloud-control-plane`. It does not authorize master integration,
+production migration, deployment, P4, P5, Codex integration, machine enrollment credentials, or
+public Worker mutation transport.
 
 ## Problem
 

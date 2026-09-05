@@ -1,8 +1,13 @@
 # Review — PIL-WO-20260906-006-cloud-control-plane
 
-Decision: BLOCKED_PENDING_OWNER_CONTRACT_APPROVAL
+Decision: APPROVED_FOR_BOUNDED_P3_IMPLEMENTATION
 
-Proposal: Worker-Tenant Authorization R1 / Option A1
+Approved contract: Worker-Tenant Authorization R1 / Option A1
+
+Owner approval was recorded on 2026-09-06 against reviewed proposal commit
+`1d5f2c1891a61d09eb7bf3ccb23960ca6c309fbe`. It authorizes implementation on the existing P3
+branch only. It excludes master integration, production migration, deployment, P4, P5, Codex
+integration, machine enrollment credentials, and public Worker mutation transport.
 
 ## Tenant escalation review
 
@@ -134,9 +139,5 @@ encoding for P3 implementation.
 
 ## Owner gate — P3 Worker-Tenant Authorization R1
 
-Approve Option A1 as specified in `P3_WORKER_TENANT_AUTHORIZATION_ADDENDUM.md` and proposed
-ADR-0002, and authorize bounded P3 implementation on the current phase branch?
-
-Required response: YES / NO / CHANGES REQUIRED
-
-Until YES, schema mutation and application mutation remain prohibited.
+APPROVED on 2026-09-06. Option A1 in `P3_WORKER_TENANT_AUTHORIZATION_ADDENDUM.md` and ADR-0002 is
+the governing Worker trust-boundary contract for bounded P3 implementation.

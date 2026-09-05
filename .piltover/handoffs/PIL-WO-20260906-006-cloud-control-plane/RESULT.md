@@ -1,6 +1,6 @@
 # P3 — CLOUD CONTROL PLANE
 
-STATUS: BLOCKED_PENDING_OWNER_CONTRACT_APPROVAL
+STATUS: IN_PROGRESS
 
 ## BASE
 
@@ -21,13 +21,16 @@ integrity closure and additive migration.
 ## CONTRACT FREEZE
 
 The pre-schema entity and cross-cutting contract is recorded in `REQUEST.md`. Worker-Tenant
-Authorization R1 is now proposed in `P3_WORKER_TENANT_AUTHORIZATION_ADDENDUM.md` and ADR-0002. It
+Authorization R1 is approved in `P3_WORKER_TENANT_AUTHORIZATION_ADDENDUM.md` and ADR-0002 against
+reviewed proposal commit `1d5f2c1891a61d09eb7bf3ccb23960ca6c309fbe`. It
 requires exact, non-inheriting Workspace or Brand grants, P2 `agent.manage` at the exact target, and
 authorization revalidation for every Worker-originated lease-bound mutation.
 
 ## DATA MODEL
 
-Not mutated. Schema mutation: NONE. The R1 Owner gate in `REVIEW.md` must be approved first.
+Not mutated at the approval checkpoint. The Owner authorized bounded P3 schema and application
+implementation on the current P3 branch. Master integration, production migration, deployment, P4,
+P5, Codex integration, machine credentials, and public Worker mutation transport remain excluded.
 
 ## STATE MACHINES
 
@@ -105,8 +108,7 @@ Provider selection: NO
 
 ## LIMITATIONS
 
-- Worker-Tenant Authorization R1 and ADR-0002 remain PROPOSED until Owner approval.
-- No P3 implementation evidence exists yet.
+- Worker-Tenant Authorization R1 and ADR-0002 are approved; implementation evidence remains pending.
 - The existing lockfile audit reports 27 vulnerabilities (3 moderate, 22 high, 2 critical). No
   dependency was changed because dependency remediation is outside this Work Order.
 
@@ -127,10 +129,9 @@ PENDING OWNER GATE. No master integration is authorized.
 
 ## ACCEPTANCE
 
-BLOCKED_PENDING_OWNER_CONTRACT_APPROVAL. No schema or application implementation is authorized by
-this proposal pass.
+IN_PROGRESS. Bounded P3 implementation is authorized on the current P3 branch only.
 
 ## NEXT LEGAL PHASE
 
-Resume P3 implementation only after explicit Owner approval of Worker-Tenant Authorization R1. P4
+Complete P3 implementation and verification, then present the Owner canonicalization gate. P4
 remains blocked.

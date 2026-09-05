@@ -2,10 +2,11 @@
 
 ## Status
 
-PROPOSED
+APPROVED
 
-P3 implementation remains blocked until the Owner approves this ADR and the corresponding Work
-Order addendum.
+Approved by the Owner on 2026-09-06 against reviewed proposal commit
+`1d5f2c1891a61d09eb7bf3ccb23960ca6c309fbe`. Approval is limited to bounded P3 implementation on
+the existing P3 phase branch; the exclusions in the Owner gate remain in force.
 
 ## Context
 
@@ -20,7 +21,7 @@ P4 concerns.
 
 ## Decision
 
-Propose explicit, non-inheriting Worker grants at exactly one Workspace or one Brand:
+Use explicit, non-inheriting Worker grants at exactly one Workspace or one Brand:
 
 - Workspace grants authorize Workspace-only Worker Jobs at that exact Workspace.
 - Brand grants authorize Brand Jobs at that exact Brand.
@@ -74,9 +75,11 @@ back application behavior without deleting historical control-plane evidence.
 
 ## Owner gate
 
-G2/G4. This ADR changes the Worker machine trust boundary, tenant permission semantics, and lease
-mutation authority. Owner approval authorizes only bounded P3 implementation on the current P3
-branch. It does not authorize master integration, production migration, deployment, P4, or P5.
+G2/G4 approved on 2026-09-06. This ADR changes the Worker machine trust boundary, tenant
+permission semantics, and lease mutation authority. Approval authorizes only bounded P3
+implementation on the current P3 branch. It does not authorize master integration, production
+migration, deployment, P4, P5, Codex integration, machine enrollment credentials, or public Worker
+mutation transport.
 
 ## References and evidence
 
