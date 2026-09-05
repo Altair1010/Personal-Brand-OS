@@ -21,6 +21,8 @@ export interface WorkerRegistryPort {
   get(workerId: string): Promise<RegisteredWorker | null>;
   heartbeat(workerId: string): Promise<void>;
   updateCapabilities(workerId: string, capabilities: readonly string[]): Promise<void>;
+  disable(workerId: string, actorId: string, correlationId: string): Promise<void>;
+  revoke(workerId: string, actorId: string, correlationId: string): Promise<void>;
   isAuthorized(workerId: string, scope: WorkerTenantScope): Promise<boolean>;
   grantWorkspace(actor: ExternalActor, workerId: string, workspaceId: string, correlationId: string): Promise<void>;
   revokeWorkspace(actor: ExternalActor, workerId: string, workspaceId: string, correlationId: string): Promise<void>;

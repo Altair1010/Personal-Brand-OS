@@ -213,7 +213,7 @@ CREATE TABLE "ApprovalRequest" (
 -- CreateTable
 CREATE TABLE "AuditEntry" (
     "id" TEXT NOT NULL PRIMARY KEY,
-    "organizationId" TEXT NOT NULL,
+    "organizationId" TEXT,
     "actorType" TEXT NOT NULL,
     "actorId" TEXT NOT NULL,
     "action" TEXT NOT NULL,

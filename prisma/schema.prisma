@@ -981,7 +981,7 @@ model ApprovalRequest {
 
 model AuditEntry {
   id             String   @id
-  organizationId String
+  organizationId String?
   actorType      String
   actorId        String
   action         String
@@ -992,7 +992,7 @@ model AuditEntry {
   occurredAt     DateTime
   createdAt      DateTime @default(now())
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 
   @@index([organizationId, targetType, targetId, occurredAt])
   @@index([organizationId, action, occurredAt])

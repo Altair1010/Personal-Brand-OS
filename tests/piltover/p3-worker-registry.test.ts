@@ -79,4 +79,14 @@ describe("P3 Worker registry and exact tenant grants", () => {
       "identity-owner",
     ]);
   });
+
+  it("records Worker disable without storing a machine credential", async () => {
+    await registry.disable("worker-a", "platform-owner", "disable-worker-a");
+    expect((await registry.get("worker-a"))?.status).toBe("DISABLED");
+    const audit = await fixture.db.auditEntry.findFirstOrThrow({
+      where: { action: "WORKER_DISABLED", targetId: "worker-a" },
+    });
+    expect(audit.actorId).toBe("platform-owner");
+    expect(audit.organizationId).toBeNull();
+  });
 });

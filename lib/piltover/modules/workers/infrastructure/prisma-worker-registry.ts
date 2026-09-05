@@ -123,6 +123,14 @@ export class PrismaWorkerRegistry implements WorkerRegistryPort {
     });
   }
 
+  async disable(workerId: string, actorId: string, correlationId: string): Promise<void> {
+    await this.changeWorkerStatus(workerId, "DISABLED", actorId, correlationId);
+  }
+
+  async revoke(workerId: string, actorId: string, correlationId: string): Promise<void> {
+    await this.changeWorkerStatus(workerId, "REVOKED", actorId, correlationId);
+  }
+
   async isAuthorized(workerId: string, scope: WorkerTenantScope): Promise<boolean> {
     const worker = await this.db.worker.findUnique({ where: { id: workerId } });
     if (!worker || worker.status !== "ACTIVE") return false;
@@ -175,6 +183,28 @@ export class PrismaWorkerRegistry implements WorkerRegistryPort {
     const worker = await this.get(workerId);
     if (!worker) throw new Error("WORKER_NOT_FOUND");
     return worker;
+  }
+
+  private async changeWorkerStatus(
+    workerId: string,
+    status: "DISABLED" | "REVOKED",
+    actorId: string,
+    correlationId: string,
+  ): Promise<void> {
+    await this.db.$transaction(async (tx) => {
+      const worker = await tx.worker.findUnique({ where: { id: workerId } });
+      if (!worker) throw new Error("WORKER_NOT_FOUND");
+      if (worker.status === status || worker.status === "REVOKED") return;
+      const now = this.clock.now();
+      await tx.worker.update({ where: { id: workerId }, data: { status } });
+      await tx.auditEntry.create({
+        data: {
+          id: randomUUID(), organizationId: null, actorType: "SYSTEM", actorId,
+          action: status === "DISABLED" ? "WORKER_DISABLED" : "WORKER_REVOKED",
+          targetType: "WORKER", targetId: workerId, correlationId, occurredAt: now,
+        },
+      });
+    });
   }
 
   private async changeWorkspaceGrant(
