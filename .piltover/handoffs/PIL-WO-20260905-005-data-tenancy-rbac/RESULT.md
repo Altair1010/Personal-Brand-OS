@@ -1,6 +1,10 @@
 # P2 — DATA + TENANCY + RBAC
 
-STATUS: TECHNICALLY_COMPLETE
+STATUS: IN_PROGRESS_INTEGRITY_CLOSURE
+
+R2 Owner review decision: CHANGES REQUIRED. The prior technical-completion claim is withdrawn while
+relation-graph integrity and transitional-scope fail-closed behavior are under correction. P3 and
+canonical reconciliation remain blocked.
 
 ## BASE
 

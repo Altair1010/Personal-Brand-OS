@@ -1,6 +1,14 @@
 # Review — PIL-WO-20260905-005-data-tenancy-rbac
 
-Decision: TECHNICALLY_COMPLETE — PENDING OWNER CANONICALIZATION
+Decision: CHANGES REQUIRED — R2 RELATION-GRAPH INTEGRITY CLOSURE IN PROGRESS
+
+## R2 Relation-Graph Integrity Review
+
+Owner review rejected canonicalization of technical P2 head
+`b9ceb783c4d5c2f0f1594b6751fce097edc9681d`. Row-level tenant ownership was present, but the complete
+legacy relation graph and pre-existing transitional scope had not been proven fail-closed. The
+previous technical-completion decision is superseded until the complete relation matrix, adversarial
+preflight evidence, scope-mismatch behavior, and full regression evidence below are closed.
 
 ## Technical implementation adversarial review
 
