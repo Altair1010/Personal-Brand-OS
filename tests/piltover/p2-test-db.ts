@@ -44,6 +44,30 @@ export function createMigrationWorkspace(includeP2 = true): {
   };
 }
 
+export function createPreP3MigrationWorkspace(): {
+  readonly root: string;
+  readonly schemaPath: string;
+  readonly url: string;
+  readonly migrationsPath: string;
+} {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "piltover-pre-p3-"));
+  const prismaDir = path.join(root, "prisma");
+  const migrationsPath = path.join(prismaDir, "migrations");
+  fs.mkdirSync(prismaDir);
+  fs.copyFileSync(SCHEMA, path.join(prismaDir, "schema.prisma"));
+  fs.cpSync(MIGRATIONS, migrationsPath, {
+    recursive: true,
+    filter: (source) => !source.includes("20260906040000_add_piltover_control_plane"),
+  });
+  const dbPath = path.join(root, "p2.db");
+  return {
+    root,
+    schemaPath: path.join(prismaDir, "schema.prisma"),
+    url: `file:${dbPath.replaceAll("\\", "/")}`,
+    migrationsPath,
+  };
+}
+
 export async function createDisposableP2Database(): Promise<DisposableP2Database> {
   const workspace = createMigrationWorkspace();
   deployMigrations(workspace.schemaPath, workspace.url);

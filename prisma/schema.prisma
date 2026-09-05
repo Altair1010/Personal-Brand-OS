@@ -18,6 +18,14 @@ model UserIdentity {
   authIdentities AuthIdentity[]
   profile        UserProfile?
   memberships    Membership[]
+
+  workspaceGrantsCreated WorkerWorkspaceGrant[] @relation("WorkspaceGrantCreatedBy")
+  workspaceGrantsRevoked WorkerWorkspaceGrant[] @relation("WorkspaceGrantRevokedBy")
+  brandGrantsCreated     WorkerBrandGrant[]     @relation("BrandGrantCreatedBy")
+  brandGrantsRevoked     WorkerBrandGrant[]     @relation("BrandGrantRevokedBy")
+  approvalsRequested     ApprovalRequest[]      @relation("ApprovalRequestedBy")
+  approvalsDecided       ApprovalRequest[]      @relation("ApprovalDecidedBy")
+  approvalsConsumed      ApprovalRequest[]      @relation("ApprovalConsumedBy")
 }
 
 model AuthIdentity {
@@ -59,6 +67,12 @@ model Organization {
   promptRuns         PromptRun[]
   exports            ExportHistory[]
   metricObservations MetricObservation[]
+  agentRuns          AgentRun[]
+  jobs               Job[]
+  approvals          ApprovalRequest[]
+  workspaceGrants    WorkerWorkspaceGrant[]
+  brandGrants        WorkerBrandGrant[]
+  auditEntries       AuditEntry[]
 }
 
 model Membership {
@@ -90,8 +104,13 @@ model Workspace {
   updatedAt      DateTime     @updatedAt
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 
-  brands       Brand[]
-  roleBindings WorkspaceRoleBinding[]
+  brands            Brand[]
+  roleBindings      WorkspaceRoleBinding[]
+  agentRuns         AgentRun[]
+  jobs              Job[]
+  workerGrants      WorkerWorkspaceGrant[]
+  brandWorkerGrants WorkerBrandGrant[]
+  approvals         ApprovalRequest[]
 
   @@unique([id, organizationId])
   @@index([organizationId, status])
@@ -141,6 +160,10 @@ model Brand {
   promptRuns         PromptRun[]
   exports            ExportHistory[]
   metricObservations MetricObservation[]
+  agentRuns          AgentRun[]
+  jobs               Job[]
+  workerGrants       WorkerBrandGrant[]
+  approvals          ApprovalRequest[]
 
   @@unique([id, organizationId])
   @@unique([id, workspaceId, organizationId])
@@ -729,4 +752,248 @@ model ExportHistory {
 
   @@index([userId])
   @@index([organizationId, brandId])
+}
+
+model AgentRun {
+  id                    String    @id
+  organizationId        String
+  workspaceId           String?
+  brandId               String?
+  schemaVersion         String    @default("1.0")
+  status                String    @default("QUEUED")
+  roleRef               String
+  task                  Json
+  contextRef            Json
+  permissionManifestRef String
+  requiredCapabilities  Json
+  idempotencyKey        String?
+  requestFingerprint    String
+  correlationId         String
+  terminalResult        Json?
+  terminalFingerprint   String?
+  completedAt           DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  workspace    Workspace?        @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  brand        Brand?            @relation(fields: [brandId, workspaceId, organizationId], references: [id, workspaceId, organizationId], onDelete: Restrict)
+  jobs         Job[]
+  events       RunEvent[]
+  approvals    ApprovalRequest[]
+
+  @@unique([id, organizationId])
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, workspaceId, brandId, status])
+}
+
+model Job {
+  id                   String    @id
+  runId                String    @unique
+  organizationId       String
+  workspaceId          String
+  brandId              String?
+  status               String    @default("QUEUED")
+  priority             Int       @default(50)
+  requiredCapabilities Json
+  idempotencyKey       String
+  attemptCount         Int       @default(0)
+  maxAttempts          Int       @default(3)
+  nextAttemptAt        DateTime?
+  currentLeaseId       String?   @unique
+  terminalFingerprint  String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  run          AgentRun      @relation(fields: [runId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  workspace    Workspace     @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  brand        Brand?        @relation(fields: [brandId, workspaceId, organizationId], references: [id, workspaceId, organizationId], onDelete: Restrict)
+  leases       WorkerLease[] @relation("JobLeaseHistory")
+  currentLease WorkerLease?  @relation("CurrentJobLease", fields: [currentLeaseId], references: [id], onDelete: Restrict)
+
+  @@unique([id, organizationId])
+  @@index([status, nextAttemptAt, priority, createdAt, id])
+  @@index([organizationId, workspaceId, brandId])
+}
+
+model RunEvent {
+  id            String   @id
+  runId         String
+  sequence      Int
+  schemaVersion String   @default("1.0")
+  eventType     String
+  timestamp     DateTime
+  correlationId String
+  payload       Json?
+  workerId      String?
+  leaseId       String?
+  contentHash   String
+  createdAt     DateTime @default(now())
+
+  run    AgentRun     @relation(fields: [runId], references: [id], onDelete: Restrict)
+  worker Worker?      @relation(fields: [workerId], references: [id], onDelete: Restrict)
+  lease  WorkerLease? @relation(fields: [leaseId], references: [id], onDelete: Restrict)
+
+  @@unique([runId, sequence])
+  @@index([runId, sequence])
+  @@index([workerId])
+}
+
+model Worker {
+  id                String   @id
+  deviceName        String
+  os                String?
+  runtimeAdapter    String
+  runtimeVersion    String
+  protocolVersion   String?
+  repoMappings      Json?
+  status            String   @default("ACTIVE")
+  capabilityVersion Int      @default(1)
+  registeredAt      DateTime @default(now())
+  lastSeenAt        DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  capabilities    WorkerCapability[]
+  leases          WorkerLease[]
+  events          RunEvent[]
+  workspaceGrants WorkerWorkspaceGrant[]
+  brandGrants     WorkerBrandGrant[]
+
+  @@index([status, lastSeenAt])
+}
+
+model WorkerCapability {
+  workerId   String
+  capability String
+  createdAt  DateTime @default(now())
+
+  worker Worker @relation(fields: [workerId], references: [id], onDelete: Restrict)
+
+  @@id([workerId, capability])
+  @@index([capability])
+}
+
+model WorkerLease {
+  id            String    @id
+  jobId         String
+  workerId      String
+  generation    Int
+  attemptNumber Int
+  issuedAt      DateTime
+  expiresAt     DateTime
+  endedAt       DateTime?
+  endReason     String?
+  createdAt     DateTime  @default(now())
+
+  job        Job        @relation("JobLeaseHistory", fields: [jobId], references: [id], onDelete: Restrict)
+  worker     Worker     @relation(fields: [workerId], references: [id], onDelete: Restrict)
+  currentJob Job?       @relation("CurrentJobLease")
+  events     RunEvent[]
+
+  @@unique([jobId, generation])
+  @@index([jobId, expiresAt])
+  @@index([workerId, expiresAt])
+}
+
+model WorkerWorkspaceGrant {
+  id                      String    @id
+  workerId                String
+  organizationId          String
+  workspaceId             String
+  status                  String    @default("ACTIVE")
+  grantedAt               DateTime
+  grantedByUserIdentityId String
+  revokedAt               DateTime?
+  revokedByUserIdentityId String?
+  updatedAt               DateTime  @updatedAt
+
+  worker       Worker        @relation(fields: [workerId], references: [id], onDelete: Restrict)
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  workspace    Workspace     @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  grantedBy    UserIdentity  @relation("WorkspaceGrantCreatedBy", fields: [grantedByUserIdentityId], references: [id], onDelete: Restrict)
+  revokedBy    UserIdentity? @relation("WorkspaceGrantRevokedBy", fields: [revokedByUserIdentityId], references: [id], onDelete: Restrict)
+
+  @@unique([workerId, workspaceId])
+  @@index([workerId, status, workspaceId])
+  @@index([organizationId, workspaceId, status])
+}
+
+model WorkerBrandGrant {
+  id                      String    @id
+  workerId                String
+  organizationId          String
+  workspaceId             String
+  brandId                 String
+  status                  String    @default("ACTIVE")
+  grantedAt               DateTime
+  grantedByUserIdentityId String
+  revokedAt               DateTime?
+  revokedByUserIdentityId String?
+  updatedAt               DateTime  @updatedAt
+
+  worker       Worker        @relation(fields: [workerId], references: [id], onDelete: Restrict)
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  workspace    Workspace     @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  brand        Brand         @relation(fields: [brandId, workspaceId, organizationId], references: [id, workspaceId, organizationId], onDelete: Restrict)
+  grantedBy    UserIdentity  @relation("BrandGrantCreatedBy", fields: [grantedByUserIdentityId], references: [id], onDelete: Restrict)
+  revokedBy    UserIdentity? @relation("BrandGrantRevokedBy", fields: [revokedByUserIdentityId], references: [id], onDelete: Restrict)
+
+  @@unique([workerId, brandId])
+  @@index([workerId, status, brandId])
+  @@index([organizationId, workspaceId, brandId, status])
+}
+
+model ApprovalRequest {
+  id                        String    @id
+  organizationId            String
+  runId                     String?
+  schemaVersion             String    @default("1.0")
+  actionType                String
+  targetRef                 String
+  targetType                String
+  workspaceId               String?
+  brandId                   String?
+  requiredCapability        String
+  payloadHash               String
+  status                    String    @default("PENDING")
+  requestedByUserIdentityId String
+  decidedByUserIdentityId   String?
+  decidedAt                 DateTime?
+  expiresAt                 DateTime
+  oneTimeNonce              String?   @unique
+  consumedAt                DateTime?
+  consumedByUserIdentityId  String?
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  workspace    Workspace?    @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  brand        Brand?        @relation(fields: [brandId, workspaceId, organizationId], references: [id, workspaceId, organizationId], onDelete: Restrict)
+  run          AgentRun?     @relation(fields: [runId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  requestedBy  UserIdentity  @relation("ApprovalRequestedBy", fields: [requestedByUserIdentityId], references: [id], onDelete: Restrict)
+  decidedBy    UserIdentity? @relation("ApprovalDecidedBy", fields: [decidedByUserIdentityId], references: [id], onDelete: Restrict)
+  consumedBy   UserIdentity? @relation("ApprovalConsumedBy", fields: [consumedByUserIdentityId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, status, expiresAt])
+  @@index([runId])
+}
+
+model AuditEntry {
+  id             String   @id
+  organizationId String
+  actorType      String
+  actorId        String
+  action         String
+  targetType     String
+  targetId       String
+  correlationId  String
+  metadata       Json?
+  occurredAt     DateTime
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, targetType, targetId, occurredAt])
+  @@index([organizationId, action, occurredAt])
 }
