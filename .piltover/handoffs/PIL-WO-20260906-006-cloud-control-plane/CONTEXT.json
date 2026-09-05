@@ -14,8 +14,8 @@
   "databaseProvider": "sqlite",
   "technicalPackage": "docs/Piltover-Master-Technical-Package-v1.0.0",
   "implementationRoute": "single-agent-single-branch",
-  "schemaMutationStarted": false,
-  "applicationMutationStarted": false,
+  "schemaMutationStarted": true,
+  "applicationMutationStarted": true,
   "blockingGate": null,
   "workerTenantAuthorizationProposal": {
     "status": "APPROVED",
@@ -55,6 +55,18 @@
     "productionBuild": "PASS / 20 static pages",
     "standaloneTypecheck": "2 pre-existing TS2352 errors",
     "newTypeErrors": 0
+  },
+  "technicalCompletion": {
+    "implementationCheckpoint": "b9df074f8b930aea670bb05fab8da76a6cf9e88d",
+    "p3Targeted": "10 files / 70 tests PASS",
+    "p1P2Critical": "7 files / 55 tests PASS",
+    "fullSuite": "40 files / 237 tests PASS",
+    "productionBuild": "PASS",
+    "prisma": "FORMAT_VALIDATE_GENERATE_PASS",
+    "migration": "FRESH_POPULATED_SECOND_DEPLOY_PASS",
+    "restartDurability": "PASS",
+    "newTypeErrors": 0,
+    "remoteImplementationCheckpointVerified": true
   },
   "canonicalizationStatus": "PENDING_OWNER_GATE",
   "p4Started": false,
