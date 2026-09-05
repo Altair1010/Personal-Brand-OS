@@ -3,12 +3,8 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import { RunEventSchema, type RunEvent } from "../../../shared/contracts/control-plane";
 import { stableHash } from "../../../shared/contracts/stable-json";
 import type { ClockPort } from "../../../shared/ports/core-ports";
-import type { ExternalActor } from "../../../shared/ports/control-plane-ports";
+import type { EventAuthority, ExternalActor, RunEventPort } from "../../../shared/ports/control-plane-ports";
 import { PrismaTenantAccess } from "../../identity/infrastructure/prisma-tenant-access";
-
-type EventAuthority =
-  | { readonly type: "SYSTEM"; readonly actorId: string }
-  | { readonly type: "WORKER"; readonly workerId: string; readonly leaseId: string };
 
 const systemClock: ClockPort = { now: () => new Date() };
 const SECRET_KEY = /(password|bearer.?token|api.?key|private.?key|secret|credential|authorization)/i;
@@ -21,7 +17,7 @@ function containsSecretKey(value: unknown): boolean {
   );
 }
 
-export class PrismaRunEvents {
+export class PrismaRunEvents implements RunEventPort {
   constructor(
     private readonly db: PrismaClient,
     private readonly clock: ClockPort = systemClock,

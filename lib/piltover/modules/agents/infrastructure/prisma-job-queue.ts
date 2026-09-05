@@ -3,33 +3,11 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import { RunRequestSchema, RunResultSchema, type RunRequest, type RunResult } from "../../../shared/contracts/control-plane";
 import { stableHash } from "../../../shared/contracts/stable-json";
 import type { ClockPort } from "../../../shared/ports/core-ports";
-import type { ExternalActor } from "../../../shared/ports/control-plane-ports";
+import type { ClaimedJob, EnqueueJobCommand, ExternalActor, JobQueuePort } from "../../../shared/ports/control-plane-ports";
 import { PrismaTenantAccess } from "../../identity/infrastructure/prisma-tenant-access";
 import { assertAgentRunTransition, assertJobTransition, type AgentRunStatus, type JobStatus } from "../domain/state-machines";
 
 type Database = PrismaClient | Prisma.TransactionClient;
-
-export interface EnqueueJobInput {
-  readonly id: string;
-  readonly runId: string;
-  readonly idempotencyKey: string;
-  readonly workspaceId?: string;
-  readonly brandId?: string | null;
-  readonly requiredCapabilities?: readonly string[];
-  readonly priority?: number;
-  readonly maxAttempts: number;
-  readonly nextAttemptAt?: Date;
-}
-
-export interface ClaimedJob {
-  readonly job: { readonly id: string; readonly runId: string; readonly attemptCount: number };
-  readonly lease: {
-    readonly id: string;
-    readonly workerId: string;
-    readonly attemptNumber: number;
-    readonly expiresAt: Date;
-  };
-}
 
 const systemClock: ClockPort = { now: () => new Date() };
 
@@ -50,7 +28,7 @@ function json(value: unknown): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue;
 }
 
-export class PrismaJobQueue {
+export class PrismaJobQueue implements JobQueuePort {
   constructor(
     private readonly db: PrismaClient,
     private readonly clock: ClockPort = systemClock,
@@ -92,7 +70,7 @@ export class PrismaJobQueue {
     });
   }
 
-  async enqueue(input: EnqueueJobInput) {
+  async enqueue(input: EnqueueJobCommand) {
     if (input.maxAttempts < 1) throw new Error("QUEUE_MAX_ATTEMPTS_INVALID");
     const run = await this.db.agentRun.findUnique({ where: { id: input.runId } });
     if (!run) throw new Error("AGENT_RUN_NOT_FOUND");
