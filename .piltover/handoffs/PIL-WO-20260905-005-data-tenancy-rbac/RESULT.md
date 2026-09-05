@@ -50,14 +50,25 @@ mutation:
 - Addendum status: `PROPOSED`
 - ADR status: `PROPOSED`
 
+Owner review status: `CHANGES REQUIRED`. Revision R1 corrects stale-grant resurrection on
+Membership readmission, adds Workspace lifecycle authority, scopes tenant-sensitive PromptRun data
+when ownership is provable, and removes the unnecessary one-subject-per-provider AuthIdentity
+constraint. The proposal remains gated and unapproved.
+
 Recommended contract summary:
 
 - separate `UserIdentity` and provider auth subjects from retained `UserProfile`;
 - active Organization Membership with optional Organization role plus FK-backed Workspace and Brand
   role bindings;
 - one role per scope and union of positive grants down validated ancestry, with deny by default;
-- 23 action capabilities and a complete matrix for all seven canonical roles;
+- 24 action capabilities and a complete matrix for all seven canonical roles, including separate
+  `workspace.lifecycle.manage` authority;
 - role-assignment ceilings, no scoped OWNER, and last-Organization-Owner protection;
+- suspension as a grant-preserving pause, revocation as atomic grant destruction, and zero-grant
+  READMISSION;
+- tenant-sensitive PromptRun ownership proven from its complete consumer set, with unresolved rows
+  excluded from new tenant APIs;
+- AuthIdentity uniqueness only on `(provider, subject)`, without a per-principal/provider limit;
 - archive/disable/revoke lifecycle with restrictive foreign keys and no P2 hard-delete path;
 - Brand-owned normalized typed MetricObservation rows with an optional legacy Post bridge;
 - transactional one-tenant-graph-per-profile backfill and versioned backup compatibility.
@@ -80,14 +91,21 @@ ancestry, exact scoped binding, and additive legacy BrandDNA link.
 
 User/identity: proposed separate `UserIdentity` and `AuthIdentity` models retain `UserProfile` as
 business/profile metadata. AppState's Supabase subject maps only to profile `local`; no provider is
-fabricated for offline-only profiles and no auth provider is changed.
+fabricated for offline-only profiles and no auth provider is changed. `(provider, subject)` is
+unique; one principal is not artificially limited to one subject per provider.
 
 Membership: proposed unique actor/Organization relationship with nullable Organization role and
-`ACTIVE|SUSPENDED|REVOKED` lifecycle. Membership without a role grants no visibility.
+`ACTIVE|SUSPENDED|REVOKED` lifecycle. Suspension preserves grants; revocation clears the
+Organization role and revokes all scoped bindings atomically. READMISSION activates only after the
+same zero-grant reset. Membership without a role grants no visibility.
 
-RBAC: the seven canonical roles are mapped across 23 action capabilities. Positive grants union from
+RBAC: the seven canonical roles are mapped across 24 action capabilities. Positive grants union from
 Organization to exact Workspace and Brand bindings; missing/inactive/unknown/inconsistent state
 denies. Assignment ceilings and last-owner safety are explicit.
+
+PromptRun: proposed nullable Organization/Brand ownership is backfilled only when StrategyVersion,
+ContentDraft, and PerformanceInsight consumers resolve unanimously and completely to one tenant.
+Legacy-unscoped or conflicting rows are unavailable to ordinary new tenant-aware APIs.
 
 MetricObservation: proposed normalized typed observation owned authoritatively by Brand, with an
 optional legacy Post bridge, stable source-fact dedupe, explicit mapping for every MetricSnapshot
@@ -106,7 +124,8 @@ Current reconnaissance identified the legacy ownership problem but no migration 
 | `MetricSnapshot` | unique `postId` | MetricObservation source compatibility | proposed 0–7 observations per snapshot; snapshot retained | YES |
 | `PerformanceInsight`, `ExportHistory` | `userId` | direct Brand scope | proposed nullable Organization/Brand links | YES |
 | templates/frameworks/objectives | optional user/global | user rows Brand-scoped; null-user rows global | proposed conditional links; objectives remain global | YES |
-| `PromptRun` / `AIModelConfig` | global/unscoped | legacy/system | unchanged unless an exact later owner is proven | YES |
+| `PromptRun` | global execution payload with tenant-bearing consumers | conditional Brand scope | proposed nullable Organization/Brand fields; backfill only by complete unanimous consumer proof; unresolved rows remain compatibility-only | YES |
+| `AIModelConfig` | global/system | system/provider configuration | unchanged; secrets excluded from tenant APIs and backup | YES |
 | `AppState` | singleton | legacy only, never tenancy authority | unchanged | YES |
 
 ## FINAL TENANCY GRAPH
@@ -123,6 +142,7 @@ AuthIdentity --> UserIdentity <-- UserProfile
                            |                      +-- Brand
                            |                           |
                            +-- WorkspaceRoleBinding    +-- MetricObservation*
+                           |                           +-- PromptRun*
                            +-- BrandRoleBinding
 ```
 
@@ -162,7 +182,7 @@ MetricObservations created: 0
 
 Roles: canonical names recovered; no persistence or evaluator implemented.
 
-Permissions: PROPOSED — 23 action capabilities with a complete seven-role matrix.
+Permissions: PROPOSED — 24 action capabilities with a complete seven-role matrix.
 
 Scope semantics: PROPOSED — nullable Organization role plus scope-specific FK-backed Workspace and
 Brand bindings; positive grants union only down verified ancestry.
@@ -208,12 +228,15 @@ existing business behavior: unchanged
 ## BACKUP / EXPORT IMPACT
 
 Result: the current backup layer explicitly exports all 22 legacy entities. Any new P2 tenancy
-tables would be omitted unless the backup envelope/import order is extended.
+tables would be omitted unless the backup envelope/import order is extended. PromptRun is already
+exported, but version 2 must preserve its proposed nullable Organization/Brand fields and version-1
+upgrade must run the same complete-consumer ownership proof.
 
 Changes required: required when implementation resumes; none made while the physical schema is
 blocked.
 
-Tests: existing baseline backup tests passed as part of the full suite.
+Tests: existing baseline backup tests passed historically. No application tests were rerun for the
+documentation-only R1 correction.
 
 ## VERIFICATION
 
@@ -242,7 +265,14 @@ Production build: PASS — Next.js 15.3.4 production build completed and generat
 Standalone typecheck delta: baseline recorded before P2 mutation; two pre-existing TS2352 errors
 remain in `tests/ai/adapter-db-key.test.ts` at lines 105 and 140.
 
-git diff --check: PASS for the P1 base through the blocker-evidence commit.
+R1 documentation validation: PASS — 24 unique matrix rows, required lifecycle/PromptRun sections,
+PROPOSED statuses, valid Work Order JSON, and no uncontrolled stale semantic claims.
+
+git diff --check: PASS for the R1 working diff before commit.
+
+R1 proportional test decision: no full application test or build was run because R1 changes only
+English Markdown/JSON contract evidence and does not modify schema, migration, source, dependencies,
+or runtime configuration. Historical baseline results above are not presented as a fresh R1 run.
 
 ## TYPECHECK BASELINE
 
@@ -283,6 +313,7 @@ Provider migration: NO
 - The addendum and ADR are proposals, not canonical approval.
 - No schema, migration, backfill, RBAC evaluator, repository, MetricObservation, or isolation test has
   been implemented.
+- PromptRun tenant ownership is a proposed contract only; no schema field, backfill, or query changed.
 - Production data volume and write concurrency are unknown; the proposal makes no zero-downtime claim.
 
 ## COMMITS

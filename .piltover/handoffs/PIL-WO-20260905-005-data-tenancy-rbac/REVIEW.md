@@ -14,6 +14,95 @@ Decision: BLOCKED_PENDING_OWNER_CONTRACT_APPROVAL
 
 ## Proposed contract adversarial review
 
+### TEMPORAL PRIVILEGE RESURRECTION
+
+Finding: The original proposal allowed a retained `REVOKED -> ACTIVE` toggle while Organization and
+scoped roles could remain stored, allowing old privilege to return silently.
+
+Evidence: R1 makes revocation atomically clear `organizationRole` and revoke every Workspace and
+Brand binding. `REVOKED -> ACTIVE` is prohibited; READMISSION re-applies the zero-grant reset before
+activation. Suspension is separately defined as a grant-preserving pause.
+
+Severity: Critical design risk, corrected in R1
+
+Resolution: Require negative tests for revoked former MANAGER/EDITOR readmission, suspended MANAGER
+reactivation, revoked-binding persistence across Membership state changes, and atomic failure.
+
+### WORKSPACE LIFECYCLE AUTHORITY
+
+Finding: Workspace had an archive/reactivate lifecycle but the original 23-capability algebra had no
+Workspace lifecycle authority.
+
+Evidence: R1 adds `workspace.lifecycle.manage`, raises the matrix to 24 rows, grants it only to OWNER
+and ADMIN, and applies it only to Workspace targets. Workspace ADMIN may manage descendant Brand
+lifecycle through inherited `brand.lifecycle.manage`; Brand ADMIN cannot act on a Workspace.
+
+Severity: High authorization gap, corrected in R1
+
+Resolution: Test Organization ADMIN Workspace recovery, Workspace ADMIN Brand recovery, Brand ADMIN
+Workspace denial, archived-ancestor denial, and the exact 24-row matrix.
+
+### PROMPTRUN TENANT LEAKAGE
+
+Finding: PromptRun stores input and model output derived from Brand data but the original proposal
+left it globally unscoped, creating a hidden cross-tenant payload path for future APIs.
+
+Evidence: Current Prisma relations connect PromptRun to StrategyVersion, ContentDraft, and
+PerformanceInsight, and the current strategy action uses a global most-recent lookup. R1 confines
+that lookup to legacy compatibility, adds nullable transitional Organization/Brand ownership,
+accepts only complete unanimous consumer proof, classifies unresolved/conflicting rows, and bars
+them from new tenant APIs.
+
+Severity: Critical information-disclosure risk, corrected by contract
+
+Resolution: Test same-tenant multi-consumer proof, no-consumer legacy classification, unresolved
+consumer conflict, cross-tenant conflict, exact tenant query predicates, and versioned backup fields.
+Run ownership proof only after all legacy consumer scopes are populated so an early per-profile pass
+cannot hide a later conflicting consumer.
+
+### AUTHIDENTITY OVER-CONSTRAINT
+
+Finding: `UNIQUE(userIdentityId, provider)` was not required to prevent principal collision and would
+permanently prohibit multiple accounts from one provider per principal.
+
+Evidence: R1 retains only security-critical `UNIQUE(provider, subject)`. Profile separation, opaque
+subjects, duplicate-subject migration blocking, and no-fabricated-subject rules remain unchanged.
+
+Severity: Medium schema-debt risk, corrected in R1
+
+Resolution: Verify duplicate `(provider, subject)` denial and permit distinct subjects from the same
+provider to reference one UserIdentity. P2 still adds no account-linking UX.
+
+### TEMPORAL STATE ATTACK MATRIX
+
+| Scenario | Before | During | After/adversarial verdict |
+|---|---|---|---|
+| revoke -> reactivate | Assigned grants effective | Revocation clears/revokes all grants | Toggle denied; READMISSION is zero-grant. PASS by design. |
+| suspend -> reactivate | Assigned grants effective | All access denied, grants retained | Grants intentionally return after authorized resume. PASS by explicit semantics. |
+| archive parent -> recover child | Child effective | Parent archive suppresses descendant mutations | Child recovery denies until parent active; own archived state still applies. PASS by design. |
+| revoke binding -> Membership change | Binding effective | Revoked binding inactive | Membership resume/readmission cannot revive it. PASS by design. |
+| readmission with stale binding | Historical row exists | Fail-safe revokes every scoped row before ACTIVE | No capability until fresh assignment. PASS by design. |
+| Organization role downgrade | Ancestor and descendant grants union | Post-change effective scopes calculated | Explicit descendant grants survive only at their scopes. Accepted, visible positive-grant semantics. |
+| Organization role removal | Organization and scoped access | Organization grant removed | Exact active bindings remain; no Organization discovery. Accepted, auditable semantics. |
+| Owner transfer | Existing Owner active | New Owner committed before old demotion | At least one active Owner remains. PASS by design. |
+| last-Owner suspension | One active Owner | Transaction rechecks count | Denied. PASS by design. |
+| identity disable -> enable | Tenant grants effective | All authorization denied while disabled | G4 recovery may restore disclosed stored grants after subject verification. PASS by explicit recovery semantics. |
+
+### HIDDEN DATA-SCOPE AUDIT
+
+Finding: A PromptRun-only correction could miss another globally classified Brand payload.
+
+Evidence: The complete current Prisma schema was classified. AppState is legacy-unscoped and banned
+from new tenant paths; PromptTemplate/ContentObjective/null-user templates and frameworks are shared
+reference data; AIModelConfig is system configuration with secrets excluded; user-owned templates,
+derived plans/versions/snapshots, and all direct user business models already have explicit direct,
+conditional, or derived scope rules.
+
+Severity: Critical audit question; no second critical global payload model found
+
+Resolution: Keep PromptRun as the bounded R1 addition. Do not broaden P2 into application-wide AI or
+AppState migration. Enforce exact ownership before any new tenant-aware exposure.
+
 ### IDENTITY COLLISION OR IMPERSONATION
 
 Finding: Reusing `UserProfile` or inventing a local provider subject could turn mutable or

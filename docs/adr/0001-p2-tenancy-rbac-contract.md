@@ -4,6 +4,8 @@
 
 PROPOSED
 
+Revision R1 incorporates the Owner decision `CHANGES REQUIRED` without approving this ADR.
+
 ## Context
 
 P2 must create the Organization -> Workspace -> Brand data foundation, tenant-scoped authorization,
@@ -17,12 +19,19 @@ Those choices change trust boundaries, permission semantics, and public persiste
 Subject to Owner approval:
 
 - separate `UserIdentity` and provider auth subjects from retained `UserProfile` metadata;
+- identify external subjects uniquely by `(provider, subject)` without restricting a principal to
+  one subject per provider;
 - use one durable Organization Membership with an optional Organization role and separate,
   FK-backed Workspace and Brand role bindings;
+- treat suspension as grant-preserving pause, but make revocation clear the Organization role and
+  revoke all scoped bindings; READMISSION is atomic and always returns with zero grants;
 - allow one role per scope and union positive grants down the validated tenant hierarchy;
-- use the bounded 23-capability matrix in the P2 contract addendum;
+- use the bounded 24-capability matrix, including distinct `workspace.lifecycle.manage`, in the P2
+  contract addendum;
 - archive tenant entities, disable identities, and suspend/revoke memberships instead of exposing
   hard-delete cascades in P2;
+- add nullable Organization/Brand ownership to tenant-sensitive PromptRun evidence, backfill only
+  from unanimous complete consumer ownership proof, and exclude unresolved rows from new tenant APIs;
 - make Brand the authoritative owner of normalized, typed MetricObservation rows while retaining an
   optional Post compatibility link and all legacy MetricSnapshot data;
 - implement through additive, idempotent backfill and versioned backup/restore compatibility.
@@ -46,6 +55,12 @@ The exact fields, constraints, matrix, authorization algorithm, backfill, and me
 - Tenant and scoped-role ancestry can be proven with normal and compound SQLite foreign keys.
 - Authorization is manually auditable and deny-by-default, with assignment ceilings and last-owner
   protection.
+- Temporal authorization is explicit: only suspension/controlled recovery preserves grants;
+  Membership revocation and binding revocation cannot resurrect stale privilege.
+- Workspace lifecycle authority is separate from structural management, matching Organization and
+  Brand lifecycle boundaries.
+- PromptRun input/output is no longer a hidden global tenant-data path; unresolved legacy rows remain
+  compatibility-only until ownership is proven.
 - Two scope-specific binding tables and one auth-subject table are added compared with a polymorphic
   minimum.
 - Some invariants require transactional application checks and targeted negative tests because

@@ -2,11 +2,11 @@
   "schemaVersion": "1.0",
   "workOrderId": "PIL-WO-20260905-005-data-tenancy-rbac",
   "status": "BLOCKED_PENDING_OWNER_CONTRACT_APPROVAL",
-  "updatedAt": "2026-09-05T23:44:34+07:00",
+  "updatedAt": "2026-09-06T00:10:33+07:00",
   "baseRef": "9e3c8ff58b692b406a72ae7dd5f9cdfc7f8c5db1",
   "headRef": "9f2b0f8b86336ecedd60653f60924af9fdd02f23",
   "branch": "work/PIL-WO-20260905-005-data-tenancy-rbac",
   "prNumber": null,
   "actor": "Codex",
-  "blockingReason": "Owner approval required: the proposed addendum and ADR resolve the P2 model gaps but are not canonical or implementation authority until explicitly approved."
+  "blockingReason": "Owner approval required: contract Revision R1 corrects the four security and ownership findings but remains PROPOSED and is not implementation authority."
 }

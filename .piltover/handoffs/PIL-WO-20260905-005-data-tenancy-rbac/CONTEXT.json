@@ -12,5 +12,8 @@
   "blockingGate": "P2_CANONICAL_CONTRACT_APPROVAL",
   "contractProposal": ".piltover/handoffs/PIL-WO-20260905-005-data-tenancy-rbac/P2_CANONICAL_CONTRACT_ADDENDUM.md",
   "adrProposal": "docs/adr/0001-p2-tenancy-rbac-contract.md",
-  "contractStatus": "PROPOSED"
+  "contractStatus": "PROPOSED",
+  "contractRevision": "R1",
+  "ownerReview": "CHANGES_REQUIRED",
+  "revisionBaseRef": "cb64b9de35afa09b018b70f2fa9584d462b7d303"
 }
