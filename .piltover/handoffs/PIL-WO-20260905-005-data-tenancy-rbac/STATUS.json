@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1.0",
+  "workOrderId": "PIL-WO-20260905-005-data-tenancy-rbac",
+  "status": "BLOCKED",
+  "updatedAt": "2026-09-05T22:23:24+07:00",
+  "baseRef": "9e3c8ff58b692b406a72ae7dd5f9cdfc7f8c5db1",
+  "headRef": null,
+  "branch": "work/PIL-WO-20260905-005-data-tenancy-rbac",
+  "prNumber": null,
+  "actor": "Codex",
+  "blockingReason": "Owner decision required: the canonical package does not define the P2 permission matrix, role-binding scope/inheritance, or other consequential physical-model semantics required before schema mutation."
+}

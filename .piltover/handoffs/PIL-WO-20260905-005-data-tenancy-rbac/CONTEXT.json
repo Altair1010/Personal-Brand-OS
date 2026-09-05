@@ -1,0 +1,13 @@
+{
+  "workOrderId": "PIL-WO-20260905-005-data-tenancy-rbac",
+  "title": "P2 data, tenancy, and RBAC",
+  "repository": "Altair1010/Personal-Brand-OS",
+  "branch": "work/PIL-WO-20260905-005-data-tenancy-rbac",
+  "baseCommit": "9e3c8ff58b692b406a72ae7dd5f9cdfc7f8c5db1",
+  "originMasterAtStart": "9e3c8ff58b692b406a72ae7dd5f9cdfc7f8c5db1",
+  "p1Reachable": true,
+  "canonicalPackage": "docs/Piltover-Master-Technical-Package-v1.0.0",
+  "databaseProvider": "sqlite",
+  "schemaMutationStarted": false,
+  "blockingGate": "P2_MODEL_DECISION"
+}
