@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
-import type { Prisma, PrismaClient } from "@prisma/client";
+import type { Job as JobRecord, Prisma, PrismaClient } from "@prisma/client";
 import { RunRequestSchema, RunResultSchema, type RunRequest, type RunResult } from "../../../shared/contracts/control-plane";
 import { stableHash } from "../../../shared/contracts/stable-json";
+import { containsObviousSecret } from "../../../shared/contracts/safe-metadata";
 import type { ClockPort } from "../../../shared/ports/core-ports";
 import type { ClaimedJob, EnqueueJobCommand, ExternalActor, JobQueuePort } from "../../../shared/ports/control-plane-ports";
 import { PrismaTenantAccess } from "../../identity/infrastructure/prisma-tenant-access";
@@ -48,26 +49,47 @@ export class PrismaJobQueue implements JobQueuePort {
         ],
       },
     });
+    const acceptExisting = (candidate: typeof existing) => {
+      if (!candidate) return null;
+      if (candidate.requestFingerprint !== fingerprint) throw new Error("AGENT_IDEMPOTENCY_CONFLICT");
+      return candidate;
+    };
     if (existing) {
       if (existing.requestFingerprint !== fingerprint) throw new Error("AGENT_IDEMPOTENCY_CONFLICT");
       return existing;
     }
-    return this.db.agentRun.create({
-      data: {
-        id: request.runId,
-        organizationId: request.organizationId,
-        workspaceId: request.workspaceId ?? null,
-        brandId: request.brandId ?? null,
-        roleRef: request.roleRef,
-        task: json(request.task),
-        contextRef: json(request.contextRef),
-        permissionManifestRef: request.permissionManifestRef,
-        requiredCapabilities: json(normalizeCapabilities(request.requiredCapabilities ?? [])),
-        idempotencyKey: request.idempotencyKey ?? null,
-        requestFingerprint: fingerprint,
-        correlationId,
-      },
-    });
+    try {
+      return await this.db.agentRun.create({
+        data: {
+          id: request.runId,
+          organizationId: request.organizationId,
+          workspaceId: request.workspaceId ?? null,
+          brandId: request.brandId ?? null,
+          roleRef: request.roleRef,
+          task: json(request.task),
+          contextRef: json(request.contextRef),
+          permissionManifestRef: request.permissionManifestRef,
+          requiredCapabilities: json(normalizeCapabilities(request.requiredCapabilities ?? [])),
+          idempotencyKey: request.idempotencyKey ?? null,
+          requestFingerprint: fingerprint,
+          correlationId,
+        },
+      });
+    } catch (error) {
+      const raced = await this.db.agentRun.findFirst({
+        where: {
+          OR: [
+            { id: request.runId },
+            ...(request.idempotencyKey
+              ? [{ organizationId: request.organizationId, idempotencyKey: request.idempotencyKey }]
+              : []),
+          ],
+        },
+      });
+      const accepted = acceptExisting(raced);
+      if (accepted) return accepted;
+      throw error;
+    }
   }
 
   async getRun(actor: ExternalActor, runId: string) {
@@ -105,8 +127,7 @@ export class PrismaJobQueue implements JobQueuePort {
       nextAttemptAt: input.nextAttemptAt?.toISOString() ?? null,
     };
     const fingerprint = stableHash(material);
-    const existing = await this.db.job.findUnique({ where: { runId: input.runId } });
-    if (existing) {
+    const acceptExisting = (existing: JobRecord): JobRecord => {
       if (existing.idempotencyKey !== input.idempotencyKey || stableHash({
         id: existing.id, runId: existing.runId, idempotencyKey: existing.idempotencyKey,
         organizationId: existing.organizationId, workspaceId: existing.workspaceId, brandId: existing.brandId,
@@ -114,22 +135,32 @@ export class PrismaJobQueue implements JobQueuePort {
         maxAttempts: existing.maxAttempts, nextAttemptAt: existing.nextAttemptAt?.toISOString() ?? null,
       }) !== fingerprint) throw new Error("QUEUE_IDEMPOTENCY_CONFLICT");
       return existing;
-    }
+    };
+    const existing = await this.db.job.findUnique({ where: { runId: input.runId } });
+    if (existing) return acceptExisting(existing);
 
-    return this.db.$transaction(async (tx) => {
-      const currentRun = await tx.agentRun.findUniqueOrThrow({ where: { id: input.runId } });
-      assertAgentRunTransition(currentRun.status as AgentRunStatus, "WAITING_FOR_WORKER");
-      const job = await tx.job.create({
-        data: {
-          id: input.id, runId: input.runId, organizationId: run.organizationId,
-          workspaceId, brandId, priority: material.priority,
-          requiredCapabilities: json(material.requiredCapabilities), idempotencyKey: input.idempotencyKey,
-          maxAttempts: input.maxAttempts, nextAttemptAt: input.nextAttemptAt,
-        },
+    try {
+      return await this.db.$transaction(async (tx) => {
+        const raced = await tx.job.findUnique({ where: { runId: input.runId } });
+        if (raced) return acceptExisting(raced);
+        const currentRun = await tx.agentRun.findUniqueOrThrow({ where: { id: input.runId } });
+        assertAgentRunTransition(currentRun.status as AgentRunStatus, "WAITING_FOR_WORKER");
+        const job = await tx.job.create({
+          data: {
+            id: input.id, runId: input.runId, organizationId: run.organizationId,
+            workspaceId, brandId, priority: material.priority,
+            requiredCapabilities: json(material.requiredCapabilities), idempotencyKey: input.idempotencyKey,
+            maxAttempts: input.maxAttempts, nextAttemptAt: input.nextAttemptAt,
+          },
+        });
+        await tx.agentRun.update({ where: { id: input.runId }, data: { status: "WAITING_FOR_WORKER" } });
+        return job;
       });
-      await tx.agentRun.update({ where: { id: input.runId }, data: { status: "WAITING_FOR_WORKER" } });
-      return job;
-    });
+    } catch (error) {
+      const raced = await this.db.job.findUnique({ where: { runId: input.runId } });
+      if (raced) return acceptExisting(raced);
+      throw error;
+    }
   }
 
   async claimEligible(workerId: string, leaseDurationMs: number): Promise<ClaimedJob | null> {
@@ -195,10 +226,11 @@ export class PrismaJobQueue implements JobQueuePort {
         if (!job?.currentLease || job.currentLease.expiresAt > now || !["CLAIMED", "RUNNING"].includes(job.status)) return false;
         const exhausted = job.attemptCount >= job.maxAttempts;
         const nextJobStatus = exhausted ? "FAILED" : "RETRY_PENDING";
-        const nextRunStatus = exhausted ? "FAILED" : "RETRY_PENDING";
         assertJobTransition(job.status as JobStatus, nextJobStatus);
         const run = await tx.agentRun.findUniqueOrThrow({ where: { id: job.runId } });
-        assertAgentRunTransition(run.status as AgentRunStatus, nextRunStatus);
+        const preserveApprovalPause = !exhausted && run.status === "WAITING_APPROVAL";
+        const nextRunStatus = exhausted ? "FAILED" : preserveApprovalPause ? "WAITING_APPROVAL" : "RETRY_PENDING";
+        if (!preserveApprovalPause) assertAgentRunTransition(run.status as AgentRunStatus, nextRunStatus);
         await tx.workerLease.update({
           where: { id: job.currentLease.id }, data: { endedAt: now, endReason: "EXPIRED" },
         });
@@ -209,7 +241,9 @@ export class PrismaJobQueue implements JobQueuePort {
             nextAttemptAt: exhausted ? null : new Date(now.getTime() + retryDelayMs),
           },
         });
-        await tx.agentRun.update({ where: { id: run.id }, data: { status: nextRunStatus } });
+        if (!preserveApprovalPause) {
+          await tx.agentRun.update({ where: { id: run.id }, data: { status: nextRunStatus } });
+        }
         await this.audit(tx, job.organizationId, "SYSTEM", "lease-reconciler", exhausted ? "JOB_ATTEMPTS_EXHAUSTED" : "WORKER_LEASE_EXPIRED", "JOB", job.id, run.correlationId, now);
         return true;
       });
@@ -220,6 +254,7 @@ export class PrismaJobQueue implements JobQueuePort {
 
   async complete(jobId: string, workerId: string, leaseId: string, input: RunResult): Promise<void> {
     const result = RunResultSchema.parse(input);
+    if (containsObviousSecret(result.error?.details)) throw new Error("AGENT_RESULT_SECRET_REJECTED");
     const fingerprint = stableHash(result);
     await this.db.$transaction(async (tx) => {
       const job = await tx.job.findUnique({ where: { id: jobId }, include: { currentLease: true } });
@@ -326,7 +361,10 @@ export class PrismaJobQueue implements JobQueuePort {
   private async activateDueRetries(): Promise<void> {
     const now = this.clock.now();
     const due = await this.db.job.findMany({
-      where: { status: "RETRY_PENDING", nextAttemptAt: { lte: now }, currentLeaseId: null },
+      where: {
+        status: "RETRY_PENDING", nextAttemptAt: { lte: now }, currentLeaseId: null,
+        run: { status: "RETRY_PENDING" },
+      },
       select: { id: true, runId: true },
     });
     for (const item of due) {
@@ -335,6 +373,7 @@ export class PrismaJobQueue implements JobQueuePort {
         if (!job || job.status !== "RETRY_PENDING" || !job.nextAttemptAt || job.nextAttemptAt > now) return;
         assertJobTransition("RETRY_PENDING", "QUEUED");
         const run = await tx.agentRun.findUniqueOrThrow({ where: { id: item.runId } });
+        if (run.status !== "RETRY_PENDING") return;
         assertAgentRunTransition(run.status as AgentRunStatus, "WAITING_FOR_WORKER");
         await tx.job.update({ where: { id: item.id }, data: { status: "QUEUED" } });
         await tx.agentRun.update({ where: { id: item.runId }, data: { status: "WAITING_FOR_WORKER" } });

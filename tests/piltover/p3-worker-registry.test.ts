@@ -37,6 +37,13 @@ describe("P3 Worker registry and exact tenant grants", () => {
     expect(Object.keys(worker ?? {})).not.toContain("credential");
   });
 
+  it("rejects obvious secret-bearing registration metadata", async () => {
+    await expect(registry.register({
+      ...registration, workerId: "worker-secret", repoMappings: { apiKey: "must-not-store" },
+    })).rejects.toThrow("WORKER_SECRET_METADATA_REJECTED");
+    expect(await fixture.db.worker.findUnique({ where: { id: "worker-secret" } })).toBeNull();
+  });
+
   it("enforces exact Workspace and Brand grants without inheritance", async () => {
     await registry.grantWorkspace(fixture.ownerActor, "worker-a", "workspace-a", "correlation-1");
     expect(await registry.isAuthorized("worker-a", { type: "WORKSPACE", id: "workspace-a" })).toBe(true);

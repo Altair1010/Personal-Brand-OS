@@ -2,21 +2,12 @@ import { randomUUID } from "node:crypto";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { RunEventSchema, type RunEvent } from "../../../shared/contracts/control-plane";
 import { stableHash } from "../../../shared/contracts/stable-json";
+import { containsObviousSecret } from "../../../shared/contracts/safe-metadata";
 import type { ClockPort } from "../../../shared/ports/core-ports";
 import type { EventAuthority, ExternalActor, RunEventPort } from "../../../shared/ports/control-plane-ports";
 import { PrismaTenantAccess } from "../../identity/infrastructure/prisma-tenant-access";
 
 const systemClock: ClockPort = { now: () => new Date() };
-const SECRET_KEY = /(password|bearer.?token|api.?key|private.?key|secret|credential|authorization)/i;
-
-function containsSecretKey(value: unknown): boolean {
-  if (Array.isArray(value)) return value.some(containsSecretKey);
-  if (!value || typeof value !== "object") return false;
-  return Object.entries(value as Record<string, unknown>).some(
-    ([key, nested]) => SECRET_KEY.test(key) || containsSecretKey(nested),
-  );
-}
-
 export class PrismaRunEvents implements RunEventPort {
   constructor(
     private readonly db: PrismaClient,
@@ -25,7 +16,7 @@ export class PrismaRunEvents implements RunEventPort {
 
   async append(input: RunEvent, authority: EventAuthority) {
     const event = RunEventSchema.parse(input);
-    if (containsSecretKey(event.payload)) throw new Error("AGENT_EVENT_SECRET_REJECTED");
+    if (containsObviousSecret(event.payload)) throw new Error("AGENT_EVENT_SECRET_REJECTED");
     const contentHash = stableHash(event);
     try {
       return await this.db.$transaction(async (tx) => {

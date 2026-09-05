@@ -63,6 +63,25 @@ describe("P3 durable Job queue and lease fencing", () => {
     expect(await fixture.db.agentRun.count()).toBe(1);
   });
 
+  it("deduplicates concurrent Run and Job delivery at the persistence boundary", async () => {
+    const secondClient = new PrismaClient({ datasources: { db: { url: fixture.database.url } } });
+    const secondQueue = new PrismaJobQueue(secondClient, clock);
+    try {
+      const runs = await Promise.all([
+        queue.createRun(request, "correlation-a"),
+        secondQueue.createRun(request, "correlation-a"),
+      ]);
+      expect(new Set(runs.map(({ id }) => id))).toEqual(new Set(["run-a"]));
+      const command = { runId: "run-a", id: "job-a", idempotencyKey: "job-a", maxAttempts: 2 };
+      const jobs = await Promise.all([queue.enqueue(command), secondQueue.enqueue(command)]);
+      expect(new Set(jobs.map(({ id }) => id))).toEqual(new Set(["job-a"]));
+      expect(await fixture.db.agentRun.count()).toBe(1);
+      expect(await fixture.db.job.count()).toBe(1);
+    } finally {
+      await secondClient.$disconnect();
+    }
+  });
+
   it("enforces tenant authorization when reading a Run", async () => {
     await queue.createRun(request, "correlation-a");
     await expect(queue.getRun(fixture.foreignActor, "run-a")).rejects.toThrow("PERMISSION_DENIED");
@@ -275,5 +294,22 @@ describe("P3 durable Job queue and lease fencing", () => {
     } finally {
       await secondClient.$disconnect();
     }
+  });
+
+  it("rejects obvious secret-bearing terminal error details", async () => {
+    await queue.createRun(request, "correlation-a");
+    await queue.enqueue({ runId: "run-a", id: "job-a", idempotencyKey: "job-a", maxAttempts: 2 });
+    await registry.grantWorkspace(fixture.ownerActor, "worker-a", "workspace-a", "grant-a");
+    const claim = await queue.claimEligible("worker-a", 10_000);
+    await queue.markRunning("job-a", "worker-a", claim!.lease.id);
+    await expect(queue.complete("job-a", "worker-a", claim!.lease.id, {
+      schemaVersion: "1.0", runId: "run-a", status: "FAILED",
+      completedAt: clock.now().toISOString(), summary: "failed",
+      error: {
+        code: "INTERNAL_EXECUTION_FAILED", message: "Execution failed", retryable: false,
+        correlationId: "correlation-a", details: { apiKey: "must-not-store" },
+      },
+    })).rejects.toThrow("AGENT_RESULT_SECRET_REJECTED");
+    expect((await fixture.db.agentRun.findUniqueOrThrow({ where: { id: "run-a" } })).status).toBe("RUNNING");
   });
 });

@@ -121,23 +121,34 @@ export class PrismaApproval implements ApprovalPort {
     });
   }
 
-  async consume(actor: ExternalActor, approvalId: string, payload: unknown, oneTimeNonce?: string) {
+  async consume(
+    actor: ExternalActor,
+    approvalId: string,
+    binding: { readonly actionType: string; readonly targetRef: string; readonly payload: unknown },
+    oneTimeNonce?: string,
+  ) {
     if (await this.expireIfPending(approvalId)) throw new Error("APPROVAL_EXPIRED");
     return this.db.$transaction(async (tx) => {
       const approval = await tx.approvalRequest.findUnique({ where: { id: approvalId } });
       if (!approval) throw new Error("APPROVAL_NOT_FOUND");
-      if (approval.payloadHash !== stableHash(payload)) throw new Error("APPROVAL_PAYLOAD_MISMATCH");
+      if (approval.actionType !== binding.actionType || approval.targetRef !== binding.targetRef) {
+        throw new Error("APPROVAL_BINDING_MISMATCH");
+      }
+      if (approval.payloadHash !== stableHash(binding.payload)) throw new Error("APPROVAL_PAYLOAD_MISMATCH");
       const actorId = await authorizeActor(tx, actor, targetOf(approval), approval.requiredCapability as Capability);
       if (approval.expiresAt <= this.clock.now()) throw new Error("APPROVAL_EXPIRED");
       if (approval.status !== "APPROVED") throw new Error("APPROVAL_NOT_APPROVED");
       if (approval.oneTimeNonce && approval.oneTimeNonce !== oneTimeNonce) throw new Error("APPROVAL_NONCE_MISMATCH");
+      if (!approval.oneTimeNonce && oneTimeNonce) throw new Error("APPROVAL_NONCE_MISMATCH");
       if (approval.consumedAt) throw new Error("APPROVAL_REPLAY");
       const now = this.clock.now();
-      const changed = await tx.approvalRequest.updateMany({
-        where: { id: approval.id, status: "APPROVED", consumedAt: null },
-        data: { consumedAt: now, consumedByUserIdentityId: actorId },
-      });
-      if (changed.count !== 1) throw new Error("APPROVAL_REPLAY");
+      if (approval.oneTimeNonce) {
+        const changed = await tx.approvalRequest.updateMany({
+          where: { id: approval.id, status: "APPROVED", consumedAt: null },
+          data: { consumedAt: now, consumedByUserIdentityId: actorId },
+        });
+        if (changed.count !== 1) throw new Error("APPROVAL_REPLAY");
+      }
       if (approval.runId) await this.requeueApprovedRun(tx, approval.runId, now);
       await this.audit(tx, approval.organizationId, actorId, "APPROVAL_CONSUMED", approval.id, approval.id);
       return tx.approvalRequest.findUniqueOrThrow({ where: { id: approval.id } });
@@ -186,6 +197,10 @@ export class PrismaApproval implements ApprovalPort {
     if (run.status !== "WAITING_APPROVAL") return;
     assertAgentRunTransition("WAITING_APPROVAL", "RETRY_PENDING");
     for (const job of run.jobs) {
+      if (job.status === "RETRY_PENDING") {
+        await tx.job.update({ where: { id: job.id }, data: { nextAttemptAt: now } });
+        continue;
+      }
       if (!["CLAIMED", "RUNNING"].includes(job.status)) continue;
       assertJobTransition(job.status as JobStatus, "RETRY_PENDING");
       if (job.currentLeaseId) {

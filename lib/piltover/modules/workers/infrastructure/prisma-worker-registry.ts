@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { WorkerRegistrationSchema, type WorkerRegistration } from "../../../shared/contracts/control-plane";
+import { containsObviousSecret } from "../../../shared/contracts/safe-metadata";
 import type { ClockPort } from "../../../shared/ports/core-ports";
 import type {
   RegisteredWorker,
@@ -44,6 +45,9 @@ export class PrismaWorkerRegistry implements WorkerRegistryPort {
 
   async register(input: WorkerRegistration, seenAt = this.clock.now()): Promise<RegisteredWorker> {
     const registration = WorkerRegistrationSchema.parse(input);
+    if (containsObviousSecret(registration.repoMappings)) {
+      throw new Error("WORKER_SECRET_METADATA_REJECTED");
+    }
     const capabilities = normalizeCapabilities(registration.capabilities);
     const existing = await this.db.worker.findUnique({
       where: { id: registration.workerId },

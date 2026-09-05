@@ -3,6 +3,7 @@ import { PrismaJobQueue } from "@/lib/piltover/modules/agents/infrastructure/pri
 import { PrismaRunEvents } from "@/lib/piltover/modules/agents/infrastructure/prisma-run-events";
 import { PrismaWorkerReconnect } from "@/lib/piltover/modules/agents/infrastructure/prisma-worker-reconnect";
 import { PrismaWorkerRegistry } from "@/lib/piltover/modules/workers/infrastructure/prisma-worker-registry";
+import { PrismaApproval } from "@/lib/piltover/modules/approvals/infrastructure/prisma-approval";
 import type { P3Fixture } from "./p3-test-db";
 import { createP3Fixture } from "./p3-test-db";
 
@@ -108,8 +109,38 @@ describe("P3 transport-independent Worker reconnect", () => {
       leases: [{ jobId: "job-a", leaseId: claim!.lease.id }], acknowledgements: [],
     })).leases[0].status).toBe("CANCELLED");
     await expect(reconnect.reconnect({
-      workerId: "worker-a", capabilityVersion: 1, leases: [],
+      workerId: "worker-a", capabilityVersion: 1,
+      leases: [{ jobId: "job-a", leaseId: claim!.lease.id }],
       acknowledgements: [{ runId: "run-a", sequence: 9 }],
     })).rejects.toThrow("AGENT_EVENT_SEQUENCE_INVALID");
+  });
+
+  it("returns durable approval decisions to the Worker that leased the Run", async () => {
+    const claim = await queue.claimEligible("worker-a", 10_000);
+    await queue.markRunning("job-a", "worker-a", claim!.lease.id);
+    const approvals = new PrismaApproval(fixture.db, clock);
+    const payload = { revision: 1 };
+    await approvals.request(fixture.ownerActor, {
+      id: "approval-a", actionType: "WORK_REVIEW", targetRef: "work:item-a",
+      target: { type: "WORKSPACE", id: "workspace-a" }, payload,
+      requiredCapability: "agent.manage", expiresAt: new Date("2026-09-06T01:00:00.000Z"),
+      runId: "run-a", correlationId: "approval-a",
+    });
+    await approvals.decide(fixture.ownerActor, "approval-a", "APPROVED", payload);
+    const response = await reconnect.reconnect({
+      workerId: "worker-a", capabilityVersion: 1,
+      leases: [{ jobId: "job-a", leaseId: claim!.lease.id }], acknowledgements: [],
+    });
+    expect(response.runActions).toEqual([{
+      runId: "run-a",
+      approvals: [expect.objectContaining({ id: "approval-a", status: "APPROVED" })],
+    }]);
+  });
+
+  it("does not expose a granted tenant's Run history without a Worker lease relationship", async () => {
+    await expect(reconnect.reconnect({
+      workerId: "worker-a", capabilityVersion: 1, leases: [],
+      acknowledgements: [{ runId: "run-a", sequence: -1 }],
+    })).rejects.toThrow("WORKER_LEASE_REQUIRED");
   });
 });

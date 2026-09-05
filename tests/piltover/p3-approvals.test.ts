@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { PrismaApproval } from "@/lib/piltover/modules/approvals/infrastructure/prisma-approval";
 import { PrismaJobQueue } from "@/lib/piltover/modules/agents/infrastructure/prisma-job-queue";
+import { PrismaWorkerRegistry } from "@/lib/piltover/modules/workers/infrastructure/prisma-worker-registry";
 import type { P3Fixture } from "./p3-test-db";
 import { createP3Fixture } from "./p3-test-db";
 
@@ -46,8 +47,13 @@ describe("P3 approval primitives", () => {
       body: "Exact", title: "Approved",
     })).resolves.toMatchObject({ status: "APPROVED" });
     await expect(approvals.consume(fixture.ownerActor, "approval-a", {
-      title: "Changed", body: "Exact",
+      actionType: "CONTENT_PUBLISH", targetRef: "content:item-a",
+      payload: { title: "Changed", body: "Exact" },
     }, "nonce-a")).rejects.toThrow("APPROVAL_PAYLOAD_MISMATCH");
+    await expect(approvals.consume(fixture.ownerActor, "approval-a", {
+      actionType: "CONTENT_DELETE", targetRef: "content:item-a",
+      payload: { title: "Approved", body: "Exact" },
+    }, "nonce-a")).rejects.toThrow("APPROVAL_BINDING_MISMATCH");
   });
 
   it("expires lazily and cannot be decided or consumed afterward", async () => {
@@ -66,13 +72,27 @@ describe("P3 approval primitives", () => {
     const secondClient = new PrismaClient({ datasources: { db: { url: fixture.database.url } } });
     const competing = new PrismaApproval(secondClient, clock);
     const outcomes = await Promise.allSettled([
-      approvals.consume(fixture.ownerActor, "approval-a", payload, "nonce-a"),
-      competing.consume(fixture.ownerActor, "approval-a", payload, "nonce-a"),
+      approvals.consume(fixture.ownerActor, "approval-a", {
+        actionType: "CONTENT_PUBLISH", targetRef: "content:item-a", payload,
+      }, "nonce-a"),
+      competing.consume(fixture.ownerActor, "approval-a", {
+        actionType: "CONTENT_PUBLISH", targetRef: "content:item-a", payload,
+      }, "nonce-a"),
     ]);
     await secondClient.$disconnect();
     expect(outcomes.filter(({ status }) => status === "fulfilled")).toHaveLength(1);
     expect(outcomes.filter(({ status }) => status === "rejected")).toHaveLength(1);
     expect((await fixture.db.approvalRequest.findUniqueOrThrow({ where: { id: "approval-a" } })).consumedAt).not.toBeNull();
+  });
+
+  it("validates a reusable approval without fabricating one-time consumption state", async () => {
+    await requestApproval({ oneTimeNonce: undefined });
+    const payload = { title: "Approved", body: "Exact" };
+    await approvals.decide(fixture.ownerActor, "approval-a", "APPROVED", payload);
+    const binding = { actionType: "CONTENT_PUBLISH", targetRef: "content:item-a", payload };
+    await approvals.consume(fixture.ownerActor, "approval-a", binding);
+    await approvals.consume(fixture.ownerActor, "approval-a", binding);
+    expect((await fixture.db.approvalRequest.findUniqueOrThrow({ where: { id: "approval-a" } })).consumedAt).toBeNull();
   });
 
   it("denies foreign and insufficient-RBAC decision actors", async () => {
@@ -120,8 +140,36 @@ describe("P3 approval primitives", () => {
     expect((await fixture.db.agentRun.findUniqueOrThrow({ where: { id: "run-a" } })).status).toBe("WAITING_APPROVAL");
     const payload = { title: "Approved", body: "Exact" };
     await approvals.decide(fixture.ownerActor, "approval-a", "APPROVED", payload);
-    await approvals.consume(fixture.ownerActor, "approval-a", payload, "nonce-a");
+    await approvals.consume(fixture.ownerActor, "approval-a", {
+      actionType: "CONTENT_PUBLISH", targetRef: "content:item-a", payload,
+    }, "nonce-a");
     expect((await fixture.db.agentRun.findUniqueOrThrow({ where: { id: "run-a" } })).status).toBe("RETRY_PENDING");
     expect((await fixture.db.job.findUniqueOrThrow({ where: { id: "job-a" } })).status).toBe("RETRY_PENDING");
+  });
+
+  it("keeps an expired-lease Job paused until its durable approval is consumed", async () => {
+    const queue = new PrismaJobQueue(fixture.db, clock);
+    const registry = new PrismaWorkerRegistry(fixture.db, clock);
+    await registry.register({
+      schemaVersion: "1.0", workerId: "worker-a", deviceName: "worker-a", capabilities: ["git"],
+      runtime: { adapter: "future-runtime", version: "1", protocolVersion: "1.0" },
+    });
+    await registry.grantWorkspace(fixture.ownerActor, "worker-a", "workspace-a", "grant-a");
+    await queue.createRun(request, "run-correlation");
+    await queue.enqueue({ id: "job-a", runId: "run-a", idempotencyKey: "job-a", maxAttempts: 2 });
+    const claim = await queue.claimEligible("worker-a", 1_000);
+    await queue.markRunning("job-a", "worker-a", claim!.lease.id);
+    await requestApproval({ runId: "run-a" });
+    clock.value = new Date("2026-09-06T00:00:02.000Z");
+    await queue.reconcileExpiredLeases(0);
+    expect((await fixture.db.agentRun.findUniqueOrThrow({ where: { id: "run-a" } })).status).toBe("WAITING_APPROVAL");
+    expect(await queue.claimEligible("worker-a", 1_000)).toBeNull();
+
+    const payload = { title: "Approved", body: "Exact" };
+    await approvals.decide(fixture.ownerActor, "approval-a", "APPROVED", payload);
+    await approvals.consume(fixture.ownerActor, "approval-a", {
+      actionType: "CONTENT_PUBLISH", targetRef: "content:item-a", payload,
+    }, "nonce-a");
+    expect((await queue.claimEligible("worker-a", 1_000))?.lease.attemptNumber).toBe(2);
   });
 });

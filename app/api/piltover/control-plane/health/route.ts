@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { PrismaControlPlaneHealth } from "@/lib/piltover/modules/platform/infrastructure/prisma-control-plane-health";
 
@@ -13,7 +14,12 @@ export async function GET() {
       checkedAt: new Date().toISOString(),
       controlPlane: { status: "DOWN" },
       database: { status: "DOWN" },
-      error: { code: "INTERNAL_DATABASE_UNAVAILABLE", retryable: true },
+      error: {
+        code: "INTERNAL_DATABASE_UNAVAILABLE",
+        message: "The control-plane database is unavailable.",
+        retryable: true,
+        correlationId: randomUUID(),
+      },
     }, { status: 503 });
   }
 }

@@ -73,7 +73,12 @@ export interface ApprovalRequestCommand {
 export interface ApprovalPort {
   request(actor: ExternalActor, command: ApprovalRequestCommand): Promise<{ readonly id: string; readonly status: string }>;
   decide(actor: ExternalActor, approvalId: string, decision: "APPROVED" | "REJECTED", payload: unknown): Promise<{ readonly id: string; readonly status: string }>;
-  consume(actor: ExternalActor, approvalId: string, payload: unknown, oneTimeNonce?: string): Promise<{ readonly id: string; readonly consumedAt: Date | null }>;
+  consume(
+    actor: ExternalActor,
+    approvalId: string,
+    binding: { readonly actionType: string; readonly targetRef: string; readonly payload: unknown },
+    oneTimeNonce?: string,
+  ): Promise<{ readonly id: string; readonly consumedAt: Date | null }>;
   cancel(actor: ExternalActor, approvalId: string): Promise<void>;
 }
 
@@ -89,6 +94,7 @@ export interface WorkerReconnectPort {
     readonly workerStatus: string;
     readonly leases: readonly { readonly jobId: string; readonly leaseId: string; readonly status: string }[];
     readonly eventDeltas: readonly { readonly runId: string; readonly events: readonly { readonly sequence: number }[] }[];
+    readonly runActions: readonly { readonly runId: string; readonly approvals: readonly { readonly id: string; readonly status: string }[] }[];
     readonly eligibleJobCount: number;
   }>;
 }
