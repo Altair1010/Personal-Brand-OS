@@ -1,0 +1,29 @@
+{
+  "work_order_id": "PIL-WO-20260905-001-reconcile-baseline",
+  "phase": "P0",
+  "state": "REVIEW_READY",
+  "updated_at": "2026-09-05T17:11:56+07:00",
+  "history": [
+    {
+      "state": "DRAFT",
+      "at": "2026-09-05T17:11:56+07:00",
+      "evidence": "Work-order packet initialized from the Owner's P0 request."
+    },
+    {
+      "state": "READY_FOR_CODEX",
+      "at": "2026-09-05T17:11:56+07:00",
+      "evidence": "Minimum governance read set and acceptance criteria were available."
+    },
+    {
+      "state": "IN_PROGRESS",
+      "at": "2026-09-05T17:11:56+07:00",
+      "evidence": "Git forensics, tests, build, contamination inspection, and docs-drift inventory executed."
+    },
+    {
+      "state": "REVIEW_READY",
+      "at": "2026-09-05T17:11:56+07:00",
+      "evidence": "Pre-mutation evidence supports a safe fast-forward; remote mutation awaits Owner approval."
+    }
+  ],
+  "blocker": "Explicit Owner approval is required before advancing remote master."
+}

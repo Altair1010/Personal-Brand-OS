@@ -1,0 +1,35 @@
+{
+  "work_order_id": "PIL-WO-20260905-001-reconcile-baseline",
+  "title": "Reconcile canonical PBOS baseline",
+  "phase": "P0",
+  "repository": {
+    "path": "F:\\Codex\\Personal Brand OS",
+    "remote": "https://github.com/Altair1010/Personal-Brand-OS.git",
+    "branch": "master",
+    "upstream": "origin/master",
+    "base": "5bd2658c968eb21fa821383eb29bc99bb4c7bd2d",
+    "code_baseline_head": "fe210b6eff7d0aad120e41f4997b03296affa08e"
+  },
+  "canonical_history_expectation": {
+    "relationship": "origin/master is a strict ancestor of the local code baseline",
+    "ahead": 4,
+    "behind": 0,
+    "expected_commits": [
+      "0396a3f6e8b998f74c3e82f2fb3b28ae69b1c6fa",
+      "3dd27804ccc63c48e750ca49bf7092f23d07e371",
+      "ec5a050f6d657b3814bf75d26aaa4094bfe60542",
+      "fe210b6eff7d0aad120e41f4997b03296affa08e"
+    ]
+  },
+  "source_references": [
+    "AGENTS.md",
+    "00_META/SOURCE_OF_TRUTH.md",
+    "01_GOVERNANCE/TECHNICAL_CONSTITUTION.md",
+    "01_GOVERNANCE/OWNER_GATES.md",
+    "12_PHASES/P0_CANONICAL_BASELINE.md",
+    "09_GITHUB_HANDOFF/CODEX_PLAYBOOK.md",
+    "09_GITHUB_HANDOFF/HANDOFF_PROTOCOL.md",
+    "examples/SAMPLE_WORK_ORDER.md"
+  ],
+  "captured_at": "2026-09-05T17:11:56+07:00"
+}
