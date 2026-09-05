@@ -5,6 +5,8 @@
 `REVIEW_READY` — implementation acceptance is satisfied locally on the Work Order branch. No push,
 merge, deployment, release, or P1 work was performed.
 
+Implementation commit: `0d39fea7707c800eaaae6b7f3eb00cfcb1dc714d`.
+
 ## Scope review
 
 - Root Markdown was reduced to the three proven immediate-consumer contracts.

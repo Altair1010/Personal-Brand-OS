@@ -7,7 +7,8 @@
     "remote": "https://github.com/Altair1010/Personal-Brand-OS.git",
     "base_branch": "master",
     "work_branch": "work/PIL-WO-20260905-002-root-context-canonicalization",
-    "base_head": "41e654e885212e200977eff4ae4d09fec62f201e"
+    "base_head": "41e654e885212e200977eff4ae4d09fec62f201e",
+    "implementation_commit": "0d39fea7707c800eaaae6b7f3eb00cfcb1dc714d"
   },
   "canonical_package": {
     "path": "docs/Piltover-Master-Technical-Package-v1.0.0/",

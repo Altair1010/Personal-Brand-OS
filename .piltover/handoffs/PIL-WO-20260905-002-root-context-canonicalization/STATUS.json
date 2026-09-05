@@ -2,7 +2,7 @@
   "work_order_id": "PIL-WO-20260905-002-root-context-canonicalization",
   "phase": "P0.1",
   "state": "REVIEW_READY",
-  "updated_at": "2026-09-05T17:45:25+07:00",
+  "updated_at": "2026-09-05T17:48:00+07:00",
   "history": [
     {
       "state": "DRAFT",
@@ -14,7 +14,7 @@
     },
     {
       "state": "REVIEW_READY",
-      "evidence": "Root context canonicalization and reference retirement completed; deterministic, semantic, cycle, link, secret, and scope checks passed."
+      "evidence": "Root context canonicalization and reference retirement completed; deterministic, semantic, cycle, link, secret, and scope checks passed; implementation committed as 0d39fea."
     }
   ],
   "blocker": null

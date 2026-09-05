@@ -2,6 +2,18 @@
 
 STATUS: DONE
 
+## GIT EVIDENCE
+
+```text
+Base: 41e654e885212e200977eff4ae4d09fec62f201e
+Branch: work/PIL-WO-20260905-002-root-context-canonicalization
+Implementation commit: 0d39fea7707c800eaaae6b7f3eb00cfcb1dc714d
+Remote mutation: NONE
+```
+
+The Owner-supplied extracted package and ZIP remain untracked and unchanged; they were used as local
+canonical inputs but were not silently added to Git.
+
 ## BEFORE
 
 Root Markdown files: 11
