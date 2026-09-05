@@ -1,10 +1,12 @@
 # P2 — DATA + TENANCY + RBAC
 
-STATUS: IN_PROGRESS_INTEGRITY_CLOSURE
+STATUS: TECHNICALLY_COMPLETE
 
-R2 Owner review decision: CHANGES REQUIRED. The prior technical-completion claim is withdrawn while
-relation-graph integrity and transitional-scope fail-closed behavior are under correction. P3 and
-canonical reconciliation remain blocked.
+CANONICALIZATION: PENDING_OWNER_CANONICALIZATION
+
+R2 Owner review decision: CHANGES REQUIRED at reviewed head `b9ceb783c4d5c2f0f1594b6751fce097edc9681d`.
+The corrective integrity closure is technically complete; P3 and canonical reconciliation remain
+blocked pending the new Owner gate.
 
 ## BASE
 
@@ -21,6 +23,30 @@ Work Order: `PIL-WO-20260905-005-data-tenancy-rbac`
 Implementation follows the approved `P2_CANONICAL_CONTRACT_ADDENDUM.md`, approved ADR-0001, P1
 RESULT, and the P2 authority set recorded in `CONTEXT.json`. Owner approval applies to reviewed R1
 SHA `7d8be5f197856574591bca2e4cb96d1cc7ba8ade`.
+
+## R2 INTEGRITY CLOSURE
+
+Root cause: P2 assigned canonical Organization/Brand scope from each row's legacy owner, but the
+complete business relation graph was not validated. A valid FK could therefore connect a child in
+tenant A to a parent/provider in tenant B. Broad direct `updateMany` calls could also overwrite a
+foreign or partial transitional scope pair and erase migration-conflict evidence.
+
+R2 performs a global read-only relation and scope preflight before `ensureProfileGraph`. It validates
+Goal, Plan, Pillar, Draft, Post, Framework, Facebook, PromptRun-consumer, and retry-state
+MetricObservation/Post families. Direct rows accept only null/null or the exact pair derived from an
+existing UserIdentity; updates target null/null rows only. Conflicts use stable family/record error
+messages without payload or token data.
+
+Files changed for R2:
+
+- `lib/piltover/modules/platform/infrastructure/p2-backfill.ts`
+- `tests/piltover/p2-relation-integrity.test.ts`
+- `.piltover/handoffs/PIL-WO-20260905-005-data-tenancy-rbac/CONTEXT.json`
+- `.piltover/handoffs/PIL-WO-20260905-005-data-tenancy-rbac/RESULT.md`
+- `.piltover/handoffs/PIL-WO-20260905-005-data-tenancy-rbac/REVIEW.md`
+- `.piltover/handoffs/PIL-WO-20260905-005-data-tenancy-rbac/STATUS.json`
+
+Schema changes: NONE. Existing P2 migration changed: NO. Corrective migration: NONE.
 
 ## DATA MODEL CONTRACT
 
@@ -85,7 +111,8 @@ Destructive legacy operations: NONE.
 ## BACKFILL
 
 One isolated graph is created per profile. Only profile `local` receives the non-empty AppState
-Supabase subject. Cross-user parent relations are validated before writes. Direct rows are scoped,
+Supabase subject. Complete deterministic cross-owner relations and existing scope pairs are
+validated before writes. Direct null/null rows are scoped, exact pre-scoped rows are untouched,
 unknown Facebook ownership is quarantined, PromptRun requires unanimous complete consumer proof,
 and metric facts use idempotent SHA-256 source identity.
 
@@ -113,7 +140,14 @@ Seed: unchanged and executed twice on a disposable migrated database with stable
 - Cross-org: PASS
 - Cross-workspace: PASS
 - Cross-brand: PASS
-- Foreign Pillar/provider relation: PASS
+- Goal relation family: PASS
+- Plan relation family: PASS
+- Pillar relation family: PASS
+- Draft/Post relation family: PASS
+- Global-or-tenant Framework: PASS
+- Foreign Facebook provider relation: PASS
+- Pre-existing scope mismatch/partial pair: PASS
+- Preflight before canonical writes: PASS
 - Missing tenant: PASS
 
 ## METRICS
@@ -135,16 +169,19 @@ The v2 round-trip, v1 upgrade, secret stripping, and graph preservation tests pa
 
 ## VERIFICATION
 
-- Prisma validate: PASS
-- Prisma generate: PASS
+- R2 RED proof: PASS — the initial suite failed 20/20 assertions on the reviewed implementation;
+  two additional pre-scoped PromptRun falsifiers also failed before correction.
+- R2 relation suite: PASS — 1 file, 26 tests.
+- P2 consolidated targeted: PASS — 7 files, 55 tests.
+- Prisma validate: PASS — schema valid; only the existing Prisma 7 configuration deprecation warning.
+- Prisma generate: NOT REQUIRED — R2 changed no schema.
 - Fresh migration: PASS
 - Populated pre-P2 migration: PASS
 - Second migration deploy: PASS
 - Backfill rerun: PASS
 - Seed twice: PASS
 - Architecture: PASS — 1 file, 6 tests
-- P2 consolidated targeted: PASS — 6 files, 29 tests
-- Full tests: PASS — 29 files, 141 tests, 0 failures
+- Full tests: PASS — 30 files, 167 tests, 0 failures
 - Production build: PASS — Next.js 15.3.4, 20 static pages
 - Standalone typecheck: unchanged two TS2352 errors at
   `tests/ai/adapter-db-key.test.ts:105` and `:140`; new errors: 0
@@ -162,7 +199,9 @@ Added: NONE.
 
 ## APPLICATION BEHAVIOR
 
-Changed: NO product behavior; one bounded pre-migration persistence compatibility select was added.
+Changed in R2: migration/backfill now fails closed on cross-tenant relations, pre-existing scope
+conflicts, partial tenant pairs, and unproven pre-scoped PromptRuns. Product UI/runtime behavior is
+otherwise unchanged.
 
 ## SCOPE AUDIT
 
@@ -181,6 +220,9 @@ P3: NO. UI redesign: NO. Provider migration: NO. Owner working DB migration: NO.
 - `660b22b` — add backfill, RBAC, scoped access, backup, and tests.
 - `229699e` — preserve pre-migration PromptRun persistence.
 - `fdd24d7` — enforce governance ceilings.
+- `da3dd80` — record the R2 Owner integrity review and reopen the legal handoff state.
+- `433c867` — enforce complete relation/scope preflight and add adversarial coverage.
+- `886105e` — validate pre-existing PromptRun scope before consumer writes.
 
 The closeout commit is reported by Git rather than self-referenced here.
 

@@ -1,14 +1,151 @@
 # Review — PIL-WO-20260905-005-data-tenancy-rbac
 
-Decision: CHANGES REQUIRED — R2 RELATION-GRAPH INTEGRITY CLOSURE IN PROGRESS
+Decision: TECHNICALLY_COMPLETE — PENDING OWNER CANONICALIZATION
 
 ## R2 Relation-Graph Integrity Review
 
 Owner review rejected canonicalization of technical P2 head
 `b9ceb783c4d5c2f0f1594b6751fce097edc9681d`. Row-level tenant ownership was present, but the complete
 legacy relation graph and pre-existing transitional scope had not been proven fail-closed. The
-previous technical-completion decision is superseded until the complete relation matrix, adversarial
-preflight evidence, scope-mismatch behavior, and full regression evidence below are closed.
+previous technical-completion decision was superseded during correction. The complete relation
+matrix, adversarial preflight evidence, scope-mismatch behavior, and full regression evidence below
+close the R2 technical finding without authorizing canonicalization.
+
+### Complete relation matrix
+
+Classification totals: 53 audited edges; 14 `SAME_BRAND_REQUIRED`; 5
+`SAME_ORGANIZATION_REQUIRED`; 3 `GLOBAL_PARENT_ALLOWED`; 5 `DERIVED_PARENT`; 1
+`PROVIDER_OWNER_REQUIRED`; 22 `TENANT_EVIDENCE`; 3 `OPAQUE_LEGACY_REFERENCE`; 0 unknown.
+
+| Child | Relation field | Parent | Child owner source | Parent owner source | Required invariant | Current enforcement | R2 action | Test |
+|---|---|---|---|---|---|---|---|---|
+| AuthIdentity | userIdentityId | UserIdentity | authentication subject | identity ID | TENANT_EVIDENCE | required FK and unique provider/subject | unchanged | P2 migration/security |
+| UserProfile | userIdentityId | UserIdentity | legacy profile ID | identity ID | TENANT_EVIDENCE | nullable unique FK | pre-scoped rows require an existing identity | R2 partial migration |
+| Membership | userIdentityId | UserIdentity | identity ID | identity ID | TENANT_EVIDENCE | required FK | unchanged | P2 RBAC/security |
+| Membership | organizationId | Organization | membership scope | Organization ID | TENANT_EVIDENCE | required FK and unique identity/Organization | unchanged | P2 RBAC/security |
+| Workspace | organizationId | Organization | parent Organization | Organization ID | DERIVED_PARENT | required FK | unchanged | P2 migration/security |
+| WorkspaceRoleBinding | membershipId, organizationId | Membership | binding Organization | Membership Organization | SAME_ORGANIZATION_REQUIRED | compound FK | unchanged | P2 RBAC/security |
+| WorkspaceRoleBinding | workspaceId, organizationId | Workspace | binding Organization | Workspace Organization | SAME_ORGANIZATION_REQUIRED | compound FK | unchanged | P2 RBAC/security |
+| Brand | organizationId | Organization | Brand ancestry | Organization ID | TENANT_EVIDENCE | required FK | unchanged | P2 migration/security |
+| Brand | workspaceId, organizationId | Workspace | Brand ancestry | Workspace ancestry | SAME_ORGANIZATION_REQUIRED | compound FK | unchanged | P2 migration/security |
+| BrandRoleBinding | membershipId, organizationId | Membership | binding Organization | Membership Organization | SAME_ORGANIZATION_REQUIRED | compound FK | unchanged | P2 RBAC/security |
+| BrandRoleBinding | brandId, workspaceId, organizationId | Brand | binding ancestry | Brand ancestry | SAME_ORGANIZATION_REQUIRED | compound FK | unchanged | P2 RBAC/security |
+| MetricObservation | brandId, organizationId | Brand | observation scope | Brand ancestry | TENANT_EVIDENCE | compound FK | unchanged | P2 migration/metrics |
+| MetricObservation | legacyPostId | Post | observation scope | Post scope | SAME_BRAND_REQUIRED | simple FK plus sole P2 emitter | retry preflight now rejects a foreign Post | R2 MetricObservation retry |
+| BrandDNA | organizationId, brandId | Brand/Organization | userId | canonical profile graph | TENANT_EVIDENCE | transitional compound FK | exact-or-null scope preflight and null-only update | R2 direct-scope matrix |
+| Goal | organizationId, brandId | Brand/Organization | userId | canonical profile graph | TENANT_EVIDENCE | transitional compound FK | exact-or-null scope preflight and null-only update | R2 mismatch/partial/idempotency |
+| AudienceSegment | organizationId, brandId | Brand/Organization | userId | canonical profile graph | TENANT_EVIDENCE | transitional compound FK | exact-or-null scope preflight and null-only update | R2 direct-scope matrix |
+| ContentPillar | organizationId, brandId | Brand/Organization | userId | canonical profile graph | TENANT_EVIDENCE | transitional compound FK | exact-or-null scope preflight and null-only update | R2 direct-scope matrix |
+| Strategy | organizationId, brandId | Brand/Organization | userId | canonical profile graph | TENANT_EVIDENCE | transitional compound FK | exact-or-null scope preflight and null-only update | R2 direct-scope matrix |
+| ContentIdea | organizationId, brandId | Brand/Organization | userId | canonical profile graph | TENANT_EVIDENCE | transitional compound FK | exact-or-null scope preflight and null-only update | R2 direct-scope matrix |
+| ContentDraft | organizationId, brandId | Brand/Organization | userId | canonical profile graph | TENANT_EVIDENCE | transitional compound FK | exact-or-null scope preflight and null-only update | R2 direct-scope matrix |
+| Post | organizationId, brandId | Brand/Organization | userId | canonical profile graph | TENANT_EVIDENCE | transitional compound FK | exact-or-null scope preflight and null-only update | R2 direct-scope matrix |
+| PerformanceInsight | organizationId, brandId | Brand/Organization | userId | canonical profile graph | TENANT_EVIDENCE | transitional compound FK | exact-or-null scope preflight and null-only update | R2 direct-scope matrix |
+| ExportHistory | organizationId, brandId | Brand/Organization | userId | canonical profile graph | TENANT_EVIDENCE | transitional compound FK | exact-or-null scope preflight and null-only update | R2 direct-scope matrix |
+| ContentTemplate | organizationId, brandId | Brand/Organization | optional userId | canonical profile graph or global | TENANT_EVIDENCE | transitional compound FK | user rows exact-or-null; global rows must remain null | R2 direct-scope matrix |
+| Framework | organizationId, brandId | Brand/Organization | optional userId | canonical profile graph or global | TENANT_EVIDENCE | transitional compound FK | user rows exact-or-null; global rows must remain null | R2 direct-scope matrix/global Framework |
+| FacebookAccount | organizationId, brandId | Brand/Organization | ownerRef | canonical profile graph | TENANT_EVIDENCE | transitional compound FK | ownerRef and exact-or-null scope both validated | R2 direct-scope matrix |
+| AudienceSegment | goalId | Goal | child userId | Goal.userId | SAME_BRAND_REQUIRED | simple FK only | global legacy preflight | R2 Goal family |
+| ContentPillar | goalId | Goal | child userId | Goal.userId | SAME_BRAND_REQUIRED | simple FK only | global legacy preflight | R2 Goal family |
+| ContentTemplate | objectiveKey | ContentObjective | conditional global/template row | global objective vocabulary | GLOBAL_PARENT_ALLOWED | required FK | unchanged | full regression/seed |
+| Strategy | goalId | Goal | Strategy.userId | Goal.userId | SAME_BRAND_REQUIRED | simple FK plus old partial preflight | stable family-coded global preflight | R2 Goal family |
+| Strategy | frameworkSlug | Framework | Strategy.userId | null for global or Framework.userId | GLOBAL_PARENT_ALLOWED | globally unique slug only | global allowed; tenant-owned requires the same owner | R2 Framework attacks/global case |
+| StrategyVersion | strategyId | Strategy | derived through Strategy | Strategy.userId | DERIVED_PARENT | required FK | unchanged ownership chain | P2 backfill/migration |
+| StrategyVersion | aiPromptRunId | PromptRun | derived Strategy owner | complete PromptRun consumer set | TENANT_EVIDENCE | simple FK and post-scope consumer proof | pre-existing PromptRun scope validated before writes | R2 PromptRun plus P2 backfill |
+| WeeklyPlan | strategyVersionId | StrategyVersion | derived through StrategyVersion | derived Strategy owner | DERIVED_PARENT | required FK | unchanged ownership chain | R2 Plan family |
+| WeeklyPlan | focusPillarId | ContentPillar | derived Strategy owner | ContentPillar.userId | SAME_BRAND_REQUIRED | semantic string ID, no FK | cross-owner and unresolved-ID preflight | R2 Pillar family |
+| DailyPlan | weeklyPlanId | WeeklyPlan | derived through WeeklyPlan | derived Strategy owner | DERIVED_PARENT | required FK | unchanged ownership chain | R2 Plan family |
+| DailyPlan | plannedPillarId | ContentPillar | derived Strategy owner | ContentPillar.userId | SAME_BRAND_REQUIRED | simple FK only | global legacy preflight | R2 Pillar family |
+| ContentIdea | dailyPlanId | DailyPlan | ContentIdea.userId | derived Strategy owner | SAME_BRAND_REQUIRED | simple FK only | full parent-chain preflight | R2 Plan family |
+| ContentIdea | pillarId | ContentPillar | ContentIdea.userId | ContentPillar.userId | SAME_BRAND_REQUIRED | simple FK plus old partial preflight | stable family-coded global preflight | R2 Pillar family |
+| ContentDraft | contentIdeaId | ContentIdea | ContentDraft.userId | ContentIdea.userId | SAME_BRAND_REQUIRED | simple FK plus old partial preflight | stable family-coded global preflight | R2 Draft family |
+| ContentDraft | pillarId | ContentPillar | ContentDraft.userId | ContentPillar.userId | SAME_BRAND_REQUIRED | simple FK plus old partial preflight | stable family-coded global preflight | R2 Pillar family |
+| ContentDraft | aiPromptRunId | PromptRun | ContentDraft.userId | complete PromptRun consumer set | TENANT_EVIDENCE | simple FK and post-scope consumer proof | pre-existing PromptRun scope validated before writes | R2 PromptRun plus P2 backfill |
+| Post | contentDraftId | ContentDraft | Post.userId | ContentDraft.userId | SAME_BRAND_REQUIRED | simple FK plus old partial preflight | stable family-coded global preflight | R2 Post family |
+| Post | strategyVersionId | StrategyVersion | Post.userId | derived Strategy owner | SAME_BRAND_REQUIRED | simple FK plus old partial preflight | stable family-coded global preflight | R2 Post family |
+| Post | dailyPlanId | DailyPlan | Post.userId | derived Strategy owner | SAME_BRAND_REQUIRED | simple FK only | full parent-chain preflight | R2 Plan family |
+| Post | pillarId | ContentPillar | Post.userId | ContentPillar.userId | SAME_BRAND_REQUIRED | simple FK plus old partial preflight | stable family-coded global preflight | R2 Pillar family |
+| Post | facebookAccountId | FacebookAccount | Post.userId | FacebookAccount.ownerRef | PROVIDER_OWNER_REQUIRED | simple FK only | owner and account scope preflight | R2 Facebook attack |
+| MetricSnapshot | postId | Post | derived through Post | Post.userId/scope | DERIVED_PARENT | required unique FK | unchanged ownership chain | P2 metrics/backfill |
+| PerformanceInsight | aiPromptRunId | PromptRun | PerformanceInsight.userId | complete PromptRun consumer set | TENANT_EVIDENCE | simple FK and post-scope consumer proof | pre-existing PromptRun scope validated before writes | R2 PromptRun plus P2 backfill |
+| PromptRun | promptTemplateId | PromptTemplate | run consumer proof or unscoped | global prompt definition | GLOBAL_PARENT_ALLOWED | simple FK | unchanged | full regression |
+| AppState | activeGoalId | Goal-like legacy ID | singleton UI state | no tenant authority | OPAQUE_LEGACY_REFERENCE | no FK | explicitly excluded from P2 authority/repair | architecture/full regression |
+| AppState | activeStrategyId | Strategy-like legacy ID | singleton UI state | no tenant authority | OPAQUE_LEGACY_REFERENCE | no FK | explicitly excluded from P2 authority/repair | architecture/full regression |
+| PerformanceInsight | refId | overloaded post ID or analytic label | PerformanceInsight.userId | context-dependent | OPAQUE_LEGACY_REFERENCE | no FK; prompt contract permits labels | retained as non-authoritative evidence metadata | performance/full regression |
+
+### Previously missed edges
+
+R2 added deterministic preflight coverage for AudienceSegment and ContentPillar Goal links;
+ContentIdea and Post plan links; DailyPlan and semantic WeeklyPlan pillar links; Post provider ownership;
+tenant-owned Framework references; and retry-state MetricObservation/Post and PromptRun/consumer scope.
+The original seven guarded relations remain covered with stable relation-family codes.
+
+### Scope-mismatch behavior
+
+Every direct transitional scope family is now checked before `ensureProfileGraph`. Legal states are
+only null/null or the exact Organization/Brand pair derived from the profile's existing
+UserIdentity. Partial pairs return `MIGRATION_PARTIAL_SCOPE`; a complete foreign pair returns
+`MIGRATION_SCOPE_MISMATCH`. Updates filter on null/null, so exact pre-scoped rows are not touched.
+
+### Partial migration behavior
+
+If a profile has no UserIdentity but one of its direct rows already has a complete tenant pair,
+preflight returns `PARTIAL_MIGRATION_CONFLICT` rather than creating an identity that absorbs the
+row. Pre-scoped PromptRuns must also have one complete consumer owner and the exact tenant derived
+from that owner's existing identity.
+
+### Preflight-before-write proof
+
+The table-driven attack matrix records UserIdentity, Organization, Workspace, Brand, and Membership
+counts before each malicious legacy relation. Every detected attack leaves those counts unchanged
+at zero and leaves the foreign reference untouched. The initial RED run on `b9ceb783...` failed all
+20 assertions; the corrected suite passes 26 cases.
+
+### Runtime P2 write surfaces
+
+New P2 surfaces remain limited to tenant-authorized PromptRun creation, Membership/scoped-role
+mutation, lifecycle mutation, and the existing narrow Pillar/Facebook relation guard. PromptRun
+creation accepts no foreign business parent ID and revalidates Brand ancestry. Scoped-role writes
+resolve target ancestry server-side. R2 found no real new P2 consumer requiring another guard and
+did not create a policy engine or migrate legacy PBOS routes.
+
+### Remaining opaque legacy references
+
+`AppState.activeGoalId`, `AppState.activeStrategyId`, and `PerformanceInsight.refId` remain opaque.
+AppState is singleton legacy UI state and is forbidden as new tenant authority. PerformanceInsight
+`refId` is intentionally overloaded by the existing prompt contract: it may be a Post ID or an
+analytic label such as pillar/hook/CTA/format, so treating it as a mandatory FK would invent a false
+relation.
+
+### Why remaining legacy seams are safe/deferred
+
+The opaque fields do not authorize new P2 access or determine backfill tenancy. Legacy routes remain
+compatibility seams scoped by their existing fixed-user behavior; migrating them is outside R2.
+Unowned or mixed-owner PromptRuns remain unavailable to new exact-tenant APIs. No first-tenant or
+accessible-tenant repair and no AppState tenant authority were introduced.
+
+### Master parallel convergence review
+
+- SCHEMA LANE: PASS — 53 edges classified, 0 unknown; conditional/global and derived ownership are
+  explicit, and no new schema or migration is required for the bounded P2 writers.
+- BACKFILL LANE: PASS — relation, partial-scope, foreign-scope, and pre-scoped PromptRun conflicts
+  fail before `ensureProfileGraph`; null-only updates cannot erase conflicting evidence.
+- RUNTIME LANE: PASS — new P2 writes resolve exact Brand/Organization ancestry or scoped-role
+  ancestry server-side; no unguarded foreign business-parent input was found.
+- TEST LANE: PASS — attacks cover every same-tenant relation family, all 13 direct-scope families,
+  semantic and missing focus pillars, conditional Framework ownership, provider ownership,
+  PromptRun retry scope, and MetricObservation/Post retry scope.
+
+### Consider-the-opposite result
+
+- Correct row scope plus foreign parent FK: rejected by relation-family preflight.
+- Wrong or partial Brand pair from a retry: rejected without normalization.
+- Broad update hiding evidence: removed; only null/null rows are updated.
+- Tenant Framework mistaken for global because slug is unique: rejected by Framework.userId.
+- Post using another owner's FacebookAccount: rejected by ownerRef and account scope validation.
+- Direct child entering another owner's derived plan: rejected through the complete Strategy chain.
+- Guard-only coverage without malicious legacy migration: disproved by the disposable legacy attack
+  matrix and zero-canonical-write assertions.
 
 ## Technical implementation adversarial review
 

@@ -20,6 +20,10 @@
   "implementationAuthorized": true,
   "technicalCompletion": true,
   "canonicalizationStatus": "PENDING_OWNER_GATE",
+  "integrityClosureRevision": "R2",
+  "r2OwnerReview": "CHANGES_REQUIRED",
+  "r2ReviewedHead": "b9ceb783c4d5c2f0f1594b6751fce097edc9681d",
+  "r2CorrectionStatus": "TECHNICALLY_COMPLETE",
   "migration": "20260906004200_add_piltover_tenancy_rbac",
   "revisionBaseRef": "cb64b9de35afa09b018b70f2fa9584d462b7d303",
   "revisionProposalRef": "41ab74ceca51854545505fea0a95af5960b1d1a9"

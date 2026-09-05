@@ -1,10 +1,10 @@
 {
   "schemaVersion": "1.0",
   "workOrderId": "PIL-WO-20260905-005-data-tenancy-rbac",
-  "status": "IN_PROGRESS",
-  "updatedAt": "2026-09-06T01:42:56+07:00",
+  "status": "REVIEW_READY",
+  "updatedAt": "2026-09-06T02:07:43+07:00",
   "baseRef": "9e3c8ff58b692b406a72ae7dd5f9cdfc7f8c5db1",
-  "headRef": "b9ceb783c4d5c2f0f1594b6751fce097edc9681d",
+  "headRef": "886105ed64b54c46a6dc4f0f3900cd49711f9489",
   "branch": "work/PIL-WO-20260905-005-data-tenancy-rbac",
   "prNumber": null,
   "actor": "Codex",
