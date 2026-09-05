@@ -55,6 +55,18 @@ describe("Piltover module boundaries", () => {
     ]);
   });
 
+  it("rejects provider imports from shared contracts and ports", () => {
+    const source = 'import type { Prisma } from "@prisma/client";';
+
+    expect(
+      findBoundaryViolations("lib/piltover/shared/contracts/error-envelope.ts", source),
+    ).toContainEqual({
+      filePath: "lib/piltover/shared/contracts/error-envelope.ts",
+      importSource: "@prisma/client",
+      rule: "domain-provider",
+    });
+  });
+
   it.each([
     [
       "domain",

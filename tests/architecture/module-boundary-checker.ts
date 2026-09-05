@@ -18,6 +18,7 @@ const DOMAIN_PROVIDER_IMPORTS = [
   /^(?:next)(?:\/|$)/,
   /^@prisma\/client(?:\/|$)/,
   /^@supabase\//,
+  /^@ai-sdk\//,
   /^(?:@libsql\/|@turso\/|libsql(?:\/|$))/,
   /^(?:@modelcontextprotocol\/|mcp-transport(?:\/|$))/,
   /^(?:@openai\/codex|codex-app-server)(?:\/|$)/,
@@ -30,7 +31,10 @@ function normalize(value: string): string {
 }
 
 function layerFromPath(filePath: string): PiltoverLayer | undefined {
-  return normalize(filePath).match(
+  const normalizedPath = normalize(filePath);
+  if (/\/shared\/(?:contracts|ports)(?:\/|$)/.test(normalizedPath)) return "domain";
+
+  return normalizedPath.match(
     /\/modules\/[^/]+\/(domain|application|infrastructure)(?:\/|$)/,
   )?.[1] as PiltoverLayer | undefined;
 }
