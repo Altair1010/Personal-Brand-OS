@@ -63,6 +63,9 @@ migration, deployment, canonical master integration, or exactly-once claim.
 | WorkerCapability | Exact normalized routing capability | Inherits Worker identity; never grants tenant access | worker ID, exact capability string, version/timestamps | Replaced/updated through registry command | `(workerId, capability)` | Dedupe exact values | Registry transaction | Restrict with retained Worker; no substring matching | `WORKER_CAPABILITY_*` | WorkerRegistryPort |
 | WorkerLease | Exclusive, expiring, fenced execution authority | Job tenant plus a separately proven Worker tenant grant | opaque lease ID, job, worker, generation/attempt, issued/expires/released/completed facts | Active authority ends on release, completion, cancellation, expiry, or newer generation | One authoritative active lease per Job enforced transactionally; lease ID unique | Same authoritative completion/result hash is safe | Atomic grant; every bound mutation compares job/worker/lease/generation and current authority | Retain evidence; never silently delete Job | `WORKER_LEASE_EXPIRED`, `QUEUE_STALE_LEASE`, `QUEUE_CONFLICT` | JobQueuePort |
 | ApprovalRequest | Payload-bound consequential-action decision and optional one-time consumption | Explicit Organization and optional validated Run/target scope | action, target, payload hash, requester/decider, expiry, nonce, consumed facts | PENDING to one terminal decision; expired/cancelled cannot decide or consume | approval ID; one-time nonce where present | Duplicate same decision safe; changed/double decision conflicts; one-time consumption CAS | Transactional decision/consume with Clock and P2 RBAC | Retained; no normal hard delete | `APPROVAL_*`, `TENANT_*`, `PERMISSION_*` | ApprovalPort |
+| WorkerWorkspaceGrant | Exact Worker authority for Workspace-only Jobs | Required Organization + exact Workspace | Worker, compound Workspace ancestry, ACTIVE/REVOKED state, grant/revoke actors and timestamps | ACTIVE to REVOKED; re-grant restores current authority while AuditEntry preserves chronology | `(workerId, workspaceId)` | Duplicate active grant is idempotent; re-grant is explicit | Transactional RBAC check plus row mutation and audit append | Restrict; no normal hard delete | `WORKER_GRANT_*`, `TENANT_*`, `PERMISSION_*` | WorkerRegistryPort |
+| WorkerBrandGrant | Exact Worker authority for one Brand Job scope | Required Organization + Workspace + exact Brand | Worker, compound Brand ancestry, ACTIVE/REVOKED state, grant/revoke actors and timestamps | ACTIVE to REVOKED; re-grant restores current authority while AuditEntry preserves chronology | `(workerId, brandId)` | Duplicate active grant is idempotent; re-grant is explicit | Transactional RBAC check plus row mutation and audit append | Restrict; no normal hard delete | `WORKER_GRANT_*`, `TENANT_*`, `PERMISSION_*` | WorkerRegistryPort |
+| AuditEntry | Minimal append-only chronology for consequential P3 control-plane facts | Required Organization; exact target references recorded as safe structured metadata | actor, action, target, correlation, safe metadata, occurredAt | Append only | Audit ID | One entry per committed consequential transition; duplicate idempotent operations append no duplicate | Appended in the same transaction as the governed mutation | Retained; no normal update/delete | `INTERNAL_AUDIT_*` | AuditPort |
 
 ## Frozen cross-cutting semantics
 
@@ -80,12 +83,29 @@ migration, deployment, canonical master integration, or exactly-once claim.
 - All Workspace/Brand scope supplied by a RunRequest must resolve under its Organization.
 - Historical run/event/approval/lease evidence is restrictive and append-oriented; P3 adds no purge.
 
-## Unresolved consequential decision
+## Approved physical schema freeze
 
-The package requires authorized Workers and tenant-safe claims but does not define the physical
-Worker-to-Organization/Workspace/Brand authorization representation, grant authority, or inheritance
-rule. Capability match alone is explicitly insufficient. Schema mutation is paused until the Owner
-selects the bounded policy recorded in `REVIEW.md`.
+The Owner approved Worker-Tenant Authorization R1 at reviewed commit
+`1d5f2c1891a61d09eb7bf3ccb23960ca6c309fbe`. P3 uses separate
+`WorkerWorkspaceGrant` and `WorkerBrandGrant` tables with compound P2 ancestry foreign keys and
+ordinary exact-scope uniqueness. There is no Organization grant and no inheritance.
+
+`AgentRun` owns the canonical request fingerprint, tenant scope, explicit state, opaque future
+references, and terminal result fingerprint. `Job` is one durable queue item per Run and stores the
+exact Workspace/Brand execution scope, retry facts, and `currentLeaseId`. `Job.currentLeaseId` is
+the sole pointer to authoritative current ownership; `WorkerLease` retains immutable attempt and
+expiry evidence and does not independently claim that it is current. Atomic compare-and-swap of the
+Job pointer fences concurrent and stale claimants.
+
+`RunEvent` stores immutable sequence and material fingerprint under `(runId, sequence)`.
+`ApprovalRequest` stores exact tenant target, payload hash, expiry, decision, nonce, and consumption
+facts. `Worker` stores non-secret registry and freshness facts; `WorkerCapability` stores normalized
+exact strings. `AuditEntry` is the minimum append-only P3 realization of the existing AuditPort and
+preserves grant/revoke/re-grant, Worker disable, lease grant/reclaim, cancellation, and terminal
+result chronology without introducing a broader audit subsystem.
+
+All P3 relations use restrictive deletion. The migration is additive and introduces no P2 row
+mutation. No consequential P3 schema question remains open.
 
 ## Acceptance
 
