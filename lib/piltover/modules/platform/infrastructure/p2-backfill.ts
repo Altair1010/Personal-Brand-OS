@@ -3,6 +3,17 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 
 type P2Database = PrismaClient;
 
+export class P2MigrationConflictError extends Error {
+  constructor(
+    readonly code: string,
+    readonly relationFamily: string,
+    readonly recordId: string,
+  ) {
+    super(`${code}:${relationFamily}:${recordId}`);
+    this.name = "P2MigrationConflictError";
+  }
+}
+
 type CreatedCounts = {
   userIdentities: number;
   authIdentities: number;
@@ -35,6 +46,41 @@ const DIRECT_SCOPED_DELEGATES = [
   "post",
   "performanceInsight",
   "exportHistory",
+] as const;
+
+const DIRECT_SCOPE_TABLES = [
+  ["BrandDNA", "BRAND_DNA", "userId"],
+  ["Goal", "GOAL", "userId"],
+  ["AudienceSegment", "AUDIENCE_SEGMENT", "userId"],
+  ["ContentPillar", "CONTENT_PILLAR", "userId"],
+  ["Strategy", "STRATEGY", "userId"],
+  ["ContentIdea", "CONTENT_IDEA", "userId"],
+  ["ContentDraft", "CONTENT_DRAFT", "userId"],
+  ["Post", "POST", "userId"],
+  ["PerformanceInsight", "PERFORMANCE_INSIGHT", "userId"],
+  ["ExportHistory", "EXPORT_HISTORY", "userId"],
+  ["ContentTemplate", "CONTENT_TEMPLATE", "userId"],
+  ["Framework", "FRAMEWORK", "userId"],
+  ["FacebookAccount", "FACEBOOK_ACCOUNT", "ownerRef"],
+] as const;
+
+const LEGACY_RELATION_CHECKS = [
+  ["AUDIENCE_SEGMENT_GOAL", `SELECT c.id FROM AudienceSegment c JOIN Goal p ON p.id = c.goalId WHERE c.userId <> p.userId ORDER BY c.id LIMIT 1`],
+  ["CONTENT_PILLAR_GOAL", `SELECT c.id FROM ContentPillar c JOIN Goal p ON p.id = c.goalId WHERE c.userId <> p.userId ORDER BY c.id LIMIT 1`],
+  ["STRATEGY_GOAL", `SELECT c.id FROM Strategy c JOIN Goal p ON p.id = c.goalId WHERE c.userId <> p.userId ORDER BY c.id LIMIT 1`],
+  ["CONTENT_IDEA_DAILY_PLAN", `SELECT c.id FROM ContentIdea c JOIN DailyPlan d ON d.id = c.dailyPlanId JOIN WeeklyPlan w ON w.id = d.weeklyPlanId JOIN StrategyVersion v ON v.id = w.strategyVersionId JOIN Strategy s ON s.id = v.strategyId WHERE c.userId <> s.userId ORDER BY c.id LIMIT 1`],
+  ["CONTENT_IDEA_PILLAR", `SELECT c.id FROM ContentIdea c JOIN ContentPillar p ON p.id = c.pillarId WHERE c.userId <> p.userId ORDER BY c.id LIMIT 1`],
+  ["DAILY_PLAN_PILLAR", `SELECT d.id FROM DailyPlan d JOIN WeeklyPlan w ON w.id = d.weeklyPlanId JOIN StrategyVersion v ON v.id = w.strategyVersionId JOIN Strategy s ON s.id = v.strategyId JOIN ContentPillar p ON p.id = d.plannedPillarId WHERE s.userId <> p.userId ORDER BY d.id LIMIT 1`],
+  ["WEEKLY_PLAN_FOCUS_PILLAR", `SELECT w.id FROM WeeklyPlan w JOIN StrategyVersion v ON v.id = w.strategyVersionId JOIN Strategy s ON s.id = v.strategyId JOIN ContentPillar p ON p.id = w.focusPillarId WHERE s.userId <> p.userId ORDER BY w.id LIMIT 1`],
+  ["CONTENT_DRAFT_IDEA", `SELECT c.id FROM ContentDraft c JOIN ContentIdea p ON p.id = c.contentIdeaId WHERE c.userId <> p.userId ORDER BY c.id LIMIT 1`],
+  ["CONTENT_DRAFT_PILLAR", `SELECT c.id FROM ContentDraft c JOIN ContentPillar p ON p.id = c.pillarId WHERE c.userId <> p.userId ORDER BY c.id LIMIT 1`],
+  ["POST_DRAFT", `SELECT c.id FROM Post c JOIN ContentDraft p ON p.id = c.contentDraftId WHERE c.userId <> p.userId ORDER BY c.id LIMIT 1`],
+  ["POST_PILLAR", `SELECT c.id FROM Post c JOIN ContentPillar p ON p.id = c.pillarId WHERE c.userId <> p.userId ORDER BY c.id LIMIT 1`],
+  ["POST_STRATEGY_VERSION", `SELECT c.id FROM Post c JOIN StrategyVersion v ON v.id = c.strategyVersionId JOIN Strategy p ON p.id = v.strategyId WHERE c.userId <> p.userId ORDER BY c.id LIMIT 1`],
+  ["POST_DAILY_PLAN", `SELECT c.id FROM Post c JOIN DailyPlan d ON d.id = c.dailyPlanId JOIN WeeklyPlan w ON w.id = d.weeklyPlanId JOIN StrategyVersion v ON v.id = w.strategyVersionId JOIN Strategy p ON p.id = v.strategyId WHERE c.userId <> p.userId ORDER BY c.id LIMIT 1`],
+  ["POST_FACEBOOK_ACCOUNT", `SELECT c.id FROM Post c JOIN FacebookAccount p ON p.id = c.facebookAccountId WHERE c.userId <> p.ownerRef ORDER BY c.id LIMIT 1`],
+  ["STRATEGY_FRAMEWORK", `SELECT c.id FROM Strategy c JOIN Framework p ON p.slug = c.frameworkSlug WHERE p.userId IS NOT NULL AND c.userId <> p.userId ORDER BY c.id LIMIT 1`],
+  ["METRIC_OBSERVATION_POST", `SELECT c.id FROM MetricObservation c JOIN Post p ON p.id = c.legacyPostId WHERE p.organizationId IS NULL OR p.brandId IS NULL OR c.organizationId <> p.organizationId OR c.brandId <> p.brandId ORDER BY c.id LIMIT 1`],
 ] as const;
 
 const NUMERIC_METRICS = ["reach", "engagement", "comments", "shares", "saves"] as const;
@@ -153,20 +199,20 @@ async function ensureProfileGraph(
         updateMany(args: unknown): Promise<unknown>;
       };
       await delegate.updateMany({
-        where: { userId: profile.id },
+        where: { userId: profile.id, organizationId: null, brandId: null },
         data: { organizationId, brandId },
       });
     }
     await tx.contentTemplate.updateMany({
-      where: { userId: profile.id },
+      where: { userId: profile.id, organizationId: null, brandId: null },
       data: { organizationId, brandId },
     });
     await tx.framework.updateMany({
-      where: { userId: profile.id },
+      where: { userId: profile.id, organizationId: null, brandId: null },
       data: { organizationId, brandId },
     });
     await tx.facebookAccount.updateMany({
-      where: { ownerRef: profile.id },
+      where: { ownerRef: profile.id, organizationId: null, brandId: null },
       data: { organizationId, brandId },
     });
 
@@ -291,19 +337,60 @@ async function backfillMetricObservations(
   }
 }
 
-async function validateLegacyOwnership(db: P2Database): Promise<void> {
-  const checks = [
-    `SELECT s.id FROM Strategy s JOIN Goal g ON g.id = s.goalId WHERE s.userId <> g.userId LIMIT 1`,
-    `SELECT i.id FROM ContentIdea i JOIN ContentPillar p ON p.id = i.pillarId WHERE i.userId <> p.userId LIMIT 1`,
-    `SELECT d.id FROM ContentDraft d JOIN ContentPillar p ON p.id = d.pillarId WHERE d.userId <> p.userId LIMIT 1`,
-    `SELECT d.id FROM ContentDraft d JOIN ContentIdea i ON i.id = d.contentIdeaId WHERE d.userId <> i.userId LIMIT 1`,
-    `SELECT p.id FROM Post p JOIN ContentDraft d ON d.id = p.contentDraftId WHERE p.userId <> d.userId LIMIT 1`,
-    `SELECT p.id FROM Post p JOIN ContentPillar cp ON cp.id = p.pillarId WHERE p.userId <> cp.userId LIMIT 1`,
-    `SELECT p.id FROM Post p JOIN StrategyVersion sv ON sv.id = p.strategyVersionId JOIN Strategy s ON s.id = sv.strategyId WHERE p.userId <> s.userId LIMIT 1`,
-  ];
-  for (const query of checks) {
+async function validateLegacyOwnership(
+  db: P2Database,
+  profiles: readonly { id: string; userIdentityId: string | null }[],
+): Promise<void> {
+  for (const [family, query] of LEGACY_RELATION_CHECKS) {
     const rows = await db.$queryRawUnsafe<Array<{ id: string }>>(query);
-    if (rows.length > 0) throw new Error(`MIGRATION_CROSS_USER_RELATION:${rows[0].id}`);
+    if (rows.length > 0) {
+      throw new P2MigrationConflictError("MIGRATION_CROSS_TENANT_RELATION", family, rows[0].id);
+    }
+  }
+
+  const unresolvedFocusPillar = await db.$queryRawUnsafe<Array<{ id: string }>>(
+    `SELECT w.id FROM WeeklyPlan w LEFT JOIN ContentPillar p ON p.id = w.focusPillarId WHERE w.focusPillarId IS NOT NULL AND p.id IS NULL ORDER BY w.id LIMIT 1`,
+  );
+  if (unresolvedFocusPillar.length > 0) {
+    throw new P2MigrationConflictError(
+      "MIGRATION_UNRESOLVED_RELATION",
+      "WEEKLY_PLAN_FOCUS_PILLAR",
+      unresolvedFocusPillar[0].id,
+    );
+  }
+
+  const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
+  for (const [table, family, ownerField] of DIRECT_SCOPE_TABLES) {
+    const rows = await db.$queryRawUnsafe<Array<{
+      id: string;
+      ownerId: string | null;
+      organizationId: string | null;
+      brandId: string | null;
+    }>>(
+      `SELECT id, "${ownerField}" AS ownerId, organizationId, brandId FROM "${table}" ORDER BY id`,
+    );
+    for (const row of rows) {
+      const hasOrganization = row.organizationId !== null;
+      const hasBrand = row.brandId !== null;
+      if (hasOrganization !== hasBrand) {
+        throw new P2MigrationConflictError("MIGRATION_PARTIAL_SCOPE", family, row.id);
+      }
+      if (!hasOrganization) continue;
+
+      const profile = row.ownerId ? profilesById.get(row.ownerId) : undefined;
+      if (!profile) {
+        throw new P2MigrationConflictError("MIGRATION_SCOPE_MISMATCH", family, row.id);
+      }
+      if (!profile.userIdentityId) {
+        throw new P2MigrationConflictError("PARTIAL_MIGRATION_CONFLICT", family, row.id);
+      }
+
+      const expectedOrganizationId = stableId("org", `organization|${profile.userIdentityId}`);
+      const expectedBrandId = stableId("brd", `brand|${profile.userIdentityId}`);
+      if (row.organizationId !== expectedOrganizationId || row.brandId !== expectedBrandId) {
+        throw new P2MigrationConflictError("MIGRATION_SCOPE_MISMATCH", family, row.id);
+      }
+    }
   }
 }
 
@@ -324,7 +411,7 @@ export async function runP2Backfill(db: P2Database): Promise<P2BackfillReport> {
   const appState = await db.appState.findUnique({ where: { id: "singleton" } });
   const subject = appState?.supabaseUserId?.trim() || null;
 
-  await validateLegacyOwnership(db);
+  await validateLegacyOwnership(db, profiles);
 
   for (const profile of profiles) {
     await ensureProfileGraph(db, profile, subject, created);
