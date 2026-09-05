@@ -4,7 +4,7 @@
   "status": "BLOCKED",
   "updatedAt": "2026-09-05T22:23:24+07:00",
   "baseRef": "9e3c8ff58b692b406a72ae7dd5f9cdfc7f8c5db1",
-  "headRef": null,
+  "headRef": "ec11ce83e810daecef34dc2f463a120c5c18894b",
   "branch": "work/PIL-WO-20260905-005-data-tenancy-rbac",
   "prNumber": null,
   "actor": "Codex",

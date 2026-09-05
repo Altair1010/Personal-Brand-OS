@@ -215,13 +215,13 @@ Production build: PASS — Next.js 15.3.4 production build completed and generat
 Standalone typecheck delta: baseline recorded before P2 mutation; two pre-existing TS2352 errors
 remain in `tests/ai/adapter-db-key.test.ts` at lines 105 and 140.
 
-git diff --check: pending after Work Order evidence creation.
+git diff --check: PASS for the P1 base through the blocker-evidence commit.
 
 ## TYPECHECK BASELINE
 
 Before: exactly two TS2352 errors at `tests/ai/adapter-db-key.test.ts:105` and `:140`.
 
-After: no source/schema implementation occurred; final documentation-only delta check pending.
+After: unchanged; no TypeScript file was changed.
 
 New errors: 0 expected; no TypeScript files changed.
 
@@ -260,13 +260,16 @@ Provider migration: NO
 
 ## COMMITS
 
-Pending Work Order evidence commit.
+- `ec11ce83e810daecef34dc2f463a120c5c18894b` — record the P2 canonical-model gate and evidence.
+
+The subsequent metadata closeout commit is intentionally not self-referential; its exact SHA is
+reported by Git and the final Owner report.
 
 ## REMOTE PHASE BRANCH
 
 branch: `work/PIL-WO-20260905-005-data-tenancy-rbac`
 
-remote SHA: pending evidence commit/push
+remote evidence checkpoint SHA: `ec11ce83e810daecef34dc2f463a120c5c18894b` (verified by direct remote ref lookup)
 
 ## CANONICALIZATION
 
