@@ -72,7 +72,7 @@ async function resolveTarget(db: Database, target: TenantTarget) {
 }
 
 export class PrismaTenantAccess {
-  constructor(private readonly db: PrismaClient) {}
+  constructor(private readonly db: Database) {}
 
   async authorize(
     actor: ExternalActor,
