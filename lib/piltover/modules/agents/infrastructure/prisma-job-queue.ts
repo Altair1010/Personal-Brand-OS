@@ -70,6 +70,20 @@ export class PrismaJobQueue implements JobQueuePort {
     });
   }
 
+  async getRun(actor: ExternalActor, runId: string) {
+    const run = await this.db.agentRun.findUnique({ where: { id: runId } });
+    if (!run) throw new Error("AGENT_RUN_NOT_FOUND");
+    const target = run.brandId
+      ? { type: "BRAND" as const, id: run.brandId }
+      : run.workspaceId
+        ? { type: "WORKSPACE" as const, id: run.workspaceId }
+        : { type: "ORGANIZATION" as const, id: run.organizationId };
+    const capability = target.type === "ORGANIZATION" ? "organization.read" : "work.read";
+    const decision = await new PrismaTenantAccess(this.db).authorize(actor, target, capability);
+    if (!decision.allowed) throw new Error(`PERMISSION_DENIED:${decision.reason}`);
+    return run;
+  }
+
   async enqueue(input: EnqueueJobCommand) {
     if (input.maxAttempts < 1) throw new Error("QUEUE_MAX_ATTEMPTS_INVALID");
     const run = await this.db.agentRun.findUnique({ where: { id: input.runId } });
@@ -211,12 +225,11 @@ export class PrismaJobQueue implements JobQueuePort {
       const job = await tx.job.findUnique({ where: { id: jobId }, include: { currentLease: true } });
       if (!job || result.runId !== job.runId) throw new Error("AGENT_RUN_NOT_FOUND");
       if (job.currentLeaseId !== leaseId || job.currentLease?.workerId !== workerId) throw new Error("WORKER_STALE_LEASE");
-      await this.requireLeaseAuthority(tx, jobId, workerId, leaseId, true);
-      if (job.status === "COMPLETED") {
+      if (["COMPLETED", "FAILED", "CANCELLED"].includes(job.status)) {
         if (job.terminalFingerprint === fingerprint) return;
         throw new Error("AGENT_TERMINAL_RESULT_CONFLICT");
       }
-      if (["FAILED", "CANCELLED"].includes(job.status)) throw new Error("AGENT_TERMINAL_RESULT_CONFLICT");
+      await this.requireLeaseAuthority(tx, jobId, workerId, leaseId);
       assertJobTransition(job.status as JobStatus, result.status as JobStatus);
       const run = await tx.agentRun.findUniqueOrThrow({ where: { id: job.runId } });
       assertAgentRunTransition(run.status as AgentRunStatus, result.status as AgentRunStatus);
@@ -363,11 +376,10 @@ export class PrismaJobQueue implements JobQueuePort {
     jobId: string,
     workerId: string,
     leaseId: string,
-    allowEnded = false,
   ) {
     const job = await tx.job.findUnique({ where: { id: jobId }, include: { currentLease: true } });
     if (!job || job.currentLeaseId !== leaseId || job.currentLease?.workerId !== workerId) throw new Error("WORKER_STALE_LEASE");
-    if ((!allowEnded && job.currentLease.endedAt) || job.currentLease.expiresAt <= this.clock.now()) {
+    if (job.currentLease.endedAt || job.currentLease.expiresAt <= this.clock.now()) {
       throw new Error("WORKER_LEASE_EXPIRED");
     }
     const worker = await tx.worker.findUnique({ where: { id: workerId }, include: { capabilities: true } });

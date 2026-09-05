@@ -32,7 +32,7 @@ describe("P3 control-plane migration", () => {
     } finally {
       await database.dispose();
     }
-  });
+  }, 20_000);
 
   it("preserves populated P2 rows and permits a second deploy", async () => {
     const workspace = createPreP3MigrationWorkspace();

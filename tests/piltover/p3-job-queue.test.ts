@@ -63,6 +63,12 @@ describe("P3 durable Job queue and lease fencing", () => {
     expect(await fixture.db.agentRun.count()).toBe(1);
   });
 
+  it("enforces tenant authorization when reading a Run", async () => {
+    await queue.createRun(request, "correlation-a");
+    await expect(queue.getRun(fixture.foreignActor, "run-a")).rejects.toThrow("PERMISSION_DENIED");
+    await expect(queue.getRun(fixture.ownerActor, "run-a")).resolves.toMatchObject({ id: "run-a" });
+  });
+
   it("rejects missing or widened Worker execution scope before Job creation", async () => {
     await queue.createRun({ ...request, workspaceId: null, idempotencyKey: "org-run" }, "correlation-org");
     await expect(
@@ -145,6 +151,7 @@ describe("P3 durable Job queue and lease fencing", () => {
 
       const acceptedResult = { ...staleResult, summary: "authoritative result" };
       await queue.complete("job-a", reclaimWorker, reclaimed!.lease.id, acceptedResult);
+      clock.advance(20_000);
       await queue.complete("job-a", reclaimWorker, reclaimed!.lease.id, acceptedResult);
       await expect(
         queue.complete("job-a", reclaimWorker, reclaimed!.lease.id, { ...acceptedResult, summary: "conflict" }),
@@ -173,6 +180,54 @@ describe("P3 durable Job queue and lease fencing", () => {
     expect(run.status).toBe("FAILED");
   });
 
+  it("keeps a retry unavailable until nextAttemptAt and then grants a new attempt", async () => {
+    await queue.createRun(request, "correlation-a");
+    await queue.enqueue({
+      runId: "run-a", id: "job-a", idempotencyKey: "job-a", workspaceId: "workspace-a",
+      requiredCapabilities: ["git"], maxAttempts: 2,
+    });
+    await registry.grantWorkspace(fixture.ownerActor, "worker-a", "workspace-a", "grant-a");
+    await queue.claimEligible("worker-a", 1_000);
+    clock.advance(1_001);
+    await queue.reconcileExpiredLeases(5_000);
+    expect(await queue.claimEligible("worker-a", 1_000)).toBeNull();
+    clock.advance(5_000);
+    expect((await queue.claimEligible("worker-a", 1_000))?.lease.attemptNumber).toBe(2);
+  });
+
+  it("enforces the exact Workspace/Brand grant matrix during claim", async () => {
+    await queue.createRun({ ...request, brandId: "brand-a1" }, "correlation-brand");
+    await queue.enqueue({
+      runId: "run-a", id: "job-a", idempotencyKey: "job-a", brandId: "brand-a1", maxAttempts: 2,
+    });
+    await registry.grantWorkspace(fixture.ownerActor, "worker-a", "workspace-a", "workspace-grant");
+    expect(await queue.claimEligible("worker-a", 1_000)).toBeNull();
+    await registry.grantBrand(fixture.ownerActor, "worker-a", "brand-a2", "sibling-brand-grant");
+    expect(await queue.claimEligible("worker-a", 1_000)).toBeNull();
+    await registry.grantBrand(fixture.ownerActor, "worker-a", "brand-a1", "exact-brand-grant");
+    expect((await queue.claimEligible("worker-a", 1_000))?.job.id).toBe("job-a");
+  });
+
+  it("keeps a valid Job durable while no eligible Worker is available", async () => {
+    await queue.createRun(request, "correlation-a");
+    await queue.enqueue({ runId: "run-a", id: "job-a", idempotencyKey: "job-a", maxAttempts: 2 });
+    expect(await queue.claimEligible("worker-a", 1_000)).toBeNull();
+    expect((await fixture.db.job.findUniqueOrThrow({ where: { id: "job-a" } })).status).toBe("QUEUED");
+    await registry.grantWorkspace(fixture.ownerActor, "worker-a", "workspace-a", "grant-a");
+    expect((await queue.claimEligible("worker-a", 1_000))?.job.id).toBe("job-a");
+  });
+
+  it("claims by priority, age, and stable ID rather than database order", async () => {
+    await registry.grantWorkspace(fixture.ownerActor, "worker-a", "workspace-a", "grant-a");
+    for (const [runId, jobId] of [["run-z", "job-z"], ["run-a", "job-a"]] as const) {
+      await queue.createRun({ ...request, runId, idempotencyKey: runId }, `correlation-${runId}`);
+      await queue.enqueue({ runId, id: jobId, idempotencyKey: jobId, maxAttempts: 2, priority: 80 });
+    }
+    const sameCreatedAt = new Date("2026-09-06T00:00:00.000Z");
+    await fixture.db.job.updateMany({ data: { createdAt: sameCreatedAt } });
+    expect((await queue.claimEligible("worker-a", 1_000))?.job.id).toBe("job-a");
+  });
+
   it("fences a disabled Worker while preserving its running Job", async () => {
     await queue.createRun(request, "correlation-a");
     await queue.enqueue({
@@ -186,6 +241,39 @@ describe("P3 durable Job queue and lease fencing", () => {
     await expect(queue.renewLease("job-a", "worker-a", claim!.lease.id, 10_000)).rejects.toThrow(
       "WORKER_DISABLED",
     );
+    await expect(queue.complete("job-a", "worker-a", claim!.lease.id, {
+      schemaVersion: "1.0", runId: "run-a", status: "COMPLETED",
+      completedAt: clock.now().toISOString(), summary: "disabled result",
+    })).rejects.toThrow("WORKER_DISABLED");
     expect((await fixture.db.job.findUniqueOrThrow({ where: { id: "job-a" } })).status).toBe("RUNNING");
+  });
+
+  it("serializes grant revocation and result submission without a stale overwrite", async () => {
+    await queue.createRun(request, "correlation-a");
+    await queue.enqueue({ runId: "run-a", id: "job-a", idempotencyKey: "job-a", maxAttempts: 2 });
+    await registry.grantWorkspace(fixture.ownerActor, "worker-a", "workspace-a", "grant-a");
+    const claim = await queue.claimEligible("worker-a", 10_000);
+    await queue.markRunning("job-a", "worker-a", claim!.lease.id);
+    const secondClient = new PrismaClient({ datasources: { db: { url: fixture.database.url } } });
+    const secondRegistry = new PrismaWorkerRegistry(secondClient, clock);
+    const result = {
+      schemaVersion: "1.0" as const, runId: "run-a", status: "COMPLETED" as const,
+      completedAt: clock.now().toISOString(), summary: "race result",
+    };
+    try {
+      const outcomes = await Promise.allSettled([
+        queue.complete("job-a", "worker-a", claim!.lease.id, result),
+        secondRegistry.revokeWorkspace(fixture.ownerActor, "worker-a", "workspace-a", "revoke-race"),
+      ]);
+      expect(outcomes[1].status).toBe("fulfilled");
+      expect((await fixture.db.workerWorkspaceGrant.findUniqueOrThrow({
+        where: { workerId_workspaceId: { workerId: "worker-a", workspaceId: "workspace-a" } },
+      })).status).toBe("REVOKED");
+      const terminal = (await fixture.db.agentRun.findUniqueOrThrow({ where: { id: "run-a" } })).status;
+      expect(["RUNNING", "COMPLETED"]).toContain(terminal);
+      if (outcomes[0].status === "rejected") expect(terminal).toBe("RUNNING");
+    } finally {
+      await secondClient.$disconnect();
+    }
   });
 });

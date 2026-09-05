@@ -38,6 +38,7 @@ export interface ClaimedJob {
 
 export interface JobQueuePort {
   createRun(request: RunRequest, correlationId: string): Promise<{ readonly id: string; readonly status: string }>;
+  getRun(actor: ExternalActor, runId: string): Promise<{ readonly id: string; readonly status: string }>;
   enqueue(command: EnqueueJobCommand): Promise<{ readonly id: string; readonly status: string }>;
   claimEligible(workerId: string, leaseDurationMs: number): Promise<ClaimedJob | null>;
   markRunning(jobId: string, workerId: string, leaseId: string): Promise<void>;
