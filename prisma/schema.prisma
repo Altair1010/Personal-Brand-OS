@@ -9,6 +9,186 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model UserIdentity {
+  id        String   @id
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  authIdentities AuthIdentity[]
+  profile        UserProfile?
+  memberships    Membership[]
+}
+
+model AuthIdentity {
+  id             String       @id
+  userIdentityId String
+  provider       String
+  subject        String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  userIdentity   UserIdentity @relation(fields: [userIdentityId], references: [id], onDelete: Restrict)
+
+  @@unique([provider, subject])
+  @@index([userIdentityId])
+}
+
+model Organization {
+  id         String    @id
+  name       String
+  status     String    @default("ACTIVE")
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  memberships        Membership[]
+  workspaces         Workspace[]
+  brands             Brand[]
+  brandDna           BrandDNA[]
+  goals              Goal[]
+  segments           AudienceSegment[]
+  pillars            ContentPillar[]
+  templates          ContentTemplate[]
+  frameworks         Framework[]
+  strategies         Strategy[]
+  ideas              ContentIdea[]
+  drafts             ContentDraft[]
+  posts              Post[]
+  facebookAccounts   FacebookAccount[]
+  insights           PerformanceInsight[]
+  promptRuns         PromptRun[]
+  exports            ExportHistory[]
+  metricObservations MetricObservation[]
+}
+
+model Membership {
+  id               String       @id
+  userIdentityId   String
+  organizationId   String
+  organizationRole String?
+  status           String       @default("ACTIVE")
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  userIdentity     UserIdentity @relation(fields: [userIdentityId], references: [id], onDelete: Restrict)
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  workspaceRoleBindings WorkspaceRoleBinding[]
+  brandRoleBindings     BrandRoleBinding[]
+
+  @@unique([userIdentityId, organizationId])
+  @@unique([id, organizationId])
+  @@index([organizationId, status])
+}
+
+model Workspace {
+  id             String       @id
+  organizationId String
+  name           String
+  status         String       @default("ACTIVE")
+  archivedAt     DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  brands       Brand[]
+  roleBindings WorkspaceRoleBinding[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId, status])
+}
+
+model WorkspaceRoleBinding {
+  id             String     @id
+  membershipId   String
+  organizationId String
+  workspaceId    String
+  role           String
+  status         String     @default("ACTIVE")
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  membership     Membership @relation(fields: [membershipId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  workspace      Workspace  @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([membershipId, workspaceId])
+  @@index([organizationId, workspaceId, status])
+}
+
+model Brand {
+  id             String       @id
+  organizationId String
+  workspaceId    String
+  name           String
+  status         String       @default("ACTIVE")
+  archivedAt     DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  workspace      Workspace    @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  roleBindings       BrandRoleBinding[]
+  brandDna           BrandDNA[]
+  goals              Goal[]
+  segments           AudienceSegment[]
+  pillars            ContentPillar[]
+  templates          ContentTemplate[]
+  frameworks         Framework[]
+  strategies         Strategy[]
+  ideas              ContentIdea[]
+  drafts             ContentDraft[]
+  posts              Post[]
+  facebookAccounts   FacebookAccount[]
+  insights           PerformanceInsight[]
+  promptRuns         PromptRun[]
+  exports            ExportHistory[]
+  metricObservations MetricObservation[]
+
+  @@unique([id, organizationId])
+  @@unique([id, workspaceId, organizationId])
+  @@index([organizationId, workspaceId, status])
+}
+
+model BrandRoleBinding {
+  id             String     @id
+  membershipId   String
+  organizationId String
+  workspaceId    String
+  brandId        String
+  role           String
+  status         String     @default("ACTIVE")
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  membership     Membership @relation(fields: [membershipId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  brand          Brand      @relation(fields: [brandId, workspaceId, organizationId], references: [id, workspaceId, organizationId], onDelete: Restrict)
+
+  @@unique([membershipId, brandId])
+  @@index([organizationId, workspaceId, brandId, status])
+}
+
+model MetricObservation {
+  id             String       @id
+  organizationId String
+  brandId        String
+  legacyPostId   String?
+  metricKey      String
+  valueKind      String
+  numericValue   Float?
+  textValue      String?
+  observedAt     DateTime
+  source         String
+  sourceRecordId String
+  dedupeKey      String
+  provenance     Json?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  brand          Brand        @relation(fields: [brandId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  legacyPost     Post?        @relation(fields: [legacyPostId], references: [id], onDelete: SetNull)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([brandId, dedupeKey])
+  @@index([organizationId, brandId, metricKey, observedAt])
+  @@index([legacyPostId])
+}
+
 model AppState {
   id                 String    @id @default("singleton")
   activeGoalId       String?
@@ -20,14 +200,16 @@ model AppState {
 }
 
 model UserProfile {
-  id        String   @id @default(cuid())
-  name      String
-  headline  String?
-  bio       String?
-  avatarUrl String?
-  locale    String   @default("vi")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String        @id @default(cuid())
+  userIdentityId String?       @unique
+  name           String
+  headline       String?
+  bio            String?
+  avatarUrl      String?
+  locale         String        @default("vi")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  identity       UserIdentity? @relation(fields: [userIdentityId], references: [id], onDelete: Restrict)
 
   brandDna   BrandDNA?
   goals      Goal[]
@@ -45,8 +227,10 @@ model UserProfile {
 
 // BrandDNA đã GỘP CompanyProfile (companyName/offers/usp/region)
 model BrandDNA {
-  id                       String      @id @default(cuid())
-  userId                   String      @unique
+  id                       String        @id @default(cuid())
+  userId                   String        @unique
+  organizationId           String?
+  brandId                  String?       @unique
   // --- lõi cá nhân ---
   whoAmI                   String?
   field                    String?
@@ -68,15 +252,21 @@ model BrandDNA {
   sourceFiles              Json?
   aiPositioning            String?
   aiSuggestions            Json?
-  version                  Int         @default(1)
-  createdAt                DateTime    @default(now())
-  updatedAt                DateTime    @updatedAt
-  user                     UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  version                  Int           @default(1)
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt
+  user                     UserProfile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization             Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  brand                    Brand?        @relation(fields: [brandId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@index([organizationId, brandId])
 }
 
 model Goal {
-  id                String      @id @default(cuid())
+  id                String        @id @default(cuid())
   userId            String
+  organizationId    String?
+  brandId           String?
   name              String
   goalType          String
   timeRangeStart    DateTime?
@@ -88,60 +278,73 @@ model Goal {
   contentRatio      Json?
   risk              String?
   successDefinition String?
-  status            String      @default("active")
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
-  user              UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status            String        @default("active")
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  user              UserProfile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization      Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  brand             Brand?        @relation(fields: [brandId, organizationId], references: [id, organizationId], onDelete: Restrict)
 
   strategies Strategy[]
   segments   AudienceSegment[]
   pillars    ContentPillar[]
 
   @@index([userId, status])
+  @@index([organizationId, brandId])
 }
 
 // pain/falseBelief/... gộp thẳng vào persona (bỏ bảng PainPoint)
 model AudienceSegment {
-  id           String      @id @default(cuid())
-  userId       String
-  goalId       String?
-  name         String
-  pain         String?
-  falseBelief  String?
-  fear         String?
-  desire       String?
-  language     String?
-  contentAngle String?
-  cta          String?
-  offer        String?
-  source       String      @default("ai")
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  user         UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
-  goal         Goal?       @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  id             String        @id @default(cuid())
+  userId         String
+  organizationId String?
+  brandId        String?
+  goalId         String?
+  name           String
+  pain           String?
+  falseBelief    String?
+  fear           String?
+  desire         String?
+  language       String?
+  contentAngle   String?
+  cta            String?
+  offer          String?
+  source         String        @default("ai")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  user           UserProfile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  brand          Brand?        @relation(fields: [brandId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  goal           Goal?         @relation(fields: [goalId], references: [id], onDelete: SetNull)
 
   @@index([userId])
+  @@index([organizationId, brandId])
 }
 
 model ContentPillar {
-  id           String      @id @default(cuid())
-  userId       String
-  goalId       String?
-  name         String
-  description  String?
-  ratioPercent Int         @default(0)
-  objectiveMix Json?
-  status       String      @default("active")
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  user         UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
-  goal         Goal?       @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  id             String        @id @default(cuid())
+  userId         String
+  organizationId String?
+  brandId        String?
+  goalId         String?
+  name           String
+  description    String?
+  ratioPercent   Int           @default(0)
+  objectiveMix   Json?
+  status         String        @default("active")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  user           UserProfile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  brand          Brand?        @relation(fields: [brandId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  goal           Goal?         @relation(fields: [goalId], references: [id], onDelete: SetNull)
 
   dailyPlans DailyPlan[]
   ideas      ContentIdea[]
   drafts     ContentDraft[]
 
   @@index([userId])
+  @@index([organizationId, brandId])
 }
 
 model ContentObjective {
@@ -155,53 +358,69 @@ model ContentObjective {
 
 // Seed cứng ở MVP (không có editor CRUD — read-only)
 model ContentTemplate {
-  id            String           @id @default(cuid())
-  userId        String?
-  name          String
-  objectiveKey  String
-  structure     Json
-  description   String?
-  exampleOutput String?
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
-  user          UserProfile?     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  objective     ContentObjective @relation(fields: [objectiveKey], references: [key])
+  id             String           @id @default(cuid())
+  userId         String?
+  organizationId String?
+  brandId        String?
+  name           String
+  objectiveKey   String
+  structure      Json
+  description    String?
+  exampleOutput  String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  user           UserProfile?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization?    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  brand          Brand?           @relation(fields: [brandId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  objective      ContentObjective @relation(fields: [objectiveKey], references: [key])
 
   @@index([objectiveKey])
+  @@index([organizationId, brandId])
 }
 
 // Seed cứng ở MVP (read-only)
 model Framework {
-  id         String       @id @default(cuid())
-  userId     String?
-  name       String
-  slug       String       @unique
-  summary    String?
-  steps      Json?
-  whenToUse  String?
-  example    String?
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
-  user       UserProfile? @relation(fields: [userId], references: [id], onDelete: Cascade)
-  strategies Strategy[]
+  id             String        @id @default(cuid())
+  userId         String?
+  organizationId String?
+  brandId        String?
+  name           String
+  slug           String        @unique
+  summary        String?
+  steps          Json?
+  whenToUse      String?
+  example        String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  user           UserProfile?  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  brand          Brand?        @relation(fields: [brandId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  strategies     Strategy[]
+
+  @@index([organizationId, brandId])
 }
 
 model Strategy {
-  id            String            @id @default(cuid())
-  userId        String
-  goalId        String
-  name          String
-  timeframeDays Int               @default(30) // MVP: chỉ 30
-  frameworkSlug String?
-  status        String            @default("active")
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-  user          UserProfile       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  goal          Goal              @relation(fields: [goalId], references: [id], onDelete: Cascade)
-  framework     Framework?        @relation(fields: [frameworkSlug], references: [slug], onDelete: SetNull)
-  versions      StrategyVersion[]
+  id             String            @id @default(cuid())
+  userId         String
+  organizationId String?
+  brandId        String?
+  goalId         String
+  name           String
+  timeframeDays  Int               @default(30) // MVP: chỉ 30
+  frameworkSlug  String?
+  status         String            @default("active")
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  user           UserProfile       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization?     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  brand          Brand?            @relation(fields: [brandId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  goal           Goal              @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  framework      Framework?        @relation(fields: [frameworkSlug], references: [slug], onDelete: SetNull)
+  versions       StrategyVersion[]
 
   @@index([userId, goalId])
+  @@index([organizationId, brandId])
 }
 
 model StrategyVersion {
@@ -266,25 +485,30 @@ model DailyPlan {
 }
 
 model ContentIdea {
-  id           String         @id @default(cuid())
-  dailyPlanId  String?
-  userId       String
-  title        String
-  objectiveKey String?
-  pillarId     String?
-  angle        String?
-  hookSeed     String?
-  notes        String?
-  source       String         @default("ai")
-  status       String         @default("idea")
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  dailyPlan    DailyPlan?     @relation(fields: [dailyPlanId], references: [id], onDelete: SetNull)
-  user         UserProfile    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  pillar       ContentPillar? @relation(fields: [pillarId], references: [id], onDelete: SetNull)
-  drafts       ContentDraft[]
+  id             String         @id @default(cuid())
+  dailyPlanId    String?
+  userId         String
+  organizationId String?
+  brandId        String?
+  title          String
+  objectiveKey   String?
+  pillarId       String?
+  angle          String?
+  hookSeed       String?
+  notes          String?
+  source         String         @default("ai")
+  status         String         @default("idea")
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  dailyPlan      DailyPlan?     @relation(fields: [dailyPlanId], references: [id], onDelete: SetNull)
+  user           UserProfile    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization?  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  brand          Brand?         @relation(fields: [brandId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  pillar         ContentPillar? @relation(fields: [pillarId], references: [id], onDelete: SetNull)
+  drafts         ContentDraft[]
 
   @@index([userId, status])
+  @@index([organizationId, brandId])
 }
 
 // contentJson (TipTap) đã BỎ. Thêm analytic fields để Performance group-by được.
@@ -292,6 +516,8 @@ model ContentDraft {
   id              String         @id @default(cuid())
   contentIdeaId   String?
   userId          String
+  organizationId  String?
+  brandId         String?
   version         Int            @default(1)
   objectiveKey    String?
   pillarId        String?
@@ -316,65 +542,81 @@ model ContentDraft {
   updatedAt       DateTime       @updatedAt
   contentIdea     ContentIdea?   @relation(fields: [contentIdeaId], references: [id], onDelete: SetNull)
   user            UserProfile    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization    Organization?  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  brand           Brand?         @relation(fields: [brandId, organizationId], references: [id, organizationId], onDelete: Restrict)
   pillar          ContentPillar? @relation(fields: [pillarId], references: [id], onDelete: SetNull)
   promptRun       PromptRun?     @relation(fields: [aiPromptRunId], references: [id], onDelete: SetNull)
   post            Post?
+
+  @@index([organizationId, brandId])
 }
 
 // Mirror analytic dims + attribution (strategyVersionId, dailyPlanId)
 model Post {
-  id                String           @id @default(cuid())
-  contentDraftId    String           @unique
-  userId            String
-  strategyVersionId String?
-  dailyPlanId       String?
-  facebookAccountId String?
-  publishedAt       DateTime?
-  platform          String           @default("facebook")
-  permalink         String?
-  finalText         String?
+  id                 String              @id @default(cuid())
+  contentDraftId     String              @unique
+  userId             String
+  organizationId     String?
+  brandId            String?
+  strategyVersionId  String?
+  dailyPlanId        String?
+  facebookAccountId  String?
+  publishedAt        DateTime?
+  platform           String              @default("facebook")
+  permalink          String?
+  finalText          String?
   // mirror để group-by nhanh (không cần join qua draft)
-  objectiveKey      String?
-  pillarId          String?
-  hookStyle         String?
-  ctaIntensity      String?
-  format            String?
-  topic             String?
-  status            String           @default("posted")
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  contentDraft      ContentDraft     @relation(fields: [contentDraftId], references: [id], onDelete: Cascade)
-  user              UserProfile      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  strategyVersion   StrategyVersion? @relation(fields: [strategyVersionId], references: [id], onDelete: SetNull)
-  dailyPlan         DailyPlan?       @relation(fields: [dailyPlanId], references: [id], onDelete: SetNull)
-  facebookAccount   FacebookAccount? @relation(fields: [facebookAccountId], references: [id])
-  metrics           MetricSnapshot[]
+  objectiveKey       String?
+  pillarId           String?
+  hookStyle          String?
+  ctaIntensity       String?
+  format             String?
+  topic              String?
+  status             String              @default("posted")
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  contentDraft       ContentDraft        @relation(fields: [contentDraftId], references: [id], onDelete: Cascade)
+  user               UserProfile         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization       Organization?       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  brand              Brand?              @relation(fields: [brandId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  strategyVersion    StrategyVersion?    @relation(fields: [strategyVersionId], references: [id], onDelete: SetNull)
+  dailyPlan          DailyPlan?          @relation(fields: [dailyPlanId], references: [id], onDelete: SetNull)
+  facebookAccount    FacebookAccount?    @relation(fields: [facebookAccountId], references: [id])
+  metrics            MetricSnapshot[]
+  metricObservations MetricObservation[]
 
   @@index([userId])
   @@index([strategyVersionId])
   @@index([facebookAccountId])
+  @@index([organizationId, brandId])
 }
 
 // EM1c: linked Facebook Page(s). accessToken stored ENCRYPTED via lib/ai/keystore
 // (connect action encrypts; schema stores the ciphertext string, never plaintext).
 model FacebookAccount {
-  id             String    @id @default(cuid())
-  ownerRef       String    @default("local")
+  id             String        @id @default(cuid())
+  ownerRef       String        @default("local")
+  organizationId String?
+  brandId        String?
   pageId         String
   pageName       String
   accessToken    String
   tokenExpiresAt DateTime?
-  linkedAt       DateTime  @default(now())
+  linkedAt       DateTime      @default(now())
   posts          Post[]
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  brand          Brand?        @relation(fields: [brandId, organizationId], references: [id, organizationId], onDelete: Restrict)
 
   @@unique([ownerRef, pageId])
+  @@unique([brandId, pageId])
+  @@index([organizationId, brandId])
 }
 
 // MVP: 1 bản/Post (@@unique). daysSincePost để chuẩn hóa so sánh. Bỏ sentiment.
 model MetricSnapshot {
-  id             String   @id @default(cuid())
-  postId         String   @unique
-  capturedAt     DateTime @default(now())
+  id             String    @id @default(cuid())
+  postId         String    @unique
+  capturedAt     DateTime  @default(now())
   daysSincePost  Int?
   reach          Int?
   engagement     Int?
@@ -383,29 +625,34 @@ model MetricSnapshot {
   saves          Int?
   inboxNote      String?
   conversionNote String?
-  source         String   @default("manual")
+  source         String    @default("manual")
   postUrl        String?
   fbRawResponse  Json?
   fetchedAt      DateTime?
-  post           Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post           Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
 }
 
 model PerformanceInsight {
-  id             String      @id @default(cuid())
+  id             String        @id @default(cuid())
   userId         String
+  organizationId String?
+  brandId        String?
   scope          String // post|pillar|hook|cta|format|weekly
   refId          String?
   period         String?
   finding        String
   evidence       Json?
   recommendation String?
-  confidence     String      @default("normal") // low|normal
+  confidence     String        @default("normal") // low|normal
   aiPromptRunId  String?
-  createdAt      DateTime    @default(now())
-  user           UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
-  promptRun      PromptRun?  @relation(fields: [aiPromptRunId], references: [id], onDelete: SetNull)
+  createdAt      DateTime      @default(now())
+  user           UserProfile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  brand          Brand?        @relation(fields: [brandId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  promptRun      PromptRun?    @relation(fields: [aiPromptRunId], references: [id], onDelete: SetNull)
 
   @@index([userId, scope])
+  @@index([organizationId, brandId])
 }
 
 model PromptTemplate {
@@ -429,6 +676,8 @@ model PromptTemplate {
 model PromptRun {
   id               String          @id @default(cuid())
   promptTemplateId String?
+  organizationId   String?
+  brandId          String?
   moduleKey        String
   provider         String
   model            String
@@ -442,12 +691,15 @@ model PromptRun {
   error            String?
   createdAt        DateTime        @default(now())
   promptTemplate   PromptTemplate? @relation(fields: [promptTemplateId], references: [id], onDelete: SetNull)
+  organization     Organization?   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  brand            Brand?          @relation(fields: [brandId, organizationId], references: [id, organizationId], onDelete: Restrict)
 
   strategyVersions StrategyVersion[]
   drafts           ContentDraft[]
   insights         PerformanceInsight[]
 
   @@index([moduleKey, status, createdAt])
+  @@index([organizationId, brandId, createdAt])
 }
 
 model AIModelConfig {
@@ -463,13 +715,18 @@ model AIModelConfig {
 }
 
 model ExportHistory {
-  id        String      @id @default(cuid())
-  userId    String
-  kind      String // markdown|csv|backup
-  scope     String?
-  filename  String
-  createdAt DateTime    @default(now())
-  user      UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String        @id @default(cuid())
+  userId         String
+  organizationId String?
+  brandId        String?
+  kind           String // markdown|csv|backup
+  scope          String?
+  filename       String
+  createdAt      DateTime      @default(now())
+  user           UserProfile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  brand          Brand?        @relation(fields: [brandId, organizationId], references: [id, organizationId], onDelete: Restrict)
 
   @@index([userId])
+  @@index([organizationId, brandId])
 }
