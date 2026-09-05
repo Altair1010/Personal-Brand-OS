@@ -53,6 +53,7 @@ describe("P2 forward migration", () => {
     expect(first.created.metricObservations).toBe(4);
     expect(second.created).toMatchObject({ userIdentities: 0, organizations: 0, workspaces: 0, brands: 0, memberships: 0, metricObservations: 0 });
     expect(second.promptRuns.legacyUnscoped).toEqual(["run-unowned"]);
+    expect(await client.$queryRawUnsafe("PRAGMA foreign_key_check")).toEqual([]);
   }, 120_000);
 
   it("enforces tenant-pair and typed metric CHECK constraints", async () => {

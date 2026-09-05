@@ -125,7 +125,7 @@ const dataSchema = z.object(
 });
 
 export const backupEnvelopeSchema = z.object({
-  version: z.number(),
+  version: z.union([z.literal(1), z.literal(2)]),
   exportedAt: z.string(),
   data: dataSchema,
 });
