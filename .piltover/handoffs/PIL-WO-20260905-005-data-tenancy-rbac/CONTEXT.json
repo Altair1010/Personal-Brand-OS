@@ -9,5 +9,8 @@
   "canonicalPackage": "docs/Piltover-Master-Technical-Package-v1.0.0",
   "databaseProvider": "sqlite",
   "schemaMutationStarted": false,
-  "blockingGate": "P2_MODEL_DECISION"
+  "blockingGate": "P2_CANONICAL_CONTRACT_APPROVAL",
+  "contractProposal": ".piltover/handoffs/PIL-WO-20260905-005-data-tenancy-rbac/P2_CANONICAL_CONTRACT_ADDENDUM.md",
+  "adrProposal": "docs/adr/0001-p2-tenancy-rbac-contract.md",
+  "contractStatus": "PROPOSED"
 }

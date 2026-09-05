@@ -1,6 +1,6 @@
 # P2 — DATA + TENANCY + RBAC
 
-STATUS: BLOCKED
+STATUS: BLOCKED_PENDING_OWNER_CONTRACT_APPROVAL
 
 ## BASE
 
@@ -40,34 +40,58 @@ and ADR mechanism were all verified from `origin/master`. The branch began with 
 - `12_PHASES/P2_DATA_AND_TENANCY.md`
 - P1 Work Order `RESULT.md`
 
+## CONTRACT-RESOLUTION GATE
+
+The seven model/security gaps were resolved into one bounded proposal without schema or application
+mutation:
+
+- Addendum: `.piltover/handoffs/PIL-WO-20260905-005-data-tenancy-rbac/P2_CANONICAL_CONTRACT_ADDENDUM.md`
+- ADR: `docs/adr/0001-p2-tenancy-rbac-contract.md`
+- Addendum status: `PROPOSED`
+- ADR status: `PROPOSED`
+
+Recommended contract summary:
+
+- separate `UserIdentity` and provider auth subjects from retained `UserProfile`;
+- active Organization Membership with optional Organization role plus FK-backed Workspace and Brand
+  role bindings;
+- one role per scope and union of positive grants down validated ancestry, with deny by default;
+- 23 action capabilities and a complete matrix for all seven canonical roles;
+- role-assignment ceilings, no scoped OWNER, and last-Organization-Owner protection;
+- archive/disable/revoke lifecycle with restrictive foreign keys and no P2 hard-delete path;
+- Brand-owned normalized typed MetricObservation rows with an optional legacy Post bridge;
+- transactional one-tenant-graph-per-profile backfill and versioned backup compatibility.
+
+Remaining unresolved contract questions: NONE inside the proposal. Owner approval or requested
+changes are still required before the proposal becomes canonical or implementation resumes.
+
+Schema mutation: NONE.
+
 ## DATA MODEL CONTRACT
 
-Organization: required canonical tenant root; physical fields, lifecycle, and deletion semantics are
-not fully specified.
+Organization: proposed physical root with stable ID, display name, `ACTIVE|ARCHIVED` lifecycle,
+timestamps, no name-based authority, and no P2 hard-delete path.
 
-Workspace: required child of Organization; physical fields, membership inheritance, and deletion
-semantics are not fully specified.
+Workspace: proposed Organization child with compound same-tenant relation, inherited positive grants,
+optional exact scoped binding, and archive-only P2 lifecycle.
 
-Brand: required child of Workspace; Brand-specific effective roles are allowed, but the canonical
-binding representation and inheritance rules are unresolved.
+Brand: proposed Workspace child and canonical business ownership boundary with explicit Organization
+ancestry, exact scoped binding, and additive legacy BrandDNA link.
 
-User/identity: `UserIdentity / auth mapping` is required conceptually. The mapping from legacy
-`UserProfile` and optional `AppState.supabaseUserId` is not specified sufficiently to choose a
-physical identity contract without changing the auth model.
+User/identity: proposed separate `UserIdentity` and `AuthIdentity` models retain `UserProfile` as
+business/profile metadata. AppState's Supabase subject maps only to profile `local`; no provider is
+fabricated for offline-only profiles and no auth provider is changed.
 
-Membership: required between User and Organization. The package does not define required fields,
-lifecycle, uniqueness, whether Workspace access is explicit or inherited, or how it composes with
-Brand roles.
+Membership: proposed unique actor/Organization relationship with nullable Organization role and
+`ACTIVE|SUSPENDED|REVOKED` lifecycle. Membership without a role grants no visibility.
 
-RBAC: canonical role names are `OWNER`, `ADMIN`, `MANAGER`, `EDITOR`, `VIEWER`, `APPROVER`, and
-`AGENT_OPERATOR`. No canonical capability vocabulary or role-permission matrix is defined. The
-package requires requested-capability evaluation and deny-by-default behavior, so a secure allow
-path cannot be implemented without inventing policy.
+RBAC: the seven canonical roles are mapped across 23 action capabilities. Positive grants union from
+Organization to exact Workspace and Brand bindings; missing/inactive/unknown/inconsistent state
+denies. Assignment ceilings and last-owner safety are explicit.
 
-MetricObservation: must support many observations per publication, source, metric, and timestamp.
-The physical metric definition/value representation, authoritative owner during P2 legacy
-compatibility, uniqueness/deduplication key, and mapping of all legacy `MetricSnapshot` fields are
-not fully specified.
+MetricObservation: proposed normalized typed observation owned authoritatively by Brand, with an
+optional legacy Post bridge, stable source-fact dedupe, explicit mapping for every MetricSnapshot
+field, and null-as-unknown preservation.
 
 ## LEGACY OWNERSHIP MAP
 
@@ -75,31 +99,34 @@ Current reconnaissance identified the legacy ownership problem but no migration 
 
 | Model family | Old owner | Intended canonical scope | Migration status | Compatibility retained |
 |---|---|---|---|---|
-| `UserProfile` | self/single profile | identity mapping | BLOCKED pending identity contract | YES |
-| `BrandDNA`, goals, audiences, pillars, strategies | `userId` | Brand or derived Brand scope | BLOCKED pending Brand/backfill contract | YES |
-| ideas, drafts, posts | `userId` plus relation chains | Brand or derived Brand scope | BLOCKED pending scope rules | YES |
-| `FacebookAccount` | `ownerRef` | unresolved integration scope | BLOCKED pending tenant scope | YES |
-| `MetricSnapshot` | unique `postId` | initial MetricObservation compatibility | BLOCKED pending physical metric contract | YES |
-| `PerformanceInsight`, `ExportHistory` | `userId` | unresolved tenant scope | BLOCKED pending classification | YES |
-| templates/frameworks/objectives | optional user/global | global reference or tenant-owned depending row | no mechanical scoping performed | YES |
-| `PromptRun` / `AIModelConfig` | global/unscoped | unresolved by P2 package | unchanged | YES |
+| `UserProfile` | self/single profile | identity mapping | proposed unique nullable identity link | YES |
+| `BrandDNA`, goals, audiences, pillars, strategies | `userId` | direct Brand scope | proposed nullable Organization/Brand links and exact profile graph | YES |
+| ideas, drafts, posts | `userId` plus relation chains | direct or derived Brand scope | proposed exact profile graph plus relation validation | YES |
+| `FacebookAccount` | `ownerRef` | Brand provider connection | proposed exact ownerRef/profile mapping; ambiguous rows quarantined | YES |
+| `MetricSnapshot` | unique `postId` | MetricObservation source compatibility | proposed 0–7 observations per snapshot; snapshot retained | YES |
+| `PerformanceInsight`, `ExportHistory` | `userId` | direct Brand scope | proposed nullable Organization/Brand links | YES |
+| templates/frameworks/objectives | optional user/global | user rows Brand-scoped; null-user rows global | proposed conditional links; objectives remain global | YES |
+| `PromptRun` / `AIModelConfig` | global/unscoped | legacy/system | unchanged unless an exact later owner is proven | YES |
 | `AppState` | singleton | legacy only, never tenancy authority | unchanged | YES |
 
 ## FINAL TENANCY GRAPH
 
-Not implemented. The approved conceptual graph is:
+Not implemented. The proposed physical authorization graph is:
 
 ```text
-UserIdentity
-    |
-    +-- Membership --> Organization
-                           |
-                           +-- Workspace
-                                  |
-                                  +-- Brand
+AuthIdentity --> UserIdentity <-- UserProfile
+                    |
+                    +-- Membership --> Organization
+                           |               |
+                           |               +-- Workspace
+                           |                      |
+                           |                      +-- Brand
+                           |                           |
+                           +-- WorkspaceRoleBinding    +-- MetricObservation*
+                           +-- BrandRoleBinding
 ```
 
-The unresolved binding and inheritance semantics prevent an honest physical graph.
+The graph remains a proposal pending Owner approval; no table exists yet.
 
 ## SCHEMA CHANGES
 
@@ -135,10 +162,10 @@ MetricObservations created: 0
 
 Roles: canonical names recovered; no persistence or evaluator implemented.
 
-Permissions: BLOCKED — no canonical capability set or role-permission matrix exists in the package.
+Permissions: PROPOSED — 23 action capabilities with a complete seven-role matrix.
 
-Scope semantics: BLOCKED — Brand-specific effective roles are stated, but Organization/Workspace
-inheritance and the `BrandMembership or scoped RoleBinding` decision are unresolved.
+Scope semantics: PROPOSED — nullable Organization role plus scope-specific FK-backed Workspace and
+Brand bindings; positive grants union only down verified ancestry.
 
 Seed strategy: NOT IMPLEMENTED
 
@@ -160,7 +187,7 @@ Missing tenant: NOT IMPLEMENTED
 
 MetricSnapshot compatibility: unchanged
 
-MetricObservation: BLOCKED pending physical contract
+MetricObservation: physical contract PROPOSED; not implemented
 
 Backfill: not implemented
 
@@ -253,10 +280,10 @@ Provider migration: NO
 
 ## LIMITATIONS
 
-- Permission semantics are incomplete: roles exist, capabilities and the role-permission matrix do not.
-- Membership/role binding and scope inheritance are not canonicalized.
-- Identity mapping, tenant deletion behavior, and MetricObservation physical ownership/fields are incomplete.
-- P2 implementation, migration, and isolation verification cannot start without inventing consequential policy.
+- The addendum and ADR are proposals, not canonical approval.
+- No schema, migration, backfill, RBAC evaluator, repository, MetricObservation, or isolation test has
+  been implemented.
+- Production data volume and write concurrency are unknown; the proposal makes no zero-downtime claim.
 
 ## COMMITS
 
@@ -273,48 +300,38 @@ remote evidence checkpoint SHA: `ec11ce83e810daecef34dc2f463a120c5c18894b` (veri
 
 ## CANONICALIZATION
 
-status: BLOCKED BEFORE IMPLEMENTATION
+status: BLOCKED_PENDING_OWNER_CONTRACT_APPROVAL
 
 ## ACCEPTANCE
 
 - PASS — P1 canonical baseline verified.
 - PASS — exact available P2 sources recovered and searched.
 - PASS — current Prisma ownership model inspected.
-- FAIL — canonical P2 model is not sufficiently unambiguous for schema mutation.
+- PASS — every identified model ambiguity has one explicit minimum proposal.
+- PASS — alternatives, security and migration consequences, SQLite feasibility, and reversal posture documented.
+- PASS — proposed addendum and consequential ADR exist.
+- FAIL — proposed contract is not canonical until Owner approval.
 - FAIL — schema/migration/backfill/RBAC/MetricObservation implementation not started by design.
 - PASS — legacy database, routes, dependencies, providers, UI, and application behavior unchanged.
-- PASS — pre-P2 test/build/typecheck baseline recorded.
-- FAIL — technical completion and phase-branch implementation evidence cannot be produced before Owner decision.
+- PASS — pre-P2 test/build/typecheck baseline remains historical evidence; this proposal changed no code.
+- FAIL — technical completion remains blocked until contract approval and implementation verification.
 
-## OWNER GATE — P2 MODEL DECISION
+## OWNER GATE — P2 CANONICAL CONTRACT APPROVAL
 
-Question: What exact P2 authorization and physical-model contract should govern implementation?
+Question: Approve the proposed P2 canonical contract and authorize P2 schema, migration, RBAC, and
+MetricObservation implementation on this phase branch?
 
-Options:
+Decision options: `YES`, `NO`, or `CHANGES REQUIRED`.
 
-1. Provide an approved canonical addendum defining identity mapping; Membership and RoleBinding
-   fields, uniqueness, lifecycle, scope, and inheritance; capability names and the full role matrix;
-   deletion semantics; and MetricObservation physical ownership, fields, and deduplication.
-2. Explicitly approve a named minimal contract proposal as a new consequential ADR, after it is
-   drafted and reviewed against current SQLite/Prisma constraints.
-3. Narrow P2 to a specified non-RBAC/non-metric subset and revise its acceptance criteria.
+Canonical evidence: Technical Constitution C7 requires ambiguity to fail closed. The addendum now
+supplies the missing decisions, but Change and ADR Policy requires Owner approval because they change
+tenant trust boundaries, permission semantics, persistent schema, and lifecycle behavior.
 
-Canonical evidence: Technical Constitution C7 blocks mutation on unknown tenant scope or permission
-ambiguity. `TENANCY_AND_RBAC.md` lists roles and the resolution inputs but no permission matrix.
-`TARGET_SCHEMA.md` explicitly leaves `BrandMembership or scoped RoleBinding` open and describes only
-conceptual models. The P2 Work Order requires a gate for these exact ambiguities.
+Migration consequence: approval permits contract-first tests and additive implementation only. It
+does not authorize master integration, production migration, provider changes, UI work, or P3.
 
-Current repo impact: choosing now determines irreversible public schema names, compound uniqueness,
-foreign keys, backfill identity, authorization results, backup order, and migration SQL.
-
-Migration consequence: proceeding without a decision risks ungrantable access, cross-tenant escape,
-duplicate tenant graphs, incompatible backfill, or a later destructive schema rewrite.
-
-Recommended minimum route: Option 1. Add only the missing canonical P2 contract, then resume the same
-branch with contract-first tests and additive migration design.
-
-Reversal path: no schema or database mutation has occurred. The Work Order evidence commit can be
-forward-reverted or superseded after the Owner decision.
+Reversal path: no schema or database mutation has occurred. The proposal may be revised, rejected,
+or superseded without data loss or history rewrite.
 
 ## NEXT LEGAL PHASE
 
