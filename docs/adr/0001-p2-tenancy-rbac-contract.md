@@ -2,9 +2,11 @@
 
 ## Status
 
-PROPOSED
+APPROVED
 
-Revision R1 incorporates the Owner decision `CHANGES REQUIRED` without approving this ADR.
+The Owner approved Revision R1 at reviewed branch head
+`7d8be5f197856574591bca2e4cb96d1cc7ba8ade` on 2026-09-06. Implementation is authorized only on
+the existing P2 branch within the scope and gates recorded below.
 
 ## Context
 
@@ -16,7 +18,7 @@ Those choices change trust boundaries, permission semantics, and public persiste
 
 ## Decision
 
-Subject to Owner approval:
+The approved decision is to:
 
 - separate `UserIdentity` and provider auth subjects from retained `UserProfile` metadata;
 - identify external subjects uniquely by `(provider, subject)` without restricting a principal to
@@ -80,8 +82,8 @@ migration; do not delete canonical rows written after adoption.
 ## Owner gate
 
 G2/G4. This ADR changes permission semantics, tenant trust boundaries, and persistent lifecycle
-contracts. Only explicit Owner approval may change status from `PROPOSED` to `APPROVED` and authorize
-P2 schema/migration/RBAC implementation.
+contracts. Owner approval authorizes bounded local implementation and phase-branch publication. It
+does not authorize canonical master integration, production migration, deployment, or P3.
 
 ## References and evidence
 

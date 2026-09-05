@@ -1,6 +1,6 @@
 # PIL-WO-20260905-005-data-tenancy-rbac — P2 Data, Tenancy, and RBAC
 
-Status: BLOCKED_PENDING_OWNER_CONTRACT_APPROVAL
+Status: IN_PROGRESS
 Phase: P2
 Base ref expected: `9e3c8ff58b692b406a72ae7dd5f9cdfc7f8c5db1`
 
@@ -86,10 +86,10 @@ physical identity mapping, delete semantics, or complete MetricObservation field
 The P2 prompt explicitly requires an Owner Gate before schema mutation when these semantics remain
 ambiguous.
 
-## Contract-resolution checkpoint
+## Approved contract checkpoint
 
-The Owner authorized a proposal-only contract-resolution gate on this same P2 branch. The proposed
-contract is recorded in `P2_CANONICAL_CONTRACT_ADDENDUM.md` and summarized by proposed ADR-0001.
-Neither document is approved or implementation authority. Prisma, migrations, seed, tests, and
-application code remain outside this checkpoint. P2 implementation may resume only after explicit
-Owner approval of the proposal or an approved revision.
+The Owner approved Revision R1 of `P2_CANONICAL_CONTRACT_ADDENDUM.md` and ADR-0001 at reviewed branch
+head `7d8be5f197856574591bca2e4cb96d1cc7ba8ade` on 2026-09-06. This approval authorizes the bounded P2
+implementation and verification defined by this Work Order on the existing branch. Canonical master
+integration, production migration, deployment, provider migration, UI redesign, and P3 remain
+unauthorized.

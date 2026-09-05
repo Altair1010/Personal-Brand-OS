@@ -9,12 +9,15 @@
   "canonicalPackage": "docs/Piltover-Master-Technical-Package-v1.0.0",
   "databaseProvider": "sqlite",
   "schemaMutationStarted": false,
-  "blockingGate": "P2_CANONICAL_CONTRACT_APPROVAL",
+  "blockingGate": null,
   "contractProposal": ".piltover/handoffs/PIL-WO-20260905-005-data-tenancy-rbac/P2_CANONICAL_CONTRACT_ADDENDUM.md",
   "adrProposal": "docs/adr/0001-p2-tenancy-rbac-contract.md",
-  "contractStatus": "PROPOSED",
+  "contractStatus": "APPROVED",
   "contractRevision": "R1",
-  "ownerReview": "CHANGES_REQUIRED",
+  "ownerReview": "APPROVED",
+  "ownerApprovedAt": "2026-09-06T00:33:55+07:00",
+  "ownerApprovedRef": "7d8be5f197856574591bca2e4cb96d1cc7ba8ade",
+  "implementationAuthorized": true,
   "revisionBaseRef": "cb64b9de35afa09b018b70f2fa9584d462b7d303",
   "revisionProposalRef": "41ab74ceca51854545505fea0a95af5960b1d1a9"
 }

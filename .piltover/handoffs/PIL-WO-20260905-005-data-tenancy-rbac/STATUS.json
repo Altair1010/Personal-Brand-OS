@@ -1,12 +1,12 @@
 {
   "schemaVersion": "1.0",
   "workOrderId": "PIL-WO-20260905-005-data-tenancy-rbac",
-  "status": "BLOCKED_PENDING_OWNER_CONTRACT_APPROVAL",
-  "updatedAt": "2026-09-06T00:13:22+07:00",
+  "status": "IN_PROGRESS",
+  "updatedAt": "2026-09-06T00:33:55+07:00",
   "baseRef": "9e3c8ff58b692b406a72ae7dd5f9cdfc7f8c5db1",
-  "headRef": "41ab74ceca51854545505fea0a95af5960b1d1a9",
+  "headRef": "7d8be5f197856574591bca2e4cb96d1cc7ba8ade",
   "branch": "work/PIL-WO-20260905-005-data-tenancy-rbac",
   "prNumber": null,
   "actor": "Codex",
-  "blockingReason": "Owner approval required: contract Revision R1 corrects the four security and ownership findings but remains PROPOSED and is not implementation authority."
+  "blockingReason": null
 }

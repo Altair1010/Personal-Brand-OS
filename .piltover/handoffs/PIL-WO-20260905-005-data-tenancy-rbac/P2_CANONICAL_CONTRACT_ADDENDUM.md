@@ -2,10 +2,13 @@
 
 ## Status
 
-PROPOSED
+APPROVED
 
-This addendum is not canonical until the Owner approves it. It defines the minimum physical and
-authorization contract needed to resume P2. It does not authorize schema or application changes.
+The Owner approved Revision R1 at reviewed branch head
+`7d8be5f197856574591bca2e4cb96d1cc7ba8ade` on 2026-09-06. This approval authorizes the bounded P2
+schema, migration, tenancy, RBAC, PromptRun ownership, MetricObservation, backup, and verification
+work defined here on the existing P2 branch. It does not authorize canonical master integration,
+production migration, deployment, provider migration, UI redesign, or P3.
 
 Revision R1 records the Owner decision `CHANGES REQUIRED` and corrects four root causes:
 
@@ -162,8 +165,8 @@ Constraints and lifecycle:
   Organization.
 - `UNIQUE(id, organizationId)` supports same-Organization compound references.
 - Only `ACTIVE` membership can authorize. `SUSPENDED` and `REVOKED` always deny.
-- Legal ordinary transitions are `ACTIVE -> SUSPENDED|REVOKED`, `SUSPENDED -> ACTIVE|REVOKED`, and
-  `SUSPENDED -> ACTIVE`. `REVOKED -> ACTIVE` is prohibited as a status toggle.
+- Legal ordinary transitions are `ACTIVE -> SUSPENDED|REVOKED` and
+  `SUSPENDED -> ACTIVE|REVOKED`. `REVOKED -> ACTIVE` is prohibited as a status toggle.
 - Suspension is a temporary access pause. `SUSPENDED -> ACTIVE` preserves the Organization role and
   active scoped bindings, so their grants may become effective again.
 - Revocation removes the relationship's effective authorization state. The revocation transaction
@@ -766,5 +769,4 @@ authorized recovery path; their recovery operations must expose the access that 
 
 ## Open Questions
 
-NONE for proposal review. Owner approval, rejection, or requested changes remain required before this
-contract is canonical or any P2 implementation begins.
+NONE. Revision R1 is the approved P2 implementation contract.

@@ -1,12 +1,19 @@
 # Review — PIL-WO-20260905-005-data-tenancy-rbac
 
-Decision: BLOCKED_PENDING_OWNER_CONTRACT_APPROVAL
+Decision: IN_PROGRESS
+
+## Owner approval
+
+Revision R1 was approved on 2026-09-06 at reviewed branch head
+`7d8be5f197856574591bca2e4cb96d1cc7ba8ade`. The approval authorizes bounded P2 implementation on
+the existing branch. It does not authorize canonical master integration, production migration,
+deployment, provider migration, UI redesign, or P3.
 
 ## Acceptance review
 
 - Canonical baseline: PASS — `origin/master` and branch base were identical at P1 close SHA.
-- Canonical contract extraction: PROPOSED — consequential semantics are explicit in the addendum but
-  remain non-canonical until Owner approval.
+- Canonical contract extraction: APPROVED — Revision R1 is the governing bounded implementation
+  contract.
 - Schema/migration/backfill: NOT STARTED — correctly stopped before mutation.
 - Tenant/RBAC isolation: NOT TESTABLE until the policy contract is approved.
 - Regression baseline: PASS — 24 files and 118 tests; production build passed.

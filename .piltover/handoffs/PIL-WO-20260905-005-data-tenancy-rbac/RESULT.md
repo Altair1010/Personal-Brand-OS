@@ -1,6 +1,6 @@
 # P2 — DATA + TENANCY + RBAC
 
-STATUS: BLOCKED_PENDING_OWNER_CONTRACT_APPROVAL
+STATUS: IN_PROGRESS
 
 ## BASE
 
@@ -42,18 +42,27 @@ and ADR mechanism were all verified from `origin/master`. The branch began with 
 
 ## CONTRACT-RESOLUTION GATE
 
+Owner approval: YES — Revision R1 approved on 2026-09-06.
+
+Approved reviewed head: `7d8be5f197856574591bca2e4cb96d1cc7ba8ade`
+
+Implementation authorization: bounded P2 schema, migration, tenancy, RBAC, PromptRun ownership,
+MetricObservation, backup/restore, and verification work on the existing P2 branch. Canonical master
+integration, production migration, deployment, provider migration, UI redesign, and P3 remain
+unauthorized.
+
 The seven model/security gaps were resolved into one bounded proposal without schema or application
 mutation:
 
 - Addendum: `.piltover/handoffs/PIL-WO-20260905-005-data-tenancy-rbac/P2_CANONICAL_CONTRACT_ADDENDUM.md`
 - ADR: `docs/adr/0001-p2-tenancy-rbac-contract.md`
-- Addendum status: `PROPOSED`
-- ADR status: `PROPOSED`
+- Addendum status: `APPROVED`
+- ADR status: `APPROVED`
 
-Owner review status: `CHANGES REQUIRED`. Revision R1 corrects stale-grant resurrection on
+Owner review status: `APPROVED`. Revision R1 corrects stale-grant resurrection on
 Membership readmission, adds Workspace lifecycle authority, scopes tenant-sensitive PromptRun data
 when ownership is provable, and removes the unnecessary one-subject-per-provider AuthIdentity
-constraint. The proposal remains gated and unapproved.
+constraint. Implementation is now in progress under the approved scope.
 
 Recommended contract summary:
 
@@ -73,28 +82,28 @@ Recommended contract summary:
 - Brand-owned normalized typed MetricObservation rows with an optional legacy Post bridge;
 - transactional one-tenant-graph-per-profile backfill and versioned backup compatibility.
 
-Remaining unresolved contract questions: NONE inside the proposal. Owner approval or requested
-changes are still required before the proposal becomes canonical or implementation resumes.
+Remaining unresolved contract questions: NONE. Revision R1 is approved and implementation is
+authorized within the recorded scope.
 
 Schema mutation: NONE.
 
 ## DATA MODEL CONTRACT
 
-Organization: proposed physical root with stable ID, display name, `ACTIVE|ARCHIVED` lifecycle,
+Organization: approved physical root with stable ID, display name, `ACTIVE|ARCHIVED` lifecycle,
 timestamps, no name-based authority, and no P2 hard-delete path.
 
-Workspace: proposed Organization child with compound same-tenant relation, inherited positive grants,
+Workspace: approved Organization child with compound same-tenant relation, inherited positive grants,
 optional exact scoped binding, and archive-only P2 lifecycle.
 
-Brand: proposed Workspace child and canonical business ownership boundary with explicit Organization
+Brand: approved Workspace child and canonical business ownership boundary with explicit Organization
 ancestry, exact scoped binding, and additive legacy BrandDNA link.
 
-User/identity: proposed separate `UserIdentity` and `AuthIdentity` models retain `UserProfile` as
+User/identity: approved separate `UserIdentity` and `AuthIdentity` models retain `UserProfile` as
 business/profile metadata. AppState's Supabase subject maps only to profile `local`; no provider is
 fabricated for offline-only profiles and no auth provider is changed. `(provider, subject)` is
 unique; one principal is not artificially limited to one subject per provider.
 
-Membership: proposed unique actor/Organization relationship with nullable Organization role and
+Membership: approved unique actor/Organization relationship with nullable Organization role and
 `ACTIVE|SUSPENDED|REVOKED` lifecycle. Suspension preserves grants; revocation clears the
 Organization role and revokes all scoped bindings atomically. READMISSION activates only after the
 same zero-grant reset. Membership without a role grants no visibility.
@@ -103,11 +112,11 @@ RBAC: the seven canonical roles are mapped across 24 action capabilities. Positi
 Organization to exact Workspace and Brand bindings; missing/inactive/unknown/inconsistent state
 denies. Assignment ceilings and last-owner safety are explicit.
 
-PromptRun: proposed nullable Organization/Brand ownership is backfilled only when StrategyVersion,
+PromptRun: approved nullable Organization/Brand ownership is backfilled only when StrategyVersion,
 ContentDraft, and PerformanceInsight consumers resolve unanimously and completely to one tenant.
 Legacy-unscoped or conflicting rows are unavailable to ordinary new tenant-aware APIs.
 
-MetricObservation: proposed normalized typed observation owned authoritatively by Brand, with an
+MetricObservation: approved normalized typed observation owned authoritatively by Brand, with an
 optional legacy Post bridge, stable source-fact dedupe, explicit mapping for every MetricSnapshot
 field, and null-as-unknown preservation.
 
@@ -146,7 +155,7 @@ AuthIdentity --> UserIdentity <-- UserProfile
                            +-- BrandRoleBinding
 ```
 
-The graph remains a proposal pending Owner approval; no table exists yet.
+The graph is approved for implementation; no table existed at the approval checkpoint.
 
 ## SCHEMA CHANGES
 
@@ -182,9 +191,9 @@ MetricObservations created: 0
 
 Roles: canonical names recovered; no persistence or evaluator implemented.
 
-Permissions: PROPOSED — 24 action capabilities with a complete seven-role matrix.
+Permissions: APPROVED — 24 action capabilities with a complete seven-role matrix.
 
-Scope semantics: PROPOSED — nullable Organization role plus scope-specific FK-backed Workspace and
+Scope semantics: APPROVED — nullable Organization role plus scope-specific FK-backed Workspace and
 Brand bindings; positive grants union only down verified ancestry.
 
 Seed strategy: NOT IMPLEMENTED
@@ -207,7 +216,7 @@ Missing tenant: NOT IMPLEMENTED
 
 MetricSnapshot compatibility: unchanged
 
-MetricObservation: physical contract PROPOSED; not implemented
+MetricObservation: physical contract APPROVED; not implemented at the approval checkpoint
 
 Backfill: not implemented
 
@@ -232,8 +241,8 @@ tables would be omitted unless the backup envelope/import order is extended. Pro
 exported, but version 2 must preserve its proposed nullable Organization/Brand fields and version-1
 upgrade must run the same complete-consumer ownership proof.
 
-Changes required: required when implementation resumes; none made while the physical schema is
-blocked.
+Changes required: approved and scheduled in the implementation route; none had been made at the
+approval checkpoint.
 
 Tests: existing baseline backup tests passed historically. No application tests were rerun for the
 documentation-only R1 correction.
@@ -266,7 +275,7 @@ Standalone typecheck delta: baseline recorded before P2 mutation; two pre-existi
 remain in `tests/ai/adapter-db-key.test.ts` at lines 105 and 140.
 
 R1 documentation validation: PASS — 24 unique matrix rows, required lifecycle/PromptRun sections,
-PROPOSED statuses, valid Work Order JSON, and no uncontrolled stale semantic claims.
+valid Work Order JSON, and no uncontrolled stale semantic claims.
 
 git diff --check: PASS for the R1 working diff before commit.
 
@@ -310,10 +319,10 @@ Provider migration: NO
 
 ## LIMITATIONS
 
-- The addendum and ADR are proposals, not canonical approval.
-- No schema, migration, backfill, RBAC evaluator, repository, MetricObservation, or isolation test has
-  been implemented.
-- PromptRun tenant ownership is a proposed contract only; no schema field, backfill, or query changed.
+- No schema, migration, backfill, RBAC evaluator, repository, MetricObservation, or isolation test had
+  been implemented at the approval checkpoint.
+- PromptRun tenant ownership was contract-only at the approval checkpoint; no schema field, backfill,
+  or query had changed.
 - Production data volume and write concurrency are unknown; the proposal makes no zero-downtime claim.
 
 ## COMMITS
@@ -337,7 +346,7 @@ Remote verification is recorded after the metadata closeout commit is pushed.
 
 ## CANONICALIZATION
 
-status: BLOCKED_PENDING_OWNER_CONTRACT_APPROVAL
+status: IMPLEMENTATION_IN_PROGRESS
 
 ## ACCEPTANCE
 
@@ -347,29 +356,20 @@ status: BLOCKED_PENDING_OWNER_CONTRACT_APPROVAL
 - PASS — every identified model ambiguity has one explicit minimum proposal.
 - PASS — alternatives, security and migration consequences, SQLite feasibility, and reversal posture documented.
 - PASS — proposed addendum and consequential ADR exist.
-- FAIL — proposed contract is not canonical until Owner approval.
+- PASS — Contract R1 and ADR-0001 are Owner-approved implementation authority.
 - FAIL — schema/migration/backfill/RBAC/MetricObservation implementation not started by design.
 - PASS — legacy database, routes, dependencies, providers, UI, and application behavior unchanged.
 - PASS — pre-P2 test/build/typecheck baseline remains historical evidence; this proposal changed no code.
-- FAIL — technical completion remains blocked until contract approval and implementation verification.
+- FAIL — technical completion still requires implementation verification.
 
 ## OWNER GATE — P2 CANONICAL CONTRACT APPROVAL
 
-Question: Approve the proposed P2 canonical contract and authorize P2 schema, migration, RBAC, and
-MetricObservation implementation on this phase branch?
+Decision: YES — Revision R1 approved at reviewed head
+`7d8be5f197856574591bca2e4cb96d1cc7ba8ade` on 2026-09-06.
 
-Decision options: `YES`, `NO`, or `CHANGES REQUIRED`.
-
-Canonical evidence: Technical Constitution C7 requires ambiguity to fail closed. The addendum now
-supplies the missing decisions, but Change and ADR Policy requires Owner approval because they change
-tenant trust boundaries, permission semantics, persistent schema, and lifecycle behavior.
-
-Migration consequence: approval permits contract-first tests and additive implementation only. It
-does not authorize master integration, production migration, provider changes, UI work, or P3.
-
-Reversal path: no schema or database mutation has occurred. The proposal may be revised, rejected,
-or superseded without data loss or history rewrite.
+Scope: bounded phase-branch implementation only. Canonical master integration, production migration,
+deployment, provider changes, UI work, and P3 remain outside this approval.
 
 ## NEXT LEGAL PHASE
 
-P2 remains blocked. P3 is not eligible and has not started.
+P2 implementation is in progress. P3 is not eligible and has not started.
