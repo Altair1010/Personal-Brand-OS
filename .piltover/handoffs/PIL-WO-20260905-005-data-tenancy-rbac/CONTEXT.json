@@ -15,5 +15,6 @@
   "contractStatus": "PROPOSED",
   "contractRevision": "R1",
   "ownerReview": "CHANGES_REQUIRED",
-  "revisionBaseRef": "cb64b9de35afa09b018b70f2fa9584d462b7d303"
+  "revisionBaseRef": "cb64b9de35afa09b018b70f2fa9584d462b7d303",
+  "revisionProposalRef": "41ab74ceca51854545505fea0a95af5960b1d1a9"
 }
