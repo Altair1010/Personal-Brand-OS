@@ -15,7 +15,25 @@
   "technicalPackage": "docs/Piltover-Master-Technical-Package-v1.0.0",
   "implementationRoute": "single-agent-single-branch",
   "schemaMutationStarted": false,
-  "blockingGate": "P3_WORKER_TENANT_AUTHORIZATION",
+  "applicationMutationStarted": false,
+  "blockingGate": "P3_WORKER_TENANT_AUTHORIZATION_R1_OWNER_APPROVAL",
+  "workerTenantAuthorizationProposal": {
+    "status": "PROPOSED",
+    "grantScopes": ["WORKSPACE", "BRAND"],
+    "inheritance": "NONE",
+    "organizationWideGrant": false,
+    "organizationOnlyWorkerJob": "DENIED_WORKER_SCOPE_REQUIRED",
+    "grantAuthority": "P2 agent.manage at the exact target",
+    "leaseBoundRevalidation": true,
+    "p4MachineAuthenticationDeferred": true,
+    "addendum": ".piltover/handoffs/PIL-WO-20260906-006-cloud-control-plane/P3_WORKER_TENANT_AUTHORIZATION_ADDENDUM.md",
+    "adr": "docs/adr/0002-worker-tenant-authorization.md"
+  },
+  "remoteCheckpoint": {
+    "sha": "276723f8cc5c5a939d06a2e61c037817ed6892f2",
+    "verifiedEqualToLocal": true,
+    "originMaster": "decb72cfae5749037020cf29c5b48b1f4f4fd3f8"
+  },
   "baseline": {
     "fullTests": "30 files / 167 tests PASS",
     "p1Architecture": "1 file / 6 tests PASS",

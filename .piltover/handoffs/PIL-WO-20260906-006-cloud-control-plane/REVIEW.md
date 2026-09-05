@@ -1,84 +1,142 @@
 # Review — PIL-WO-20260906-006-cloud-control-plane
 
-Decision: OWNER CONTRACT GATE REQUIRED BEFORE SCHEMA MUTATION
+Decision: BLOCKED_PENDING_OWNER_CONTRACT_APPROVAL
 
-## OWNER GATE — P3 CONTRACT DECISION
+Proposal: Worker-Tenant Authorization R1 / Option A1
 
-### Missing decision
+## Tenant escalation review
 
-What persistent scope grants authorize a registered Worker to claim Jobs belonging to an
-Organization, Workspace, or Brand, and which P2 actor authority may create/revoke those grants?
+Finding: registration, enabled state, device metadata, and capabilities cannot authorize tenant
+access.
 
-### Canonical evidence
+Falsifier: give a Worker every required capability but no exact grant, then attempt claims in two
+Organizations.
 
-- The runtime topology expects one authorized Worker initially and supports N Workers.
-- The security model makes Worker enrollment revocable and requires server-enforced tenant
-  isolation.
-- The claim equation requires both exact capability coverage and Worker tenant authority.
-- The Worker registration schema contains identity/runtime/capability metadata but no tenant scope.
-- P2 applies `agent.run` and `agent.manage` to Workspace or Brand targets, not Organization targets.
-- Capability match and device name are explicitly not tenant authorization.
+Expected evidence after implementation: both claims are denied; adding one exact grant enables only
+the matching scope.
 
-### Option A — Exact Workspace/Brand grants (recommended)
+Severity: CRITICAL before a Worker claim surface exists.
 
-Persist a restrictive `WorkerScopeGrant` for either one Workspace or one Brand, with compound P2
-ancestry constraints. A P2 actor with `agent.manage` on that exact target may grant/revoke it.
-Organization-only Jobs are not claimable until a later approved Organization-level policy exists.
+Resolution: require a separate active exact Workspace or Brand grant plus P2 ancestry on claim and
+every Worker-originated authoritative mutation. No public Worker mutation endpoint is authorized in
+P3.
 
-Security consequence: least privilege and direct reuse of the approved P2 capability applicability;
-more grant rows are required when one Worker serves many scopes.
+## Grant inheritance review
 
-Reversal path: revoke grants, retain historical rows, and supersede through a forward migration if
-a later policy adds broader scope.
+Finding: Organization-wide or Workspace-to-Brand inheritance silently expands machine authority.
 
-### Option B — Organization-wide grants
+Falsifier: grant Workspace A, then attempt a Job at child Brand A1, sibling Workspace B, and a Brand
+in another Organization.
 
-Persist `WorkerOrganizationGrant`; an Organization Owner/Admin authorizes a Worker for every current
-and future Workspace/Brand in that Organization. A new exact grant-authority mapping must be
-approved because P2 has no Organization-targeted `agent.manage` capability.
+Expected evidence after implementation: every attempt is denied. Only a Workspace-only Job at exact
+Workspace A is eligible.
 
-Security consequence: simpler operations but materially broader blast radius and implicit access to
-future descendant scopes.
+Severity: HIGH.
 
-Reversal path: revoke the Organization grant and migrate to narrower grants, preserving history.
+Resolution: grants exist only at Workspace and Brand scopes and never inherit. The proposed physical
+encoding uses separate scope-specific tables so exact identity and P2 compound ancestry can be
+database-enforced in Prisma/SQLite.
 
-### Option C — Bind Worker to a human identity and derive access dynamically
+## Revocation / lease review
 
-Link Worker to `UserIdentity` and derive eligibility from that identity's active P2 Membership and
-Workspace/Brand bindings.
+Finding: claim-time-only authorization lets a revoked Worker retain power through an old lease.
 
-Security consequence: avoids a second grant graph but conflates durable device trust with human
-authorization lifecycle and can silently change Worker reach when human roles change.
+Falsifier: Worker A claims with an active Brand grant; revoke the grant; A attempts renewal, event
+append, and completion using the current lease.
 
-Reversal path: remove the identity link through a forward migration and issue explicit device grants.
+Expected evidence after implementation: all authoritative mutations are denied before state change;
+the Job and lease evidence remain durable and another eligible Worker can reclaim after explicit
+reconciliation or expiry.
 
-### Minimum recommendation
+Severity: CRITICAL.
 
-Approve Option A. It is the smallest fail-closed model that reuses existing P2 authorization
-semantics, prevents capability-only tenant access, supports N Workers, and does not invent an
-Organization-wide authority capability. Enrollment credentials and public claim transport remain
-deferred to P4; P3 exposes only internal application contracts and a read-only health route.
+Resolution: revalidate current lease identity, Worker enabled/revoked state, exact active grant, and
+P2 ancestry for every Worker-originated authoritative mutation. Lease fencing alone is necessary but
+not sufficient.
 
-### Owner decision requested
+## Organization-only Job review
 
-Approve Option A, select Option B/C, or provide a different explicit Worker tenant-authorization
-contract. No Prisma/schema mutation will occur until this decision is recorded.
+Finding: RunRequest legally permits an Organization-only AgentRun, but P3 defines no
+Organization-wide Worker authority.
 
-## Pre-implementation six-lane review
+Falsifier: enqueue a Worker-executable Job for a Run with neither Workspace nor Brand execution
+scope.
 
-- State: terminal states remain terminal and all mutations use explicit transition tables.
-- Concurrency: atomic claim plus opaque lease generation is mandatory.
-- Durability: SQL is authoritative; no in-memory queue or scheduler is required.
-- Idempotency: scoped request hash, event hash, and terminal result hash fail closed on mismatch.
-- Security: P2 ancestry/RBAC is reused; Worker capability never implies tenant access.
-- Transport: domain/application contracts contain no Codex JSON-RPC, WebSocket, SSE, or long-poll
-  dependency.
+Expected evidence after implementation: deterministic `WORKER_SCOPE_REQUIRED`; no Job row or
+implicit Organization grant is created.
 
-## Adversarial sections
+Severity: HIGH.
 
-DOUBLE CLAIM, STALE LEASE COMPLETION, LEASE EXPIRY RACE, DUPLICATE RUN REQUEST, DUPLICATE EVENT,
-EVENT SEQUENCE CONFLICT, DUPLICATE TERMINAL RESULT, CANCEL / COMPLETE RACE, RETRY EXHAUSTION,
-WORKER DISCONNECT, WORKER REVOCATION, CROSS-TENANT WORKER CLAIM, CROSS-TENANT APPROVAL, APPROVAL
-PAYLOAD REPLAY, APPROVAL EXPIRY, PROCESS RESTART, QUEUE STARVATION, SECRET LEAKAGE, TRANSPORT
-COUPLING, and P4/P5 SCOPE CREEP remain implementation review obligations. No PASS is claimed before
-their falsifiers run.
+Resolution: preserve Organization-only AgentRuns while requiring a validated exact Workspace or
+Brand scope at Worker Job enqueue.
+
+## P4 boundary review
+
+Finding: an internal application contract could become unsafe if exposed publicly while trusting a
+caller-supplied `workerId`.
+
+Falsifier: search P3 routes and domain/application imports for public Worker mutation endpoints,
+machine credential handling, Codex JSON-RPC, WebSocket, SSE, or long-poll coupling.
+
+Expected evidence after implementation: none exists. P3 exposes only internal mutation contracts and
+read-only health; P4 owns enrollment credentials, machine authentication, and public transport.
+
+Severity: CRITICAL if exposed; NONE while the boundary remains closed.
+
+Resolution: explicitly defer machine authentication and public claim/reconnect transport to P4.
+
+## Four-lane convergence
+
+- Tenant security: PASS at proposal level. Exact grants and P2 ancestry provide no shortcut to an
+  ungranted tenant.
+- Temporal security: PASS at proposal level. Revocation zeroes mutation authority even when an old
+  lease remains recorded.
+- Control-plane durability: PASS at proposal level. Revocation never deletes or cancels the Job;
+  normal expiry/reconciliation preserves retry and reclaim.
+- P4 boundary: PASS at proposal level. No credential, public Worker mutation transport, daemon, or
+  Codex bridge is included.
+
+Implementation evidence is intentionally absent and no runtime PASS is claimed.
+
+## Physical encoding comparison
+
+### One WorkerTenantGrant table
+
+One logical table is compact, but a nullable Brand column makes `(workerId, workspaceId, brandId)`
+unsafe for Workspace uniqueness in SQLite because multiple `NULL` values do not conflict. A
+polymorphic target ID also weakens ordinary Prisma foreign-key clarity. Raw partial unique indexes
+and check constraints can repair this, at the cost of provider-specific migration complexity.
+
+### WorkerWorkspaceGrant + WorkerBrandGrant
+
+Two tables express direct compound P2 relations and ordinary unique keys for each exact target.
+Queries can be hidden behind one logical authorization port. This is the proposed minimum safe
+encoding for P3 implementation.
+
+## Security case matrix
+
+| Case | Proposed result |
+|---|---|
+| Capability match, no grant | DENY |
+| Workspace A grant, Workspace B Job | DENY |
+| Workspace A grant, Brand A1 Job | DENY |
+| Brand A grant, Brand B Job | DENY |
+| Brand A grant, Workspace A Job | DENY |
+| Exact grant, Worker disabled/revoked | DENY |
+| Exact grant, missing capability | DENY |
+| Exact grant, invalid P2 ancestry | DENY |
+| Grant revoked after claim | MUTATION DENIED; JOB PRESERVED |
+| Grant revoked while offline | RECONNECT AUTHORITY DENIED |
+| Organization-only Worker Job | `WORKER_SCOPE_REQUIRED` |
+| Job execution scope outside AgentRun scope | DENY |
+| Exact Workspace grant + exact Workspace Job + all other terms | ELIGIBLE |
+| Exact Brand grant + exact Brand Job + all other terms | ELIGIBLE |
+
+## Owner gate — P3 Worker-Tenant Authorization R1
+
+Approve Option A1 as specified in `P3_WORKER_TENANT_AUTHORIZATION_ADDENDUM.md` and proposed
+ADR-0002, and authorize bounded P3 implementation on the current phase branch?
+
+Required response: YES / NO / CHANGES REQUIRED
+
+Until YES, schema mutation and application mutation remain prohibited.

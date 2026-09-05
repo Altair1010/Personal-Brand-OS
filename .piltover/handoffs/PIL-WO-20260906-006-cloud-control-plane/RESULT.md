@@ -1,6 +1,6 @@
 # P3 — CLOUD CONTROL PLANE
 
-STATUS: BLOCKED
+STATUS: BLOCKED_PENDING_OWNER_CONTRACT_APPROVAL
 
 ## BASE
 
@@ -20,17 +20,18 @@ integrity closure and additive migration.
 
 ## CONTRACT FREEZE
 
-The pre-schema entity and cross-cutting contract is recorded in `REQUEST.md`. One consequential
-trust-boundary decision remains unresolved: the physical Worker-to-tenant grant model and its P2
-RBAC grant authority.
+The pre-schema entity and cross-cutting contract is recorded in `REQUEST.md`. Worker-Tenant
+Authorization R1 is now proposed in `P3_WORKER_TENANT_AUTHORIZATION_ADDENDUM.md` and ADR-0002. It
+requires exact, non-inheriting Workspace or Brand grants, P2 `agent.manage` at the exact target, and
+authorization revalidation for every Worker-originated lease-bound mutation.
 
 ## DATA MODEL
 
-Not mutated. The Owner gate in `REVIEW.md` must be resolved first.
+Not mutated. Schema mutation: NONE. The R1 Owner gate in `REVIEW.md` must be approved first.
 
 ## STATE MACHINES
 
-Contract only; implementation not started.
+Contract only; application mutation: NONE.
 
 ## QUEUE
 
@@ -46,7 +47,9 @@ Contract only; implementation not started.
 
 ## WORKERS
 
-Registry/capability contracts are frozen. Tenant eligibility is blocked on the Owner decision.
+Registration, enabled state, capabilities, and exact tenant authorization are separate requirements.
+The R1 proposal defines exact Workspace/Brand grants with no inheritance. Implementation is blocked
+on Owner approval.
 
 ## APPROVALS
 
@@ -66,7 +69,9 @@ Not created. P2 migration remains unchanged.
 
 ## TENANCY
 
-P2 ancestry and RBAC remain canonical. No global Worker authority was invented.
+P2 ancestry and RBAC remain canonical. No global or Organization-wide Worker authority was
+invented. A Worker-executable Organization-only Job is rejected with `WORKER_SCOPE_REQUIRED`.
+Grant or Worker revocation removes old-lease mutation authority without deleting the durable Job.
 
 ## VERIFICATION
 
@@ -81,6 +86,8 @@ P2 ancestry and RBAC remain canonical. No global Worker authority was invented.
 - Standalone typecheck: baseline failure — the two canonical TS2352 errors remain at
   `tests/ai/adapter-db-key.test.ts:105` and `:140`.
 - New type errors: 0, because no TypeScript source has been changed.
+- Contract-only R1 proportional verification: PASS for JSON parsing, required artifact paths,
+  documentation scope, `git diff --check`, and clean code/schema scope.
 
 ## DEPENDENCIES
 
@@ -98,19 +105,21 @@ Provider selection: NO
 
 ## LIMITATIONS
 
-- The canonical package does not define the physical Worker tenant-grant representation or exact
-  authority/inheritance rule.
+- Worker-Tenant Authorization R1 and ADR-0002 remain PROPOSED until Owner approval.
 - No P3 implementation evidence exists yet.
 - The existing lockfile audit reports 27 vulnerabilities (3 moderate, 22 high, 2 critical). No
   dependency was changed because dependency remediation is outside this Work Order.
 
 ## COMMITS
 
-Pending.
+- `276723f8cc5c5a939d06a2e61c037817ed6892f2` — initial P3 contract-freeze checkpoint.
+- R1 proposal: this contract-only commit; its exact SHA is verified after commit and push.
 
 ## REMOTE PHASE BRANCH
 
-Pending.
+Checkpoint `276723f8cc5c5a939d06a2e61c037817ed6892f2` was pushed normally and independently verified on
+`origin/work/PIL-WO-20260906-006-cloud-control-plane`. The contract-only R1 proposal is published by
+the commit containing this RESULT after proportional verification.
 
 ## CANONICALIZATION
 
@@ -118,8 +127,10 @@ PENDING OWNER GATE. No master integration is authorized.
 
 ## ACCEPTANCE
 
-BLOCKED before schema mutation on the Worker tenant-authorization contract decision.
+BLOCKED_PENDING_OWNER_CONTRACT_APPROVAL. No schema or application implementation is authorized by
+this proposal pass.
 
 ## NEXT LEGAL PHASE
 
-Resume P3 only after the Owner resolves the contract gate. P4 remains blocked.
+Resume P3 implementation only after explicit Owner approval of Worker-Tenant Authorization R1. P4
+remains blocked.
