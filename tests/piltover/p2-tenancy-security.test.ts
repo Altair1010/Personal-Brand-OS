@@ -215,6 +215,9 @@ describe("membership temporal security", () => {
     await expect(
       service.assignOrganizationRole({ provider: "supabase", subject: "admin-a" }, "membership-admin-a", "OWNER"),
     ).rejects.toThrow("PERMISSION_SELF_ELEVATION_DENIED");
+    await expect(
+      service.revoke({ provider: "supabase", subject: "admin-a" }, a.membership.id),
+    ).rejects.toThrow("PERMISSION_ROLE_ASSIGNMENT_DENIED");
     await service.assignOrganizationRole(
       { provider: "supabase", subject: "owner-a" },
       "membership-target-a",

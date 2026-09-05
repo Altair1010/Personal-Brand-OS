@@ -182,10 +182,17 @@ export class PrismaMembershipService {
     if (owners <= 1) throw new Error("PERMISSION_LAST_OWNER_REQUIRED");
   }
 
+  private assertGovernanceCeiling(managerRole: string | null, targetRole: string | null): void {
+    if (["OWNER", "ADMIN"].includes(targetRole ?? "") && managerRole !== "OWNER") {
+      throw new Error("PERMISSION_ROLE_ASSIGNMENT_DENIED");
+    }
+  }
+
   async suspend(actor: ExternalActor, membershipId: string): Promise<void> {
     await this.db.$transaction(async (tx) => {
       const target = await this.requireTarget(tx, membershipId);
-      await this.requireManager(tx, actor, target.organizationId);
+      const manager = await this.requireManager(tx, actor, target.organizationId);
+      this.assertGovernanceCeiling(manager.organizationRole, target.organizationRole);
       await this.assertNotLastOwner(tx, target);
       if (target.status !== "ACTIVE") throw new Error("TENANT_INVALID_MEMBERSHIP_TRANSITION");
       await tx.membership.update({ where: { id: membershipId }, data: { status: "SUSPENDED" } });
@@ -195,7 +202,8 @@ export class PrismaMembershipService {
   async resume(actor: ExternalActor, membershipId: string): Promise<void> {
     await this.db.$transaction(async (tx) => {
       const target = await this.requireTarget(tx, membershipId);
-      await this.requireManager(tx, actor, target.organizationId);
+      const manager = await this.requireManager(tx, actor, target.organizationId);
+      this.assertGovernanceCeiling(manager.organizationRole, target.organizationRole);
       if (target.status === "REVOKED") throw new Error("TENANT_READMISSION_REQUIRED");
       if (target.status !== "SUSPENDED") throw new Error("TENANT_INVALID_MEMBERSHIP_TRANSITION");
       await tx.membership.update({ where: { id: membershipId }, data: { status: "ACTIVE" } });
@@ -205,7 +213,8 @@ export class PrismaMembershipService {
   async revoke(actor: ExternalActor, membershipId: string): Promise<void> {
     await this.db.$transaction(async (tx) => {
       const target = await this.requireTarget(tx, membershipId);
-      await this.requireManager(tx, actor, target.organizationId);
+      const manager = await this.requireManager(tx, actor, target.organizationId);
+      this.assertGovernanceCeiling(manager.organizationRole, target.organizationRole);
       await this.assertNotLastOwner(tx, target);
       if (!['ACTIVE', 'SUSPENDED'].includes(target.status)) throw new Error("TENANT_INVALID_MEMBERSHIP_TRANSITION");
       await tx.workspaceRoleBinding.updateMany({ where: { membershipId, status: "ACTIVE" }, data: { status: "REVOKED" } });
@@ -231,6 +240,7 @@ export class PrismaMembershipService {
       const manager = await this.requireManager(tx, actor, target.organizationId);
       if (manager.id === target.id && target.organizationRole !== role) throw new Error("PERMISSION_SELF_ELEVATION_DENIED");
       if (target.status !== "ACTIVE") throw new Error("TENANT_INACTIVE_MEMBERSHIP");
+      this.assertGovernanceCeiling(manager.organizationRole, target.organizationRole);
       const allowed = manager.organizationRole === "OWNER" || NON_GOVERNANCE_ROLES.includes(role);
       if (!allowed) throw new Error("PERMISSION_ROLE_ASSIGNMENT_DENIED");
       if (target.organizationRole === "OWNER" && role !== "OWNER") await this.assertNotLastOwner(tx, target);
@@ -241,7 +251,8 @@ export class PrismaMembershipService {
   async removeOrganizationRole(actor: ExternalActor, membershipId: string): Promise<void> {
     await this.db.$transaction(async (tx) => {
       const target = await this.requireTarget(tx, membershipId);
-      await this.requireManager(tx, actor, target.organizationId);
+      const manager = await this.requireManager(tx, actor, target.organizationId);
+      this.assertGovernanceCeiling(manager.organizationRole, target.organizationRole);
       await this.assertNotLastOwner(tx, target);
       await tx.membership.update({ where: { id: membershipId }, data: { organizationRole: null } });
     });
@@ -252,7 +263,7 @@ export class PrismaMembershipService {
       const from = await this.requireTarget(tx, fromMembershipId);
       const to = await this.requireTarget(tx, toMembershipId);
       const manager = await this.requireManager(tx, actor, from.organizationId);
-      if (manager.organizationRole !== "OWNER" || to.organizationId !== from.organizationId || to.status !== "ACTIVE") {
+      if (manager.organizationRole !== "OWNER" || from.organizationRole !== "OWNER" || to.organizationId !== from.organizationId || to.status !== "ACTIVE") {
         throw new Error("PERMISSION_OWNERSHIP_TRANSFER_DENIED");
       }
       await tx.membership.update({ where: { id: to.id }, data: { organizationRole: "OWNER" } });
