@@ -1,6 +1,6 @@
 # PIL-WO-20260905-001-reconcile-baseline — Reconcile canonical PBOS baseline
 
-Status: REVIEW_READY
+Status: MERGED/CLOSED
 Phase: P0 — Canonical Baseline
 
 ## Objective
@@ -30,8 +30,8 @@ Establish a trustworthy canonical Git/code/test baseline for the existing PBOS r
 - [x] Current tests and production build rerun and recorded.
 - [x] P0 secret/generated-artifact inspection recorded without exposing values.
 - [x] Bounded documentation-drift inventory recorded.
-- [ ] GitHub contains the canonical baseline after explicit Owner approval and safe fast-forward push.
-- [ ] Final remote reachability and final P0 state verified.
+- [x] GitHub contains the canonical baseline after explicit Owner approval and safe fast-forward push.
+- [x] Final remote reachability and final P0 state verified.
 
 ## Out of scope
 

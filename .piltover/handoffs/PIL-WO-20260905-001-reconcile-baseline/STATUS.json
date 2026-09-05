@@ -1,8 +1,8 @@
 {
   "work_order_id": "PIL-WO-20260905-001-reconcile-baseline",
   "phase": "P0",
-  "state": "REVIEW_READY",
-  "updated_at": "2026-09-05T17:11:56+07:00",
+  "state": "MERGED/CLOSED",
+  "updated_at": "2026-09-05T17:19:47+07:00",
   "history": [
     {
       "state": "DRAFT",
@@ -23,7 +23,17 @@
       "state": "REVIEW_READY",
       "at": "2026-09-05T17:11:56+07:00",
       "evidence": "Pre-mutation evidence supports a safe fast-forward; remote mutation awaits Owner approval."
+    },
+    {
+      "state": "APPROVED",
+      "at": "2026-09-05T17:19:47+07:00",
+      "evidence": "Owner approved the exact fast-forward operation git push origin master:master."
+    },
+    {
+      "state": "MERGED/CLOSED",
+      "at": "2026-09-05T17:19:47+07:00",
+      "evidence": "Remote master advanced by fast-forward; fetch, ls-remote, ancestry, reachability, and divergence checks passed."
     }
   ],
-  "blocker": "Explicit Owner approval is required before advancing remote master."
+  "blocker": null
 }
