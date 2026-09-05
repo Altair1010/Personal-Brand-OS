@@ -45,7 +45,7 @@ Exact canonical code graph:
 
 ```text
 Changed files: this five-file P0 handoff packet only
-Commits created: pending local evidence commit at time of this draft
+Commits created: 77c4994b5ee9f5ecbf10842650394f7036c3a301 (local P0 evidence packet)
 Remote refs changed: NONE
 Application/code/schema/dependency changes: NONE
 ```
