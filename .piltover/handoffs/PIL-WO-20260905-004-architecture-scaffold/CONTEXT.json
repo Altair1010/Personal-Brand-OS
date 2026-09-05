@@ -1,0 +1,14 @@
+{
+  "workOrderId": "PIL-WO-20260905-004-architecture-scaffold",
+  "title": "P1 architecture scaffold",
+  "repository": "Altair1010/Personal-Brand-OS",
+  "branch": "work/PIL-WO-20260905-004-architecture-scaffold",
+  "baseCommit": "342816cebb64cd2701931fba84c3d2e10bc6495a",
+  "originMasterAtStart": "342816cebb64cd2701931fba84c3d2e10bc6495a",
+  "p02Reachable": true,
+  "canonicalPackage": "docs/Piltover-Master-Technical-Package-v1.0.0",
+  "architectureRoot": "lib/piltover",
+  "runtimeBehaviorChangesAllowed": false,
+  "schemaChangesAllowed": false,
+  "dependencyChangesAllowed": false
+}

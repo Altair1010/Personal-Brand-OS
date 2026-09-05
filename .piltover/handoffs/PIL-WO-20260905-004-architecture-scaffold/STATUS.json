@@ -1,0 +1,9 @@
+{
+  "workOrderId": "PIL-WO-20260905-004-architecture-scaffold",
+  "state": "IN_PROGRESS",
+  "updatedAt": "2026-09-05T21:45:07+07:00",
+  "baseCommit": "342816cebb64cd2701931fba84c3d2e10bc6495a",
+  "headCommit": null,
+  "summary": "P1 baseline verified; architecture scaffold implementation is in progress.",
+  "blockers": []
+}
