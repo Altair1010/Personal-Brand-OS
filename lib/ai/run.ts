@@ -306,6 +306,9 @@ async function savePromptRun<I, O>(args: {
         tokensOut: args.tokensOut ?? null,
         error: args.error,
       },
+      // Keep the legacy compatibility path usable before an Owner-local database
+      // receives the additive P2 migration; tenant-aware paths use the scoped API.
+      select: { id: true },
     });
   } catch {
     // Persistence is best-effort; swallow so the pipeline result is unaffected.
