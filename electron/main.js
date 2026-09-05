@@ -1,6 +1,6 @@
 // Electron desktop shell (milestone M11).
 // Two boot modes, selected at runtime — the wrapper NEVER changes web behavior, it only
-// boots the existing Next server and points a window at it (RULES.md > "Approved scope exceptions"):
+// boots the existing Next server and points a window at it without changing web behavior:
 //   - dev  (default): spawn `next dev` (unchanged from Phase A).
 //   - prod (packaged, or local `--prod`): boot the Next `output:'standalone'` server with
 //     Electron's own node, DB relocated to userData, first-run migrate, API key from userData/pbos.env.

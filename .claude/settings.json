@@ -127,18 +127,7 @@
                                                         }
                                                     ]
                                       }
-                                  ],
-                  "SessionEnd":  [
-                                     {
-                                         "hooks":  [
-                                                       {
-                                                           "type":  "command",
-                                                           "command":  "powershell -NoProfile -File .claude/hooks/session-learner.ps1",
-                                                           "timeout":  30
-                                                       }
-                                                   ]
-                                     }
-                                 ]
+                                  ]
               },
     "statusLine":  {
                        "type":  "command",

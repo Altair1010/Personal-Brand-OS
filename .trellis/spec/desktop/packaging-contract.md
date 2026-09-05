@@ -91,5 +91,5 @@ spawn(process.execPath, [standaloneServerJs], {
 **Context**: electron-builder cannot cross-build a macOS `.dmg`/`.app` from Windows.
 
 **Decision**: build the Mac artifact on a GitHub Actions `macos-latest` runner (Apple hardware in
-cloud), triggered on `v*` tags. Requires pushing the repo to a GitHub remote (currently none — see
-`ToFill.md`). Win artifact builds locally.
+cloud), triggered on `v*` tags. Remote/artifact state must be re-established in the active Work
+Order; this historical document is not current-state evidence. Win artifact builds locally.

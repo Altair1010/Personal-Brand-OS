@@ -1,35 +1,78 @@
-# AGENTS.md — agent definitions & orchestration
+# AGENTS.md — Piltover
 
-## Roles
+## 1. Identity
 
-| Agent | Responsibility | Boundary |
-|---|---|---|
-| triage      | Read STATE.md + plan.md + todo.md; pick the highest-priority task. | Coordinates only. Writes no code. |
-| researcher  | context7 + web + graph queries; synthesize findings into plan.md. | Read-only. Never edits code. |
-| implementer | Apply the code change for one task item. | Isolated worktree. Surgical changes (Karpathy §3). |
-| verifier    | Run tests + lint + type-checks against the Done criteria. | Isolated worktree. Reports pass/fail; does not "fix" silently. |
+- Product: **Piltover**.
+- Lineage: Personal Brand OS (PBOS) → Marketing Content Studio concept → Piltover.
+- Existing working PBOS functionality is migrated incrementally, not discarded.
+- Git history is the code-history archive; legacy root documents are not active authority.
 
-## Orchestration flow
-1. **triage** -> selects the next open item, updates todo.md `## Now`.
-2. **researcher** -> gathers context (graph first, grep fallback), records assumptions + plan in plan.md.
-3. **implementer** -> makes the minimal change; appends a checkpoint to plan.md.
-4. **verifier** -> checks the Done criteria; on pass, triage moves the item to `## Done`
-   and records any lasting decision in MEMORY.md.
+## 2. Authority
 
-## Project sub-agents (spawnable — `.claude/agents/pbos-*.md`)
+Use this normative order:
 
-| Agent | Use when | Mode |
-|---|---|---|
-| `pbos-scope-guard`        | Before merging a milestone / when a change may drift out of MVP scope. Audits against RULES.md + SPEC.md. | Read-only. Reports violations. |
-| `pbos-prompt-engineer`    | Building/auditing any D.x AI module (`lib/prompts/<key>.ts` + validators) per Prompt System v2 + the fixed pipeline. | Edits AI layer. |
-| `pbos-data-modeler`       | Adding/altering the 22 entities, migrations, or seed idempotency; preserving versioning + attribution invariants. | Edits schema/seed. |
-| `pbos-milestone-verifier` | Before declaring an `Mx` Done / before commit `Mx: <goal>`. Runs build + VERIFY + acceptance + seed-idempotency gate. | Read/run-only. Reports PASS/FAIL. |
+```text
+Owner current instruction
+  → Technical Constitution
+  → Source of Truth
+  → active phase
+  → approved Work Order
+  → smallest relevant canonical specification
+  → this bootstrap
+```
 
-Typical flow per milestone: **researcher/implementer** build -> **pbos-prompt-engineer**
-or **pbos-data-modeler** for the specialized layer -> **pbos-scope-guard** audit ->
-**pbos-milestone-verifier** gate -> commit.
+Actual Git, filesystem, source, schema, tests, and runtime output establish empirical state. A
+historical claim never overrides fresh evidence, and accidental implementation state does not
+silently rewrite normative architecture.
 
-## Escalate to the user when
-- A hard stop in RULES.md is hit.
-- The change is irreversible (delete/overwrite/push) and not yet authorized.
-- The same step fails twice in a row (see RULES.md > Agent escalation).
+## 3. Context loading
+
+Load context progressively:
+
+```text
+active Work Order → active phase → smallest relevant spec → relevant code → evidence
+```
+
+Do not preload the whole technical package or recover legacy root files from Git merely because
+they existed. Widen the read set only when evidence requires it.
+
+## 4. Execution model
+
+- Freeze the objective, DONE criteria, non-goals, and gates before implementation.
+- Keep one active route and make the smallest coherent change.
+- Inspect before editing; preserve unrelated and uncommitted work.
+- Prefer evidence before abstraction and existing capability before a new dependency or service.
+- Run proportional verification and record commands/results; never fabricate PASS.
+- Do not perform unrelated cleanup. When DONE criteria pass, stop.
+
+## 5. Piltover migration constraints
+
+- Preserve working behavior and migrate by seam; do not rewrite from zero.
+- Use a modular monolith first. Keep provider/framework code behind stable boundaries.
+- No VPS. Do not introduce infrastructure without evidence and an approved decision.
+- The primary AI path is Codex through the Personal Codex Worker unless an approved ADR changes it.
+- Production UI/visual implementation is deferred to P13; earlier diagnostic surfaces are disposable.
+- Destructive, security-sensitive, canonical-business, and external actions require the applicable
+  Owner gate and a recovery path.
+- Do not infer live-integration success from mocks or historical test counts.
+
+## 6. Development handoff
+
+- Durable task state lives in `.piltover/handoffs/<WORK_ORDER_ID>/`.
+- Use the canonical Git/GitHub workflow in the technical package: resolve actual state, use a task
+  branch, keep commits reviewable, and push/open/merge only when authorized.
+- Completion requires relevant tests/evidence plus a reviewed diff. Do not hide limitations.
+
+## 7. Where to read next
+
+Canonical package root:
+`docs/Piltover-Master-Technical-Package-v1.0.0/`
+
+Start with only what the task needs:
+
+- `00_META/SOURCE_OF_TRUTH.md`
+- `01_GOVERNANCE/TECHNICAL_CONSTITUTION.md`
+- `01_GOVERNANCE/OWNER_GATES.md` when a gate is relevant
+- `12_PHASES/<active phase>.md`
+- `.piltover/handoffs/<WORK_ORDER_ID>/`
+- `09_GITHUB_HANDOFF/` for branch, evidence, and handoff rules

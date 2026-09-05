@@ -9,7 +9,7 @@
 // (scrypt) with a random salt embedded in the blob, so any machine with the passphrase can
 // decrypt. The passphrase itself is NEVER uploaded.
 //
-// HARD RULE (RULES.md): secrets never enter the cloud snapshot. See STRIP_FIELDS.
+// Security invariant: secrets never enter the cloud snapshot. See STRIP_FIELDS.
 
 import crypto from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";

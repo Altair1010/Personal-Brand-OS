@@ -69,8 +69,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         <h1 className="text-lg font-semibold">Chưa cấu hình Supabase</h1>
         <p className="max-w-md text-sm text-muted-foreground">
           Điền <code>SUPABASE_URL</code> và <code>SUPABASE_ANON_KEY</code> vào{" "}
-          <code>.env</code> (dev) hoặc <code>pbos.env</code> (bản đóng gói), rồi mở lại app.
-          Xem ToFill.md §5.
+          <code>.env</code> (dev) hoặc cấu hình runtime tương ứng của bản đóng gói, rồi mở lại app.
         </p>
       </div>
     );

@@ -426,7 +426,7 @@ Trả lại JSON ĐÚNG schema sau, chỉ sửa phần sai, giữ nguyên phần
 
 ---
 
-# PHẦN 3B — DESKTOP (post-MVP, đã duyệt scope: RULES.md > "Approved scope exceptions")
+# PHẦN 3B — DESKTOP (historical PBOS milestone; Piltover migration input only)
 
 > M11 & M12 bọc web MVP thành app desktop (Mac + Win). **KHÔNG đổi entity/feature/web behavior** —
 > chỉ thêm runtime shell + đóng gói. Quyết định đã chốt: **không code-sign** (chấp nhận cảnh báo
@@ -440,7 +440,7 @@ Trả lại JSON ĐÚNG schema sau, chỉ sửa phần sai, giữ nguyên phần
 **④ Prompt:**
 - **Vai trò:** Desktop/full-stack engineer bọc Next app bằng Electron, giữ web nguyên.
 - **Nhiệm vụ:** chuyển `electron/main.js` từ `next dev` → production; dời DB sang userData; first-run migrate; key runtime; cấu hình Next standalone.
-- **Đọc theo thứ tự:** `electron/main.js` → `next.config.*` → `RULES.md` (dòng 91–113 "Approved scope exceptions" + "packaging-friendly constraints") → `prisma/schema.prisma` (DATABASE_URL) → `CLAUDE.md`.
+- **Đọc theo thứ tự:** `electron/main.js` → `next.config.*` → `prisma/schema.prisma` (DATABASE_URL) → `CLAUDE.md`. Piltover work must also follow the active Work Order and canonical migration package.
 - **Tạo/sửa file + cấu trúc:**
   - `electron/main.js`: bỏ `next dev`; boot Next `output:'standalone'` `server.js` bằng Electron node (`process.execPath` + `ELECTRON_RUN_AS_NODE=1`); bỏ phụ thuộc `node_modules/next/bin`.
   - DB: khi production/packaged → set `DATABASE_URL` = file trong `app.getPath('userData')`; dev giữ `prisma/dev.db`.
@@ -458,7 +458,7 @@ Trả lại JSON ĐÚNG schema sau, chỉ sửa phần sai, giữ nguyên phần
 **④ Prompt:**
 - **Vai trò:** Release engineer đóng gói Electron đa nền tảng.
 - **Nhiệm vụ:** cấu hình electron-builder (nsis + dmg, unsigned) + icon + CI macOS; ra artifacts.
-- **Đọc theo thứ tự:** `electron/main.js` (M11) → `package.json` → `RULES.md` (packaging-friendly constraints 99–113) → `ToFill.md`.
+- **Đọc theo thứ tự:** `electron/main.js` (M11) → `package.json` → the active Piltover Work Order. Legacy manual-input evidence is summarized in the P0.1 handoff.
 - **Tạo/sửa file + cấu trúc:**
   - devDep `electron-builder`; scripts `dist` / `dist:win` / `dist:mac`.
   - `electron-builder.yml` (hoặc `package.json > build`): Win `nsis` (`createDesktopShortcut:true`, `createStartMenuShortcut`, icon `.ico`); Mac `dmg` (icon `.icns`, `mac.identity:null`); `asarUnpack` Prisma engines + node-only deps (pdf-parse/pdfjs-dist/mammoth) + standalone server; `extraResources` migrations/seed nếu cần first-run.
@@ -467,11 +467,11 @@ Trả lại JSON ĐÚNG schema sau, chỉ sửa phần sai, giữ nguyên phần
 - **Không được làm:** không code-sign (chấp nhận cảnh báo OS); không đổi runtime logic M11; không đổi scope web.
 - **Báo cáo:** đường dẫn artifacts (Win local + Mac CI) + xác nhận cài chạy được.
 - **Ước lượng token:** ~35–45K (~18–23%). 1 phiên.
-- **Việc user phải tự làm:** tạo GitHub repo + push remote (để chạy macOS CI) — xem `ToFill.md`.
+- **Việc user phải tự làm (historical):** tạo GitHub repo + push remote để chạy macOS CI. Current status must be re-established in the active Work Order.
 
 ---
 
-# PHẦN 4 — EXTENDED MILESTONES (post-M12, đã duyệt scope: RULES.md > "Approved scope exceptions")
+# PHẦN 4 — EXTENDED MILESTONES (historical PBOS extension; Piltover migration input only)
 
 > **EM1 = mở rộng CÓ CHỦ ĐÍCH ngoài MVP lock** (user duyệt 2026-07-11): nhập API key +
 > chọn model trong Settings; tài khoản cá nhân + backup cloud để khôi phục máy khác; đa

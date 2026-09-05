@@ -4,7 +4,7 @@
     (tuong tu 'rtk gain --history' nhung gop CA 4 lop pipeline).
 
 .DESCRIPTION
-    Gop so lieu 4 lop nen token do setup-claude-agent-system.ps1 cai:
+    Gop so lieu 4 lop nen token da cai trong moi truong phat trien:
       1. headroom        - proxy cache+context   (headroom perf --format json)
       2. rtk             - nen CLI output         (rtk gain --format json)
       3. token-optimizer - file-read/grep cache   (~/.token-optimizer-cache/cache.db)

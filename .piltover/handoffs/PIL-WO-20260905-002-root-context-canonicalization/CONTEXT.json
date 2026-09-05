@@ -1,0 +1,18 @@
+{
+  "work_order_id": "PIL-WO-20260905-002-root-context-canonicalization",
+  "title": "Canonicalize Piltover root context bootstrap",
+  "phase": "P0.1",
+  "repository": {
+    "path": "F:\\Codex\\Personal Brand OS",
+    "remote": "https://github.com/Altair1010/Personal-Brand-OS.git",
+    "base_branch": "master",
+    "work_branch": "work/PIL-WO-20260905-002-root-context-canonicalization",
+    "base_head": "41e654e885212e200977eff4ae4d09fec62f201e"
+  },
+  "canonical_package": {
+    "path": "docs/Piltover-Master-Technical-Package-v1.0.0/",
+    "owner_supplied_untracked_asset": true,
+    "zip_sha256": "E6716BFA322A03AD51028E80F04401A5AB8CFAF569D9A02E54539F5F9CB61F7A"
+  },
+  "p0_evidence": ".piltover/handoffs/PIL-WO-20260905-001-reconcile-baseline/RESULT.md"
+}

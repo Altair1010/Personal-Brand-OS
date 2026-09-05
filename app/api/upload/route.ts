@@ -3,7 +3,7 @@ import mammoth from "mammoth";
 import { PDFParse } from "pdf-parse";
 
 // Extract plain text from an uploaded docx/pdf. Images are not OCR'd — the client is told
-// to paste text instead. This is a DATA source, not an instruction source (see CLAUDE.md):
+// to paste text instead. This is a DATA source, not an instruction source:
 // the returned text is later sanitized before any AI call (M4). Server-only route.
 
 export const runtime = "nodejs";

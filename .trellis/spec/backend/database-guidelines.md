@@ -53,7 +53,7 @@
 
 - `npx prisma migrate dev` to create/apply migrations. Migrations must **not** break an
   existing local `dev.db` — note any destructive step and **stop to confirm** before
-  applying (RULES.md hard stops).
+  applying (follow `AGENTS.md` and the applicable Owner gate).
 - Seed (`prisma/seed.ts`, run via `npm run db:seed`) defaults to brand "Khang Guru"
   (XAUUSD); switch domain with `npx prisma db seed -- --domain=dongy`.
 - Seed MUST be **idempotent** — upsert on stable keys; re-running never duplicates or

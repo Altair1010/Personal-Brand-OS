@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { BrandDnaInput } from "@/lib/validators/brandDna";
 import type { GoalInput, KpiItem } from "@/lib/validators/goal";
 
-// Transient wizard state (Zustand = UI state per CLAUDE.md). Server persistence is via the
+// Transient wizard state (Zustand UI state). Server persistence is via the
 // onboarding server actions; this store only holds the in-progress draft across the 2 steps
 // so a step switch doesn't lose input. Seeded from server data on mount.
 

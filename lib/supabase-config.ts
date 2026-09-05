@@ -15,7 +15,7 @@ export function getSupabaseConfigOrThrow(): SupabaseConfig {
   if (!url || !anonKey) {
     throw new Error(
       "Chưa cấu hình Supabase. Điền SUPABASE_URL và SUPABASE_ANON_KEY vào .env (dev) " +
-        "hoặc pbos.env (bản đóng gói) — xem ToFill.md §5.",
+        "hoặc cấu hình runtime tương ứng của bản đóng gói.",
     );
   }
   return { url, anonKey };

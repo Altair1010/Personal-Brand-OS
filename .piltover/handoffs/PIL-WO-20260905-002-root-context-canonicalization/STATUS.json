@@ -1,0 +1,21 @@
+{
+  "work_order_id": "PIL-WO-20260905-002-root-context-canonicalization",
+  "phase": "P0.1",
+  "state": "REVIEW_READY",
+  "updated_at": "2026-09-05T17:45:25+07:00",
+  "history": [
+    {
+      "state": "DRAFT",
+      "evidence": "Owner supplied the P0.1 control contract and authorized reversible local context canonicalization."
+    },
+    {
+      "state": "IN_PROGRESS",
+      "evidence": "P0 verified; root Markdown read and inventoried; consumers and canonical package audited; implementation started on the Work Order branch."
+    },
+    {
+      "state": "REVIEW_READY",
+      "evidence": "Root context canonicalization and reference retirement completed; deterministic, semantic, cycle, link, secret, and scope checks passed."
+    }
+  ],
+  "blocker": null
+}
