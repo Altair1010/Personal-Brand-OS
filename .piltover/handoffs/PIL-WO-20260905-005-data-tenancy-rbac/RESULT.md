@@ -288,15 +288,19 @@ Provider migration: NO
 ## COMMITS
 
 - `ec11ce83e810daecef34dc2f463a120c5c18894b` — record the P2 canonical-model gate and evidence.
+- `626b492c59424256f505d16c7f49e4c7cec2aa3f` — close the original blocked P2 checkpoint.
+- `9f2b0f8b86336ecedd60653f60924af9fdd02f23` — propose the P2 canonical contract and ADR.
 
-The subsequent metadata closeout commit is intentionally not self-referential; its exact SHA is
+The subsequent contract-gate metadata closeout commit is intentionally not self-referential; its exact SHA is
 reported by Git and the final Owner report.
 
 ## REMOTE PHASE BRANCH
 
 branch: `work/PIL-WO-20260905-005-data-tenancy-rbac`
 
-remote evidence checkpoint SHA: `ec11ce83e810daecef34dc2f463a120c5c18894b` (verified by direct remote ref lookup)
+proposal evidence checkpoint SHA: `9f2b0f8b86336ecedd60653f60924af9fdd02f23`
+
+Remote verification is recorded after the metadata closeout commit is pushed.
 
 ## CANONICALIZATION
 
