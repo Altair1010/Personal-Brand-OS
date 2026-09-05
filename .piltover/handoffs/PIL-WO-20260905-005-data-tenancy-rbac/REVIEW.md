@@ -1,6 +1,85 @@
 # Review — PIL-WO-20260905-005-data-tenancy-rbac
 
-Decision: IN_PROGRESS
+Decision: TECHNICALLY_COMPLETE — PENDING OWNER CANONICALIZATION
+
+## Technical implementation adversarial review
+
+### DATA LOSS
+
+Finding: PASS for the populated disposable fixture. Evidence: IDs, text, JSON/string PromptRun
+payloads, relations, metric nulls, and measured zero survive; `PRAGMA foreign_key_check` is empty.
+Severity: Critical. Resolution: keep migration additive and require production backup/operational
+planning outside P2 before any real deployment.
+
+### TENANT ESCAPE / SIBLING LEAKAGE / CROSS-BRAND LEAKAGE
+
+Finding: PASS. Evidence: compound ancestry FKs, server-resolved targets, exact membership lookup,
+scoped binding lookup, missing-context denial, cross-Organization/Workspace/Brand negative tests,
+and Pillar/provider injection guards. Severity: Critical. Resolution: new scoped operations use the
+P2 access/guard surfaces; legacy paths remain explicit compatibility seams.
+
+### RBAC BYPASS / ROLE ESCALATION
+
+Finding: PASS. Evidence: one 24-capability registry drives all 168 role cells, invalid target pairs
+deny, ADMIN cannot create or mutate OWNER/ADMIN governance, scoped ADMIN cannot mint governance
+roles, self-elevation denies, and assignment is tenant-bound. Severity: Critical. Resolution: retain
+separate capability evaluation and assignment-ceiling checks.
+
+### PRIVILEGE RESURRECTION
+
+Finding: PASS. Evidence: suspension retains grants but denies while suspended; revocation clears the
+Organization role and revokes all scoped bindings in one transaction; generic resume rejects a
+revoked row; readmission re-revokes bindings and activates with no role. Severity: Critical.
+Resolution: fresh explicit role assignment is required after readmission.
+
+### OWNER LOCKOUT
+
+Finding: PASS. Evidence: suspend, revoke, demotion, and role removal check the active Owner count
+inside their transaction; transfer writes the new Owner before demoting the old Owner. Severity:
+Critical. Resolution: no ownerless Organization transition is exposed.
+
+### PROMPTRUN DISCLOSURE
+
+Finding: PASS. Evidence: complete-consumer proof runs only after direct scoping; unresolved or mixed
+consumers remain null/conflict evidence; scoped reads require exact Organization and Brand; scoped
+creation verifies Brand ancestry. Severity: Critical. Resolution: global-most-recent behavior remains
+legacy-only and no new tenant API returns unowned runs.
+
+### METRIC DUPLICATION / NULL FABRICATION
+
+Finding: PASS. Evidence: dedupe uses tenant, measured owner, metric key, observation time, source,
+and source record but excludes value; Brand/dedupe is unique; rerun creates zero rows; null emits no
+fact while zero remains zero. Severity: Critical. Resolution: retain MetricSnapshot and idempotent
+source mapping.
+
+### SQLITE TABLE COPY LOSS / BAD CASCADE
+
+Finding: PASS for reviewed SQL and fixtures. Evidence: every copied table uses an explicit old-column
+`INSERT ... SELECT`; populated migration preserves values; all tenant/business FKs use RESTRICT,
+except the approved MetricObservation legacy Post bridge uses SET NULL. Severity: High. Resolution:
+no hard-delete API and no contract-phase cleanup in P2.
+
+### BACKUP OMISSION / V1 UPGRADE FAILURE
+
+Finding: PASS. Evidence: v2 enumerates all canonical models, restore order is FK-safe, v2 round-trip
+passes, v1 restore invokes the same backfill, and cloud tests retain secret stripping. Severity:
+Critical. Resolution: reject unknown backup versions and preserve PromptRun tenant keys.
+
+### LEGACY ROUTE REGRESSION
+
+Finding: PASS. Evidence: 29 files/141 tests and production build pass; the legacy PromptRun writer
+uses an ID-only return selection so the pre-migration working DB does not require new columns.
+Severity: High. Resolution: no route payload or UI change.
+
+### ARCHITECTURE BOUNDARY VIOLATION
+
+Finding: PASS. Evidence: Prisma is confined to infrastructure; the P1 architecture suite passes all
+6 tests. Severity: High. Resolution: domain RBAC remains provider-independent.
+
+### SCOPE CREEP
+
+Finding: PASS. Evidence: no dependency, provider, UI, auth-provider, database-family, Worker, Agent
+Control Plane, MCP, or P3 change. Severity: High. Resolution: stop at the canonicalization gate.
 
 ## Owner approval
 
@@ -14,12 +93,17 @@ deployment, provider migration, UI redesign, or P3.
 - Canonical baseline: PASS — `origin/master` and branch base were identical at P1 close SHA.
 - Canonical contract extraction: APPROVED — Revision R1 is the governing bounded implementation
   contract.
-- Schema/migration/backfill: NOT STARTED — correctly stopped before mutation.
-- Tenant/RBAC isolation: NOT TESTABLE until the policy contract is approved.
+- Schema/migration/backfill: PASS — additive migration and deterministic backfill verified.
+- Tenant/RBAC isolation: PASS — targeted negative and temporal tests verified.
 - Regression baseline: PASS — 24 files and 118 tests; production build passed.
-- Scope preservation: PASS — no schema, application, dependency, provider, UI, or P3 change.
+- Scope preservation: PASS — authorized P2 schema/application seams only; no dependency, provider,
+  UI, or P3 change.
 
-## Proposed contract adversarial review
+## Historical proposed-contract adversarial review
+
+The sections below preserve the pre-implementation R1 threat analysis. Items described there as
+future implementation requirements are resolved by the technical review above unless explicitly
+listed as a current limitation.
 
 ### TEMPORAL PRIVILEGE RESURRECTION
 
@@ -210,7 +294,7 @@ Finding: Prisma cannot express all CHECK and cross-row invariants, and SQLite ma
 Evidence: The addendum distinguishes database-enforced compound FKs/uniques from transactionally
 enforced owner count, lifecycle, and transitional relation checks.
 
-Severity: High implementation risk, unresolved until implementation verification
+Severity: High implementation risk, resolved by implementation verification
 
 Resolution: Review generated SQL line-by-line; add bounded raw CHECK constraints; test populated and
 fresh disposable databases; do not claim database-only enforcement for application checks.
@@ -221,7 +305,7 @@ Finding: Current version-1 backup omits every proposed canonical table.
 
 Evidence: `lib/import-export/backup.ts` enumerates the existing models and import order.
 
-Severity: Critical implementation risk, unresolved until implementation verification
+Severity: Critical implementation risk, resolved by implementation verification
 
 Resolution: Version the envelope, add parent-first restore order, retain v1 import followed by the
 same backfill, and test both round trips before P2 technical completion.
@@ -333,9 +417,10 @@ Resolution: Extend and round-trip the ownership graph in the same P2 change afte
 
 ### LEGACY ROUTE REGRESSION
 
-Finding: No application route was changed.
+Finding: No application route contract was changed.
 
-Evidence: Work Order diff is documentation-only.
+Evidence: The P2 diff adds passive ownership/security seams and an ID-only legacy persistence
+compatibility selection; it does not alter route payloads or UI behavior.
 
 Severity: None
 
@@ -343,9 +428,9 @@ Resolution: Preserve this invariant during resumed additive implementation.
 
 ### ARCHITECTURE BOUNDARY VIOLATION
 
-Finding: No P2 source code exists yet.
+Finding: P2 source preserves the P1 direction.
 
-Evidence: P1 architecture tests pass in the baseline suite.
+Evidence: Domain RBAC has no provider import; Prisma code is under infrastructure; P1 checks pass.
 
 Severity: None
 
@@ -355,7 +440,8 @@ Resolution: Keep Prisma adapters in infrastructure and domain/application contra
 
 Finding: None observed.
 
-Evidence: No schema, application, dependency, provider, UI, P3, Worker, Agent Control Plane, or MCP change.
+Evidence: Only approved P2 schema/application seams changed; no dependency, provider, UI, P3,
+Worker, Agent Control Plane, or MCP work occurred.
 
 Severity: None
 
@@ -363,17 +449,17 @@ Resolution: Continue to preserve phase boundaries.
 
 ## Constitution/architecture review
 
-- scope: PASS — analysis and durable blocker evidence only.
-- boundaries: PASS — no new code or dependency.
-- data safety: PASS — no database or schema mutation.
+- scope: PASS — approved P2 implementation only.
+- boundaries: PASS — no new dependency and P1 checks pass.
+- data safety: PASS — additive migration verified only on disposable databases.
 - observability: PASS — actual Git, source, test, build, Prisma, and typecheck evidence recorded.
-- tests: baseline PASS; P2 tests correctly not fabricated.
+- tests: targeted, migration, full regression, build, and typecheck delta are actual run evidence.
 
 ## Required changes
 
-1. Owner must approve or request changes to the proposed P2 model and permission contract.
-2. Resume P2 on this branch only after the gate is resolved.
-3. Use TDD and additive migration verification against fresh and populated disposable SQLite databases.
+1. Owner must approve or reject strict fast-forward canonical reconciliation of the technical P2 SHA.
+2. Do not migrate production or the Owner's working database under this Work Order.
+3. Do not begin P3 until canonical remote verification passes.
 
 ## Non-blocking notes
 

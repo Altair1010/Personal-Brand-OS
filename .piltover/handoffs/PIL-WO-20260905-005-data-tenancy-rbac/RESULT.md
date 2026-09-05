@@ -1,6 +1,6 @@
 # P2 — DATA + TENANCY + RBAC
 
-STATUS: IN_PROGRESS
+STATUS: TECHNICALLY_COMPLETE
 
 ## BASE
 
@@ -12,134 +12,40 @@ branch: `work/PIL-WO-20260905-005-data-tenancy-rbac`
 
 Work Order: `PIL-WO-20260905-005-data-tenancy-rbac`
 
-The P1 close commit, P1 Work Order result, module scaffold, boundary checker, ports, shared contracts,
-and ADR mechanism were all verified from `origin/master`. The branch began with ahead/behind `0/0`.
-
 ## CANONICAL SOURCES
 
-- `00_META/SOURCE_OF_TRUTH.md`
-- `01_GOVERNANCE/TECHNICAL_CONSTITUTION.md`
-- `01_GOVERNANCE/OWNER_GATES.md`
-- `01_GOVERNANCE/CHANGE_AND_ADR_POLICY.md`
-- `02_ARCHITECTURE/SYSTEM_ARCHITECTURE.md`
-- `02_ARCHITECTURE/MODULE_BOUNDARIES.md`
-- `02_ARCHITECTURE/PORTS_AND_ADAPTERS.md`
-- `03_DOMAIN/TENANCY_AND_RBAC.md`
-- `03_DOMAIN/DOMAIN_MODEL.md`
-- `03_DOMAIN/LEARNING_MODEL.md`
-- `04_DATA/TARGET_SCHEMA.md`
-- `04_DATA/TARGET_DATA_ARCHITECTURE.md`
-- `04_DATA/MIGRATION_POLICY.md`
-- `04_DATA/BACKUP_AND_RECOVERY.md`
-- `09_GITHUB_HANDOFF/CODEX_PLAYBOOK.md`
-- `09_GITHUB_HANDOFF/HANDOFF_PROTOCOL.md`
-- `10_QUALITY/ERROR_TAXONOMY.md`
-- `10_QUALITY/SECURITY_MODEL.md`
-- `10_QUALITY/TEST_STRATEGY.md`
-- `11_MIGRATION/PBOS_TO_PILTOVER.md`
-- `12_PHASES/P2_DATA_AND_TENANCY.md`
-- P1 Work Order `RESULT.md`
-
-## CONTRACT-RESOLUTION GATE
-
-Owner approval: YES — Revision R1 approved on 2026-09-06.
-
-Approved reviewed head: `7d8be5f197856574591bca2e4cb96d1cc7ba8ade`
-
-Implementation authorization: bounded P2 schema, migration, tenancy, RBAC, PromptRun ownership,
-MetricObservation, backup/restore, and verification work on the existing P2 branch. Canonical master
-integration, production migration, deployment, provider migration, UI redesign, and P3 remain
-unauthorized.
-
-The seven model/security gaps were resolved into one bounded proposal without schema or application
-mutation:
-
-- Addendum: `.piltover/handoffs/PIL-WO-20260905-005-data-tenancy-rbac/P2_CANONICAL_CONTRACT_ADDENDUM.md`
-- ADR: `docs/adr/0001-p2-tenancy-rbac-contract.md`
-- Addendum status: `APPROVED`
-- ADR status: `APPROVED`
-
-Owner review status: `APPROVED`. Revision R1 corrects stale-grant resurrection on
-Membership readmission, adds Workspace lifecycle authority, scopes tenant-sensitive PromptRun data
-when ownership is provable, and removes the unnecessary one-subject-per-provider AuthIdentity
-constraint. Implementation is now in progress under the approved scope.
-
-Recommended contract summary:
-
-- separate `UserIdentity` and provider auth subjects from retained `UserProfile`;
-- active Organization Membership with optional Organization role plus FK-backed Workspace and Brand
-  role bindings;
-- one role per scope and union of positive grants down validated ancestry, with deny by default;
-- 24 action capabilities and a complete matrix for all seven canonical roles, including separate
-  `workspace.lifecycle.manage` authority;
-- role-assignment ceilings, no scoped OWNER, and last-Organization-Owner protection;
-- suspension as a grant-preserving pause, revocation as atomic grant destruction, and zero-grant
-  READMISSION;
-- tenant-sensitive PromptRun ownership proven from its complete consumer set, with unresolved rows
-  excluded from new tenant APIs;
-- AuthIdentity uniqueness only on `(provider, subject)`, without a per-principal/provider limit;
-- archive/disable/revoke lifecycle with restrictive foreign keys and no P2 hard-delete path;
-- Brand-owned normalized typed MetricObservation rows with an optional legacy Post bridge;
-- transactional one-tenant-graph-per-profile backfill and versioned backup compatibility.
-
-Remaining unresolved contract questions: NONE. Revision R1 is approved and implementation is
-authorized within the recorded scope.
-
-Schema mutation: NONE.
+Implementation follows the approved `P2_CANONICAL_CONTRACT_ADDENDUM.md`, approved ADR-0001, P1
+RESULT, and the P2 authority set recorded in `CONTEXT.json`. Owner approval applies to reviewed R1
+SHA `7d8be5f197856574591bca2e4cb96d1cc7ba8ade`.
 
 ## DATA MODEL CONTRACT
 
-Organization: approved physical root with stable ID, display name, `ACTIVE|ARCHIVED` lifecycle,
-timestamps, no name-based authority, and no P2 hard-delete path.
-
-Workspace: approved Organization child with compound same-tenant relation, inherited positive grants,
-optional exact scoped binding, and archive-only P2 lifecycle.
-
-Brand: approved Workspace child and canonical business ownership boundary with explicit Organization
-ancestry, exact scoped binding, and additive legacy BrandDNA link.
-
-User/identity: approved separate `UserIdentity` and `AuthIdentity` models retain `UserProfile` as
-business/profile metadata. AppState's Supabase subject maps only to profile `local`; no provider is
-fabricated for offline-only profiles and no auth provider is changed. `(provider, subject)` is
-unique; one principal is not artificially limited to one subject per provider.
-
-Membership: approved unique actor/Organization relationship with nullable Organization role and
-`ACTIVE|SUSPENDED|REVOKED` lifecycle. Suspension preserves grants; revocation clears the
-Organization role and revokes all scoped bindings atomically. READMISSION activates only after the
-same zero-grant reset. Membership without a role grants no visibility.
-
-RBAC: the seven canonical roles are mapped across 24 action capabilities. Positive grants union from
-Organization to exact Workspace and Brand bindings; missing/inactive/unknown/inconsistent state
-denies. Assignment ceilings and last-owner safety are explicit.
-
-PromptRun: approved nullable Organization/Brand ownership is backfilled only when StrategyVersion,
-ContentDraft, and PerformanceInsight consumers resolve unanimously and completely to one tenant.
-Legacy-unscoped or conflicting rows are unavailable to ordinary new tenant-aware APIs.
-
-MetricObservation: approved normalized typed observation owned authoritatively by Brand, with an
-optional legacy Post bridge, stable source-fact dedupe, explicit mapping for every MetricSnapshot
-field, and null-as-unknown preservation.
+- Organization: physical `ACTIVE|ARCHIVED` tenant root with restrictive deletion.
+- Workspace: Organization child with compound ancestry and independent lifecycle authority.
+- Brand: Workspace child and authoritative business/metric owner.
+- User/identity: separate UserIdentity, AuthIdentity, retained UserProfile, and only
+  `UNIQUE(provider, subject)` for external-subject collision.
+- Membership: one UserIdentity/Organization row, optional Organization role, and
+  `ACTIVE|SUSPENDED|REVOKED` lifecycle.
+- RBAC: seven roles, 24 capabilities, 168 explicit cells, positive inheritance, target
+  applicability, assignment ceilings, and deny by default.
+- MetricObservation: Brand-owned typed normalized fact with optional legacy Post bridge.
 
 ## LEGACY OWNERSHIP MAP
 
-Current reconnaissance identified the legacy ownership problem but no migration was authorized:
-
-| Model family | Old owner | Intended canonical scope | Migration status | Compatibility retained |
+| Legacy family | Old owner | Canonical scope | Strategy | Compatibility |
 |---|---|---|---|---|
-| `UserProfile` | self/single profile | identity mapping | proposed unique nullable identity link | YES |
-| `BrandDNA`, goals, audiences, pillars, strategies | `userId` | direct Brand scope | proposed nullable Organization/Brand links and exact profile graph | YES |
-| ideas, drafts, posts | `userId` plus relation chains | direct or derived Brand scope | proposed exact profile graph plus relation validation | YES |
-| `FacebookAccount` | `ownerRef` | Brand provider connection | proposed exact ownerRef/profile mapping; ambiguous rows quarantined | YES |
-| `MetricSnapshot` | unique `postId` | MetricObservation source compatibility | proposed 0–7 observations per snapshot; snapshot retained | YES |
-| `PerformanceInsight`, `ExportHistory` | `userId` | direct Brand scope | proposed nullable Organization/Brand links | YES |
-| templates/frameworks/objectives | optional user/global | user rows Brand-scoped; null-user rows global | proposed conditional links; objectives remain global | YES |
-| `PromptRun` | global execution payload with tenant-bearing consumers | conditional Brand scope | proposed nullable Organization/Brand fields; backfill only by complete unanimous consumer proof; unresolved rows remain compatibility-only | YES |
-| `AIModelConfig` | global/system | system/provider configuration | unchanged; secrets excluded from tenant APIs and backup | YES |
-| `AppState` | singleton | legacy only, never tenancy authority | unchanged | YES |
+| UserProfile | profile ID | UserIdentity | nullable unique link | retained |
+| BrandDNA, Goal, AudienceSegment, ContentPillar, Strategy | userId | Brand | direct additive scope | retained |
+| ContentIdea, ContentDraft, Post | userId/parents | Brand | direct scope plus parent validation | retained |
+| PerformanceInsight, ExportHistory | userId | Brand | direct additive scope | retained |
+| ContentTemplate, Framework | optional userId | Brand or global | user rows scoped | retained |
+| FacebookAccount | ownerRef | Brand connection | exact match; unknown owner quarantined | retained |
+| PromptRun | consumers | conditional Brand | complete-consumer proof only | retained |
+| MetricSnapshot | Post | observation source | non-null facts emitted | retained |
+| AppState, AIModelConfig, global references | singleton/system | legacy/global | never tenancy authority | retained |
 
 ## FINAL TENANCY GRAPH
-
-Not implemented. The proposed physical authorization graph is:
 
 ```text
 AuthIdentity --> UserIdentity <-- UserProfile
@@ -149,157 +55,102 @@ AuthIdentity --> UserIdentity <-- UserProfile
                            |               +-- Workspace
                            |                      |
                            |                      +-- Brand
-                           |                           |
-                           +-- WorkspaceRoleBinding    +-- MetricObservation*
-                           |                           +-- PromptRun*
+                           |                           +-- PromptRun (proven only)
+                           |                           +-- MetricObservation
+                           +-- WorkspaceRoleBinding
                            +-- BrandRoleBinding
 ```
 
-The graph is approved for implementation; no table existed at the approval checkpoint.
-
 ## SCHEMA CHANGES
 
-NONE. `prisma/schema.prisma` was not modified.
+Added UserIdentity, AuthIdentity, Organization, Membership, Workspace, WorkspaceRoleBinding, Brand,
+BrandRoleBinding, and MetricObservation. Added approved nullable Organization/Brand ownership to
+direct legacy scopes and PromptRun. Added compound tenant FKs, unique constraints, lookup indexes,
+lifecycle/value CHECK constraints, and `(provider, subject)` uniqueness.
 
 ## MIGRATIONS
 
-Migration name: NONE
+Migration name: `20260906004200_add_piltover_tenancy_rbac`
 
-Migration SQL review: NOT APPLICABLE
+Migration SQL review: PASS. SQLite table copies preserve every pre-P2 column, add only nullable
+transitional columns, recreate existing keys/indexes, and add restrictive relations. Generated
+`DROP TABLE` statements only replace copied tables; no legacy model or column is absent afterward.
 
-Destructive operations: NONE
-
-The explicit P2 model-ambiguity gate stopped work before schema mutation.
+Destructive legacy operations: NONE.
 
 ## BACKFILL
 
-Legacy profiles: not mutated
+One isolated graph is created per profile. Only profile `local` receives the non-empty AppState
+Supabase subject. Cross-user parent relations are validated before writes. Direct rows are scoped,
+unknown Facebook ownership is quarantined, PromptRun requires unanimous complete consumer proof,
+and metric facts use idempotent SHA-256 source identity.
 
-Organizations created: 0
-
-Workspaces created: 0
-
-Brands created: 0
-
-Memberships created: 0
-
-Rows tenant-scoped: 0
-
-MetricObservations created: 0
+Representative populated fixture: 1 profile, 1 Organization, 1 Workspace, 1 Brand, 1 OWNER
+Membership, and 4 observations from one partially-null MetricSnapshot. The second run created zero
+canonical duplicates. A separate 2-profile fixture proves isolated graphs.
 
 ## RBAC
 
-Roles: canonical names recovered; no persistence or evaluator implemented.
+Roles: OWNER, ADMIN, MANAGER, EDITOR, VIEWER, APPROVER, AGENT_OPERATOR.
 
-Permissions: APPROVED — 24 action capabilities with a complete seven-role matrix.
+Permissions: exact 24-capability typed registry and 168-cell matrix.
 
-Scope semantics: APPROVED — nullable Organization role plus scope-specific FK-backed Workspace and
-Brand bindings; positive grants union only down verified ancestry.
+Scope: Organization grants inherit downward; scoped bindings apply only to exact validated ancestry.
+Unknown, missing, foreign, inconsistent, suspended, revoked, or disabled states deny.
 
-Seed strategy: NOT IMPLEMENTED
+Lifecycle: suspension preserves grants; revocation atomically clears the Organization role and
+revokes scoped bindings; readmission starts with zero grants. The final active Owner cannot be
+suspended, revoked, or demoted. Governance role assignment requires OWNER.
 
-Idempotency: NOT TESTED
+Seed: unchanged and executed twice on a disposable migrated database with stable counts.
 
 ## ISOLATION
 
-Cross-org: NOT IMPLEMENTED
-
-Cross-workspace: NOT IMPLEMENTED
-
-Cross-brand: NOT IMPLEMENTED
-
-Foreign relation: NOT IMPLEMENTED
-
-Missing tenant: NOT IMPLEMENTED
+- Cross-org: PASS
+- Cross-workspace: PASS
+- Cross-brand: PASS
+- Foreign Pillar/provider relation: PASS
+- Missing tenant: PASS
 
 ## METRICS
 
-MetricSnapshot compatibility: unchanged
-
-MetricObservation: physical contract APPROVED; not implemented at the approval checkpoint
-
-Backfill: not implemented
-
-Null preservation: no data mutated
+MetricSnapshot remains unchanged. MetricObservation enforces NUMERIC/TEXT values and Brand/dedupe
+uniqueness. SHA-256 dedupe excludes value. Null emits no observation; measured zero remains zero.
 
 ## LEGACY COMPATIBILITY
 
-UserProfile: unchanged
-
-BrandDNA: unchanged
-
-legacy userId: unchanged
-
-current routes: unchanged
-
-existing business behavior: unchanged
+UserProfile, BrandDNA, userId, routes, and payloads remain. The legacy PromptRun writer selects only
+its ID so a pre-migration Owner-local DB remains usable; new tenant paths require exact authorized
+Organization and Brand scope.
 
 ## BACKUP / EXPORT IMPACT
 
-Result: the current backup layer explicitly exports all 22 legacy entities. Any new P2 tenancy
-tables would be omitted unless the backup envelope/import order is extended. PromptRun is already
-exported, but version 2 must preserve its proposed nullable Organization/Brand fields and version-1
-upgrade must run the same complete-consumer ownership proof.
-
-Changes required: approved and scheduled in the implementation route; none had been made at the
-approval checkpoint.
-
-Tests: existing baseline backup tests passed historically. No application tests were rerun for the
-documentation-only R1 correction.
+Backup envelope v2 includes canonical entities and PromptRun tenant keys. Version 1 restores legacy
+rows then invokes the same P2 backfill. FK-safe ordering and existing cloud secret stripping remain.
+The v2 round-trip, v1 upgrade, secret stripping, and graph preservation tests pass.
 
 ## VERIFICATION
 
-Prisma validate: PASS — current pre-P2 schema is valid.
-
-Prisma generate: NOT RUN; schema unchanged.
-
-Migration fresh DB: NOT RUN; no migration exists.
-
-Migration populated legacy DB: NOT RUN; no migration exists.
-
-Migration second-run: NOT RUN; no migration exists.
-
-Backfill idempotency: NOT RUN.
-
-RBAC seed idempotency: NOT RUN.
-
-Architecture tests: PASS within the full baseline suite.
-
-P2 targeted tests: NOT CREATED; implementation is gated.
-
-Full tests: PASS — 24 files, 118 tests, 0 failures.
-
-Production build: PASS — Next.js 15.3.4 production build completed and generated 20 static pages.
-
-Standalone typecheck delta: baseline recorded before P2 mutation; two pre-existing TS2352 errors
-remain in `tests/ai/adapter-db-key.test.ts` at lines 105 and 140.
-
-R1 documentation validation: PASS — 24 unique matrix rows, required lifecycle/PromptRun sections,
-valid Work Order JSON, and no uncontrolled stale semantic claims.
-
-git diff --check: PASS for the R1 working diff before commit.
-
-R1 proportional test decision: no full application test or build was run because R1 changes only
-English Markdown/JSON contract evidence and does not modify schema, migration, source, dependencies,
-or runtime configuration. Historical baseline results above are not presented as a fresh R1 run.
-
-## TYPECHECK BASELINE
-
-Before: exactly two TS2352 errors at `tests/ai/adapter-db-key.test.ts:105` and `:140`.
-
-After: unchanged; no TypeScript file was changed.
-
-New errors: 0 expected; no TypeScript files changed.
+- Prisma validate: PASS
+- Prisma generate: PASS
+- Fresh migration: PASS
+- Populated pre-P2 migration: PASS
+- Second migration deploy: PASS
+- Backfill rerun: PASS
+- Seed twice: PASS
+- Architecture: PASS — 1 file, 6 tests
+- P2 consolidated targeted: PASS — 6 files, 29 tests
+- Full tests: PASS — 29 files, 141 tests, 0 failures
+- Production build: PASS — Next.js 15.3.4, 20 static pages
+- Standalone typecheck: unchanged two TS2352 errors at
+  `tests/ai/adapter-db-key.test.ts:105` and `:140`; new errors: 0
+- git diff --check: PASS
 
 ## DATA LOSS EVIDENCE
 
-Before/after counts: no database operation occurred.
-
-ID preservation: no database operation occurred.
-
-relationship preservation: no database operation occurred.
-
-No claim of migrated-data safety is made.
+The populated fixture preserved legacy IDs, profile/Brand text, PromptRun input/output, relations,
+MetricSnapshot values, measured zero, and nulls. `PRAGMA foreign_key_check` returned no violations.
+This proves the tested fixture, not production zero-downtime, concurrency, duration, or scale.
 
 ## DEPENDENCIES
 
@@ -307,69 +158,43 @@ Added: NONE.
 
 ## APPLICATION BEHAVIOR
 
-Changed: NO.
+Changed: NO product behavior; one bounded pre-migration persistence compatibility select was added.
 
 ## SCOPE AUDIT
 
-P3 work: NO
-
-UI redesign: NO
-
-Provider migration: NO
+P3: NO. UI redesign: NO. Provider migration: NO. Owner working DB migration: NO.
 
 ## LIMITATIONS
 
-- No schema, migration, backfill, RBAC evaluator, repository, MetricObservation, or isolation test had
-  been implemented at the approval checkpoint.
-- PromptRun tenant ownership was contract-only at the approval checkpoint; no schema field, backfill,
-  or query had changed.
-- Production data volume and write concurrency are unknown; the proposal makes no zero-downtime claim.
+- Production volume, concurrent writes, and migration duration were not tested.
+- Unresolved/conflicting PromptRuns remain intentionally unavailable to new tenant APIs.
+- Only disposable databases were migrated.
 
 ## COMMITS
 
-- `ec11ce83e810daecef34dc2f463a120c5c18894b` — record the P2 canonical-model gate and evidence.
-- `626b492c59424256f505d16c7f49e4c7cec2aa3f` — close the original blocked P2 checkpoint.
-- `9f2b0f8b86336ecedd60653f60924af9fdd02f23` — propose the P2 canonical contract and ADR.
-- `cb64b9de35afa09b018b70f2fa9584d462b7d303` — record the original contract approval gate.
-- `41ab74ceca51854545505fea0a95af5960b1d1a9` — revise the proposed contract for Owner security and ownership review R1.
+- `34c72bf7c447edb9a45f4ea69fdcd1324915d4ba` — approve Contract R1.
+- `b82b0c8` — add tenant schema and migration.
+- `660b22b` — add backfill, RBAC, scoped access, backup, and tests.
+- `229699e` — preserve pre-migration PromptRun persistence.
+- `fdd24d7` — enforce governance ceilings.
 
-The subsequent contract-gate metadata closeout commit is intentionally not self-referential; its exact SHA is
-reported by Git and the final Owner report.
+The closeout commit is reported by Git rather than self-referenced here.
 
 ## REMOTE PHASE BRANCH
 
 branch: `work/PIL-WO-20260905-005-data-tenancy-rbac`
 
-R1 proposal evidence checkpoint SHA: `41ab74ceca51854545505fea0a95af5960b1d1a9`
-
-Remote verification is recorded after the metadata closeout commit is pushed.
+remote SHA: recorded after closeout push and fetch verification.
 
 ## CANONICALIZATION
 
-status: IMPLEMENTATION_IN_PROGRESS
+status: PENDING_OWNER_GATE
 
 ## ACCEPTANCE
 
-- PASS — P1 canonical baseline verified.
-- PASS — exact available P2 sources recovered and searched.
-- PASS — current Prisma ownership model inspected.
-- PASS — every identified model ambiguity has one explicit minimum proposal.
-- PASS — alternatives, security and migration consequences, SQLite feasibility, and reversal posture documented.
-- PASS — proposed addendum and consequential ADR exist.
-- PASS — Contract R1 and ADR-0001 are Owner-approved implementation authority.
-- FAIL — schema/migration/backfill/RBAC/MetricObservation implementation not started by design.
-- PASS — legacy database, routes, dependencies, providers, UI, and application behavior unchanged.
-- PASS — pre-P2 test/build/typecheck baseline remains historical evidence; this proposal changed no code.
-- FAIL — technical completion still requires implementation verification.
-
-## OWNER GATE — P2 CANONICAL CONTRACT APPROVAL
-
-Decision: YES — Revision R1 approved at reviewed head
-`7d8be5f197856574591bca2e4cb96d1cc7ba8ade` on 2026-09-06.
-
-Scope: bounded phase-branch implementation only. Canonical master integration, production migration,
-deployment, provider changes, UI work, and P3 remain outside this approval.
+All P2 technical criteria pass. Canonical integration remains pending Owner approval. Production
+migration/deployment, UI/provider work, and P3 were not started.
 
 ## NEXT LEGAL PHASE
 
-P2 implementation is in progress. P3 is not eligible and has not started.
+P3 remains blocked until Owner-approved P2 canonical reconciliation and remote proof.
