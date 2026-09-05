@@ -1,6 +1,6 @@
 # P0.2 — LEGACY INSTRUCTION RECOVERY & PILTOVER CONTEXT ENRICHMENT
 
-STATUS: REVIEW_READY
+STATUS: DONE
 
 ## SOURCE RECOVERY
 
@@ -13,7 +13,7 @@ The sources were read with `git show`; none was checked out or restored.
 - `CLAUDE.md`: snapshot `41e654e`; latest content commit `f646043639e1901a92cda9757968c753a847cd08`.
 - P0.1 base/legacy snapshot: `41e654e885212e200977eff4ae4d09fec62f201e`.
 - P0.2 base: `4f0b7ac2fdbeece633b0cb47f9b81c5f6a84ac34`.
-- P0.2 final commit: recorded in the closeout commit/update after verification.
+- P0.2 implementation/evidence commit: `5184180dde3320f9e00b2004f737811dbe54fe20`.
 
 ## SEMANTIC INVENTORY
 
@@ -257,23 +257,47 @@ The graph is one-way. No retired root context file is an active dependency.
 
 ## VERIFICATION
 
-Final deterministic outputs are recorded during closeout.
+Final verification against commit `5184180dde3320f9e00b2004f737811dbe54fe20`:
 
-- Git diff check: PENDING
-- Root Markdown architecture: PENDING
-- No RULES resurrection: PENDING
-- Reference audit: PENDING
-- Canonical-path validation: PENDING
-- Contradiction audit: PENDING
-- Fresh Codex bootstrap: PENDING
-- Fresh Claude bootstrap: PENDING
-- Secret scan: PENDING
-- Scope: PENDING
+- Git diff check: PASS.
+- Root Markdown architecture: PASS — exactly `AGENTS.md`, `CLAUDE.md`, `README.md`.
+- No RULES resurrection: PASS — all seven retired root context files remain absent.
+- Reference audit: PASS — no active retired-file reference outside historical/evidence/package
+  areas.
+- Canonical-path validation: PASS — all six required minimum sources resolve.
+- Root Markdown links: PASS.
+- Contradiction audit: PASS — zero targeted conflicting active instruction.
+- Bootstrap cycle audit: PASS — `CLAUDE.md -> AGENTS.md`; no reverse edge.
+- Fresh Codex bootstrap: PASS.
+- Fresh Claude bootstrap: PASS.
+- Semantic matrix: PASS — 80 rows; disposition counts match the summary.
+- Secret scan: PASS — no high-confidence credential pattern in the branch diff.
+- JSON parse: PASS.
+- Scope: PASS — only `AGENTS.md` and the five P0.2 handoff files changed.
 - Full application test/build: SKIPPED — no runtime/application artifact changed.
 
 ## P0.2 ACCEPTANCE
 
-Acceptance is marked PASS only after final verification and review. P1 has not begun.
+1. Exact pre-P0.1 versions of all three required sources recovered from Git: PASS.
+2. Legacy contents decomposed into atomic instruction units: PASS (80).
+3. Every atom compared with current bootstrap and required canonical sources: PASS.
+4. Every atom has exactly one six-way disposition: PASS.
+5. No rule promoted merely because it was legacy: PASS.
+6. No stale PBOS product assumption promoted: PASS.
+7. No canonical governance conflict introduced: PASS.
+8. Missing high-value operational knowledge incorporated minimally: PASS.
+9. Shared instructions placed only in `AGENTS.md`: PASS.
+10. Claude-only delta rule respected: PASS; no qualifying new delta existed.
+11. `RULES.md` remains deleted: PASS.
+12. No parallel rule system recreated: PASS.
+13. No root memory/state/loop/rules system recreated: PASS.
+14. New instructions are durable and low temporal-decay: PASS.
+15. Context remains bounded: PASS (+7 lines / +607 bytes).
+16. Bootstrap graph remains acyclic: PASS.
+17. Fresh Codex and Claude bootstrap behavior: PASS.
+18. P0.2 packet records accepted/rejected decisions and provenance: PASS.
+19. P1 has not begun; application code changes are NONE: PASS.
+20. DONE means STOP: PASS.
 
 ## NEXT LEGAL PHASE
 

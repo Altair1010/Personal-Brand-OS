@@ -57,5 +57,5 @@ promoted.
 
 ## Findings
 
-No blocking or high-severity finding. Final deterministic verification and staged-diff review are
-required before DONE.
+No blocking or high-severity finding. Final deterministic verification and staged-diff review
+passed against implementation commit `5184180dde3320f9e00b2004f737811dbe54fe20`.

@@ -1,9 +1,9 @@
 {
   "workOrderId": "PIL-WO-20260905-003-legacy-instruction-recovery",
-  "state": "IN_PROGRESS",
-  "updatedAt": "2026-09-05T18:00:00+07:00",
+  "state": "APPROVED",
+  "updatedAt": "2026-09-05T21:21:50+07:00",
   "baseCommit": "4f0b7ac2fdbeece633b0cb47f9b81c5f6a84ac34",
-  "headCommit": null,
-  "summary": "Legacy sources recovered from the exact pre-P0.1 Git snapshot; semantic classification and admission review in progress.",
+  "headCommit": "5184180dde3320f9e00b2004f737811dbe54fe20",
+  "summary": "P0.2 DONE: 80 legacy atoms classified; seven high-value atoms compressed into four shared instructions; no legacy context system restored.",
   "blockers": []
 }
