@@ -9,6 +9,7 @@
 
 import { z } from "zod";
 import type { Prisma, PrismaClient } from "@prisma/client";
+import { runP2Backfill } from "@/lib/piltover/modules/platform/infrastructure/p2-backfill";
 
 export type BackupDb = PrismaClient;
 export type BackupTx = Prisma.TransactionClient;
@@ -17,7 +18,7 @@ export type BackupTx = Prisma.TransactionClient;
 // EM1c: FacebookAccount added after AppState, before Post (Post.facebookAccountId FK).
 // PromptRun is placed BEFORE StrategyVersion/ContentDraft/PerformanceInsight because
 // those hold an optional aiPromptRunId FK → PromptRun must exist first.
-export const IMPORT_ORDER = [
+export const LEGACY_IMPORT_ORDER = [
   "AppState",
   "FacebookAccount",
   "UserProfile",
@@ -43,6 +44,19 @@ export const IMPORT_ORDER = [
   "ExportHistory",
 ] as const;
 
+export const IMPORT_ORDER = [
+  "UserIdentity",
+  "AuthIdentity",
+  "Organization",
+  "Membership",
+  "Workspace",
+  "Brand",
+  "WorkspaceRoleBinding",
+  "BrandRoleBinding",
+  ...LEGACY_IMPORT_ORDER,
+  "MetricObservation",
+] as const;
+
 export type BackupModel = (typeof IMPORT_ORDER)[number];
 
 // Reverse order for deleteMany (children first). The reset action reuses wipeAll().
@@ -50,6 +64,14 @@ export const RESET_ORDER = [...IMPORT_ORDER].reverse() as BackupModel[];
 
 // Map model name → Prisma delegate name (note the odd casings Prisma generates).
 const DELEGATE: Record<BackupModel, keyof PrismaClient> = {
+  UserIdentity: "userIdentity",
+  AuthIdentity: "authIdentity",
+  Organization: "organization",
+  Membership: "membership",
+  Workspace: "workspace",
+  Brand: "brand",
+  WorkspaceRoleBinding: "workspaceRoleBinding",
+  BrandRoleBinding: "brandRoleBinding",
   AppState: "appState",
   FacebookAccount: "facebookAccount",
   UserProfile: "userProfile",
@@ -73,6 +95,7 @@ const DELEGATE: Record<BackupModel, keyof PrismaClient> = {
   PerformanceInsight: "performanceInsight",
   AIModelConfig: "aIModelConfig",
   ExportHistory: "exportHistory",
+  MetricObservation: "metricObservation",
 } as const;
 
 type Row = Record<string, unknown>;
@@ -83,15 +106,23 @@ export type BackupEnvelope = {
   data: Record<BackupModel, Row[]>;
 };
 
+export type ImportBackupEnvelope = Omit<BackupEnvelope, "data"> & {
+  data: Partial<Record<BackupModel, Row[]>>;
+};
+
 // Structure-only validation: reject a corrupt/wrong file BEFORE any DB write.
 // Per-row schemas are permissive on purpose (structure, not full field validation).
 const rowSchema = z.record(z.string(), z.any());
 const dataSchema = z.object(
-  Object.fromEntries(IMPORT_ORDER.map((m) => [m, z.array(rowSchema)])) as Record<
+  Object.fromEntries(IMPORT_ORDER.map((m) => [m, z.array(rowSchema).optional()])) as Record<
     BackupModel,
-    z.ZodArray<typeof rowSchema>
+    z.ZodOptional<z.ZodArray<typeof rowSchema>>
   >,
-);
+).superRefine((data, context) => {
+  for (const model of LEGACY_IMPORT_ORDER) {
+    if (!data[model]) context.addIssue({ code: "custom", message: `Missing legacy model ${model}` });
+  }
+});
 
 export const backupEnvelopeSchema = z.object({
   version: z.number(),
@@ -112,7 +143,7 @@ export async function exportBackup(db: BackupDb): Promise<BackupEnvelope> {
     data[model] = (await delegate(db, model).findMany()) as Row[];
   }
   return {
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     data,
   };
@@ -141,7 +172,7 @@ function whereFor(model: BackupModel, row: Row): Row {
  * Rows are written as-is (Json fields pass through; ISO-string dates coerced by Prisma).
  * cuids/PKs preserved so foreign keys stay valid.
  */
-export async function importBackup(db: BackupDb, envelope: BackupEnvelope): Promise<void> {
+export async function importBackup(db: BackupDb, envelope: ImportBackupEnvelope): Promise<void> {
   await db.$transaction(async (tx) => {
     for (const model of IMPORT_ORDER) {
       const rows = envelope.data[model] ?? [];
@@ -154,6 +185,7 @@ export async function importBackup(db: BackupDb, envelope: BackupEnvelope): Prom
       }
     }
   });
+  if (envelope.version === 1) await runP2Backfill(db);
 }
 
 /** deleteMany every table in FK-safe reverse order. Reused by the M10 reset action. */
