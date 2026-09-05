@@ -392,6 +392,44 @@ async function validateLegacyOwnership(
       }
     }
   }
+
+  const promptRuns = await db.promptRun.findMany({
+    include: {
+      strategyVersions: { include: { strategy: { select: { userId: true } } } },
+      drafts: { select: { userId: true } },
+      insights: { select: { userId: true } },
+    },
+    orderBy: { id: "asc" },
+  });
+  for (const run of promptRuns) {
+    const hasOrganization = run.organizationId !== null;
+    const hasBrand = run.brandId !== null;
+    if (hasOrganization !== hasBrand) {
+      throw new P2MigrationConflictError("MIGRATION_PARTIAL_SCOPE", "PROMPT_RUN", run.id);
+    }
+    if (!hasOrganization) continue;
+
+    const ownerIds = new Set([
+      ...run.strategyVersions.map((version) => version.strategy.userId),
+      ...run.drafts.map((draft) => draft.userId),
+      ...run.insights.map((insight) => insight.userId),
+    ]);
+    if (ownerIds.size !== 1) {
+      throw new P2MigrationConflictError("MIGRATION_SCOPE_MISMATCH", "PROMPT_RUN", run.id);
+    }
+    const profile = profilesById.get([...ownerIds][0]);
+    if (!profile) {
+      throw new P2MigrationConflictError("MIGRATION_SCOPE_MISMATCH", "PROMPT_RUN", run.id);
+    }
+    if (!profile.userIdentityId) {
+      throw new P2MigrationConflictError("PARTIAL_MIGRATION_CONFLICT", "PROMPT_RUN", run.id);
+    }
+    const expectedOrganizationId = stableId("org", `organization|${profile.userIdentityId}`);
+    const expectedBrandId = stableId("brd", `brand|${profile.userIdentityId}`);
+    if (run.organizationId !== expectedOrganizationId || run.brandId !== expectedBrandId) {
+      throw new P2MigrationConflictError("MIGRATION_SCOPE_MISMATCH", "PROMPT_RUN", run.id);
+    }
+  }
 }
 
 export async function runP2Backfill(db: P2Database): Promise<P2BackfillReport> {

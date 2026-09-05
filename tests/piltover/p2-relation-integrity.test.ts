@@ -315,6 +315,55 @@ async function seedDirectRows(db: PrismaClient): Promise<void> {
 }
 
 describe("P2 transitional scope preflight", () => {
+  it("rejects a pre-scoped PromptRun with no ownership evidence", async () => {
+    const database = await createDisposableP2Database();
+    try {
+      const db = database.client;
+      await seedDirectRows(db);
+      await runP2Backfill(db);
+      const ownerB = await db.userProfile.findUniqueOrThrow({
+        where: { id: "owner-b" },
+        include: { identity: { include: { memberships: { include: { organization: { include: { brands: true } } } } } } },
+      });
+      const organization = ownerB.identity!.memberships[0].organization;
+      await db.promptRun.create({
+        data: { id: "run-no-evidence", moduleKey: "fixture", provider: "fixture", model: "fixture", organizationId: organization.id, brandId: organization.brands[0].id },
+      });
+
+      await expect(runP2Backfill(db)).rejects.toThrow(
+        "MIGRATION_SCOPE_MISMATCH:PROMPT_RUN:run-no-evidence",
+      );
+    } finally {
+      await database.dispose();
+    }
+  }, 120_000);
+
+  it("rejects a PromptRun scoped to a tenant other than its consumer before scoping that consumer", async () => {
+    const database = await createDisposableP2Database();
+    try {
+      const db = database.client;
+      await seedDirectRows(db);
+      await runP2Backfill(db);
+      const ownerB = await db.userProfile.findUniqueOrThrow({
+        where: { id: "owner-b" },
+        include: { identity: { include: { memberships: { include: { organization: { include: { brands: true } } } } } } },
+      });
+      const organization = ownerB.identity!.memberships[0].organization;
+      await db.promptRun.create({
+        data: { id: "run-wrong-tenant", moduleKey: "fixture", provider: "fixture", model: "fixture", organizationId: organization.id, brandId: organization.brands[0].id },
+      });
+      await db.contentDraft.create({ data: { id: "draft-run-owner-a", userId: "owner-a", aiPromptRunId: "run-wrong-tenant" } });
+
+      await expect(runP2Backfill(db)).rejects.toThrow(
+        "MIGRATION_SCOPE_MISMATCH:PROMPT_RUN:run-wrong-tenant",
+      );
+      expect(await db.contentDraft.findUniqueOrThrow({ where: { id: "draft-run-owner-a" }, select: { organizationId: true, brandId: true } }))
+        .toEqual({ organizationId: null, brandId: null });
+    } finally {
+      await database.dispose();
+    }
+  }, 120_000);
+
   it("checks the complete direct-scope family with one fail-closed rule", async () => {
     const database = await createDisposableP2Database();
     try {
