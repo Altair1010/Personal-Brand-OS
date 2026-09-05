@@ -1,12 +1,12 @@
 # P2 — DATA + TENANCY + RBAC
 
-STATUS: TECHNICALLY_COMPLETE
+STATUS: CANONICAL_DONE
 
-CANONICALIZATION: PENDING_OWNER_CANONICALIZATION
+CANONICALIZATION: VERIFIED
 
 R2 Owner review decision: CHANGES REQUIRED at reviewed head `b9ceb783c4d5c2f0f1594b6751fce097edc9681d`.
-The corrective integrity closure is technically complete; P3 and canonical reconciliation remain
-blocked pending the new Owner gate.
+The corrective integrity closure was accepted by the Owner and reconciled to canonical master by
+strict fast-forward. P3 was not started by this Work Order.
 
 ## BASE
 
@@ -230,17 +230,36 @@ The closeout commit is reported by Git rather than self-referenced here.
 
 branch: `work/PIL-WO-20260905-005-data-tenancy-rbac`
 
-remote SHA: recorded after closeout push and fetch verification.
+reviewed and canonicalized P2 SHA: `0d4272c327e959802fd8fc359907b89438e84d54`
 
 ## CANONICALIZATION
 
-status: PENDING_OWNER_GATE
+status: VERIFIED
+
+Owner decision: YES - APPROVE P2 CANONICAL RECONCILIATION R2.
+
+Canonicalized implementation SHA: `0d4272c327e959802fd8fc359907b89438e84d54`.
+
+Canonicalization command:
+
+`git push origin 0d4272c327e959802fd8fc359907b89438e84d54:refs/heads/master`
+
+The server accepted a strict fast-forward from `9e3c8ff58b692b406a72ae7dd5f9cdfc7f8c5db1`
+to `0d4272c327e959802fd8fc359907b89438e84d54`. A post-push fetch and independent
+`ls-remote` both resolved master and the P2 branch to that exact SHA, with ahead/behind `0/0`.
+P1 remained an ancestor, every P2 commit and required evidence locator was reachable, history
+rewrite was NO, and commit loss was NO.
+
+This handoff closure is a documentation-only descendant of the canonicalized implementation SHA.
+Its exact canonical head is intentionally identified by `refs/heads/master` rather than embedding a
+self-referential commit SHA. Final remote proof after publishing this closure is recorded in Git and
+in the Owner-facing terminal report.
 
 ## ACCEPTANCE
 
-All P2 technical criteria pass. Canonical integration remains pending Owner approval. Production
+All P2 technical criteria pass and canonical reconciliation is verified. Production
 migration/deployment, UI/provider work, and P3 were not started.
 
 ## NEXT LEGAL PHASE
 
-P3 remains blocked until Owner-approved P2 canonical reconciliation and remote proof.
+P3 entry gate: PASS. P3 was not started in this execution.

@@ -1,6 +1,6 @@
 # Review — PIL-WO-20260905-005-data-tenancy-rbac
 
-Decision: TECHNICALLY_COMPLETE — PENDING OWNER CANONICALIZATION
+Decision: CANONICAL_DONE — CANONICALIZATION VERIFIED
 
 ## R2 Relation-Graph Integrity Review
 
@@ -602,9 +602,26 @@ Resolution: Continue to preserve phase boundaries.
 
 ## Required changes
 
-1. Owner must approve or reject strict fast-forward canonical reconciliation of the technical P2 SHA.
-2. Do not migrate production or the Owner's working database under this Work Order.
-3. Do not begin P3 until canonical remote verification passes.
+None. The Owner approved strict fast-forward reconciliation of the exact reviewed P2 SHA, and
+post-push remote proof passed. Production migration and deployment remain outside this Work Order.
+
+## Canonical reconciliation review
+
+- Owner-approved P2 SHA: `0d4272c327e959802fd8fc359907b89438e84d54`.
+- Canonical master before reconciliation: `9e3c8ff58b692b406a72ae7dd5f9cdfc7f8c5db1`.
+- Pre-mutation fetch and independent live-ref recovery: PASS.
+- Pre-mutation relationship: strict linear descendant, behind/ahead `0/17`.
+- Command: `git push origin 0d4272c327e959802fd8fc359907b89438e84d54:refs/heads/master`.
+- Push mode: normal fast-forward; force and force-with-lease were not used.
+- First post-push master/P2 relationship: `0/0`; both live refs resolved to the reviewed SHA.
+- P1 ancestry: PASS.
+- Required P2 canonical evidence locators: PASS.
+- History rewrite: NO.
+- Commit loss: NO.
+- Unrelated remote refs modified: NO; the push reported only `master`.
+- Closure evidence: documentation-only descendant; final live canonical SHA is the verified
+  `refs/heads/master` value reported after its strict fast-forward publication.
+- P3 entry gate: PASS; P3 was not started.
 
 ## Non-blocking notes
 

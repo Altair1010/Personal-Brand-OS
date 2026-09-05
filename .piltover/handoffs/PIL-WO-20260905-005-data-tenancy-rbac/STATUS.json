@@ -1,12 +1,18 @@
 {
   "schemaVersion": "1.0",
   "workOrderId": "PIL-WO-20260905-005-data-tenancy-rbac",
-  "status": "REVIEW_READY",
-  "updatedAt": "2026-09-06T02:07:43+07:00",
+  "status": "CANONICAL_DONE",
+  "updatedAt": "2026-09-06T02:19:27+07:00",
   "baseRef": "9e3c8ff58b692b406a72ae7dd5f9cdfc7f8c5db1",
-  "headRef": "886105ed64b54c46a6dc4f0f3900cd49711f9489",
+  "headRef": "refs/heads/master",
   "branch": "work/PIL-WO-20260905-005-data-tenancy-rbac",
   "prNumber": null,
   "actor": "Codex",
-  "blockingReason": null
+  "blockingReason": null,
+  "canonicalization": "VERIFIED",
+  "canonicalizedImplementationRef": "0d4272c327e959802fd8fc359907b89438e84d54",
+  "canonicalMasterRef": "refs/heads/master",
+  "historyRewrite": false,
+  "commitLoss": false,
+  "p1AncestryPreserved": true
 }
