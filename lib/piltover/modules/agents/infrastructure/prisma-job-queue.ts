@@ -3,6 +3,8 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import { RunRequestSchema, RunResultSchema, type RunRequest, type RunResult } from "../../../shared/contracts/control-plane";
 import { stableHash } from "../../../shared/contracts/stable-json";
 import type { ClockPort } from "../../../shared/ports/core-ports";
+import type { ExternalActor } from "../../../shared/ports/control-plane-ports";
+import { PrismaTenantAccess } from "../../identity/infrastructure/prisma-tenant-access";
 import { assertAgentRunTransition, assertJobTransition, type AgentRunStatus, type JobStatus } from "../domain/state-machines";
 
 type Database = PrismaClient | Prisma.TransactionClient;
@@ -251,6 +253,43 @@ export class PrismaJobQueue {
         },
       });
       await this.audit(tx, job.organizationId, "WORKER", workerId, "AGENT_RUN_TERMINAL", "AGENT_RUN", run.id, run.correlationId, now);
+    });
+  }
+
+  async cancelRun(actor: ExternalActor, runId: string, correlationId: string): Promise<void> {
+    await this.db.$transaction(async (tx) => {
+      const run = await tx.agentRun.findUnique({ where: { id: runId }, include: { jobs: true } });
+      if (!run) throw new Error("AGENT_RUN_NOT_FOUND");
+      const target = run.brandId
+        ? { type: "BRAND" as const, id: run.brandId }
+        : run.workspaceId
+          ? { type: "WORKSPACE" as const, id: run.workspaceId }
+          : { type: "ORGANIZATION" as const, id: run.organizationId };
+      const capability = target.type === "ORGANIZATION" ? "organization.manage" : "agent.manage";
+      const decision = await new PrismaTenantAccess(tx).authorize(actor, target, capability);
+      if (!decision.allowed) throw new Error(`PERMISSION_DENIED:${decision.reason}`);
+      if (run.status === "CANCELLED") return;
+      if (["COMPLETED", "FAILED"].includes(run.status)) throw new Error("AGENT_TERMINAL_CONFLICT");
+      assertAgentRunTransition(run.status as AgentRunStatus, "CANCELLED");
+      const now = this.clock.now();
+      for (const job of run.jobs) {
+        if (["COMPLETED", "FAILED", "CANCELLED"].includes(job.status)) continue;
+        assertJobTransition(job.status as JobStatus, "CANCELLED");
+        if (job.currentLeaseId) {
+          await tx.workerLease.update({
+            where: { id: job.currentLeaseId }, data: { endedAt: now, endReason: "CANCELLED" },
+          });
+        }
+        await tx.job.update({
+          where: { id: job.id }, data: { status: "CANCELLED", currentLeaseId: null },
+        });
+      }
+      await tx.approvalRequest.updateMany({
+        where: { runId, status: "PENDING" }, data: { status: "CANCELLED", decidedAt: now },
+      });
+      await tx.agentRun.update({ where: { id: runId }, data: { status: "CANCELLED", completedAt: now } });
+      const identity = await tx.authIdentity.findUnique({ where: { provider_subject: actor } });
+      await this.audit(tx, run.organizationId, "HUMAN", identity?.userIdentityId ?? "unknown", "AGENT_RUN_CANCELLED", "AGENT_RUN", runId, correlationId, now);
     });
   }
 
