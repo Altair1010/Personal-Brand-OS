@@ -1,0 +1,15 @@
+{
+  "workOrderId": "PIL-WO-20260905-003-legacy-instruction-recovery",
+  "title": "Recover legacy instruction value for Piltover",
+  "repository": "Altair1010/Personal-Brand-OS",
+  "branch": "work/PIL-WO-20260905-003-legacy-instruction-recovery",
+  "baseCommit": "4f0b7ac2fdbeece633b0cb47f9b81c5f6a84ac34",
+  "p01RewriteCommit": "0d39fea7707c800eaaae6b7f3eb00cfcb1dc714d",
+  "legacySnapshotCommit": "41e654e885212e200977eff4ae4d09fec62f201e",
+  "canonicalPackage": "docs/Piltover-Master-Technical-Package-v1.0.0",
+  "allowedBootstrapFiles": [
+    "AGENTS.md",
+    "CLAUDE.md"
+  ],
+  "runtimeChangesAllowed": false
+}
