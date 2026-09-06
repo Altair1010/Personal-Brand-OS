@@ -68,6 +68,25 @@ export function createPreP3MigrationWorkspace(): {
   };
 }
 
+export function createPreP4MigrationWorkspace(): {
+  readonly root: string;
+  readonly schemaPath: string;
+  readonly url: string;
+  readonly migrationsPath: string;
+} {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "piltover-pre-p4-"));
+  const prismaDir = path.join(root, "prisma");
+  const migrationsPath = path.join(prismaDir, "migrations");
+  fs.mkdirSync(prismaDir);
+  fs.copyFileSync(SCHEMA, path.join(prismaDir, "schema.prisma"));
+  fs.cpSync(MIGRATIONS, migrationsPath, {
+    recursive: true,
+    filter: (source) => !source.includes("20260906070000_add_piltover_worker_credentials"),
+  });
+  const dbPath = path.join(root, "p3.db");
+  return { root, schemaPath: path.join(prismaDir, "schema.prisma"), url: `file:${dbPath.replaceAll("\\", "/")}`, migrationsPath };
+}
+
 export async function createDisposableP2Database(): Promise<DisposableP2Database> {
   const workspace = createMigrationWorkspace();
   deployMigrations(workspace.schemaPath, workspace.url);

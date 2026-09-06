@@ -19,13 +19,15 @@ model UserIdentity {
   profile        UserProfile?
   memberships    Membership[]
 
-  workspaceGrantsCreated WorkerWorkspaceGrant[] @relation("WorkspaceGrantCreatedBy")
-  workspaceGrantsRevoked WorkerWorkspaceGrant[] @relation("WorkspaceGrantRevokedBy")
-  brandGrantsCreated     WorkerBrandGrant[]     @relation("BrandGrantCreatedBy")
-  brandGrantsRevoked     WorkerBrandGrant[]     @relation("BrandGrantRevokedBy")
-  approvalsRequested     ApprovalRequest[]      @relation("ApprovalRequestedBy")
-  approvalsDecided       ApprovalRequest[]      @relation("ApprovalDecidedBy")
-  approvalsConsumed      ApprovalRequest[]      @relation("ApprovalConsumedBy")
+  workspaceGrantsCreated   WorkerWorkspaceGrant[] @relation("WorkspaceGrantCreatedBy")
+  workspaceGrantsRevoked   WorkerWorkspaceGrant[] @relation("WorkspaceGrantRevokedBy")
+  brandGrantsCreated       WorkerBrandGrant[]     @relation("BrandGrantCreatedBy")
+  brandGrantsRevoked       WorkerBrandGrant[]     @relation("BrandGrantRevokedBy")
+  approvalsRequested       ApprovalRequest[]      @relation("ApprovalRequestedBy")
+  approvalsDecided         ApprovalRequest[]      @relation("ApprovalDecidedBy")
+  approvalsConsumed        ApprovalRequest[]      @relation("ApprovalConsumedBy")
+  workerCredentialsCreated WorkerCredential[]     @relation("WorkerCredentialCreatedBy")
+  workerCredentialsRevoked WorkerCredential[]     @relation("WorkerCredentialRevokedBy")
 }
 
 model AuthIdentity {
@@ -859,8 +861,32 @@ model Worker {
   events          RunEvent[]
   workspaceGrants WorkerWorkspaceGrant[]
   brandGrants     WorkerBrandGrant[]
+  credentials     WorkerCredential[]
 
   @@index([status, lastSeenAt])
+}
+
+model WorkerCredential {
+  id                       String    @id
+  workerId                 String
+  secretVerifier           String
+  issuedAt                 DateTime
+  expiresAt                DateTime
+  revokedAt                DateTime?
+  createdByUserIdentityId  String?
+  revokedByUserIdentityId  String?
+  supersededByCredentialId String?   @unique
+  rotationStartedAt        DateTime?
+  createdAt                DateTime  @default(now())
+
+  worker       Worker            @relation(fields: [workerId], references: [id], onDelete: Restrict)
+  createdBy    UserIdentity?     @relation("WorkerCredentialCreatedBy", fields: [createdByUserIdentityId], references: [id], onDelete: Restrict)
+  revokedBy    UserIdentity?     @relation("WorkerCredentialRevokedBy", fields: [revokedByUserIdentityId], references: [id], onDelete: Restrict)
+  supersededBy WorkerCredential? @relation("WorkerCredentialRotation", fields: [supersededByCredentialId], references: [id], onDelete: Restrict)
+  supersedes   WorkerCredential? @relation("WorkerCredentialRotation")
+
+  @@index([workerId, expiresAt])
+  @@index([workerId, revokedAt])
 }
 
 model WorkerCapability {
