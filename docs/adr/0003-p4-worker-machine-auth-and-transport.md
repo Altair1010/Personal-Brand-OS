@@ -2,7 +2,7 @@
 
 ## Status
 
-PROPOSED
+APPROVED
 
 ## Context
 
@@ -12,11 +12,13 @@ The current application pins Next.js 15.3.4. A fresh dependency audit reports a 
 
 ## Decision
 
-Propose an opaque 256-bit bearer credential bound to exactly one Worker, transported only over HTTPS, stored server-side only as a SHA-256 verifier, expiring after 90 days by default, revocable immediately, and rotatable with no more than 10 minutes of overlap. Plaintext is delivered once through an Owner-controlled enrollment step and is never recoverable.
+Use an opaque bearer credential with a public lookup identifier separated from cryptographically random 256-bit secret material, conceptually `<credential-id>.<secret>`. Bind it to exactly one Worker, transport it only over HTTPS, and store server-side only the lookup identifier, Worker binding, SHA-256 secret verifier, and necessary lifecycle facts. Compare verifiers in constant time where applicable. The credential has a maximum 90-day lifetime, is immediately revocable, and may overlap its same-Worker replacement for no more than 10 minutes. Plaintext is delivered once through an Owner-controlled enrollment step and is never recoverable.
 
-Propose Worker-initiated versioned HTTPS polling as the single P4 R1 transport. Every request is independently authenticated and every authoritative operation continues to enforce Worker state, capability, exact tenant grant, P2 ancestry, and current lease. Public routes remain default-disabled until the dependency-security gate passes.
+Use Worker-initiated versioned HTTPS polling/long-polling as the single P4 R1 transport. Polls and requests have finite timeouts and bounded retry/backoff policy. Every request is independently authenticated and every authoritative operation continues to enforce Worker state, capability, exact tenant grant, P2 ancestry, and current lease. The Owner workstation exposes no inbound port. No WebSocket, SSE Worker channel, gRPC, raw TCP, remote shell, or raw Codex JSON-RPC surface is introduced.
 
-This decision remains proposed until the Owner approves the auth lifecycle, transport, and targeted Next.js remediation.
+Machine authentication establishes Worker identity only. It does not grant tenant authority, capabilities, lease ownership, repository access, or Codex/OpenAI authority. Codex/OpenAI credentials remain entirely separate and local to the Codex runtime boundary.
+
+The Owner approved this decision and the targeted exact upgrade of `next` and `eslint-config-next` from 15.3.4 to 15.5.25 on 2026-09-06 through P4 Gate Resolution R1. No broader dependency modernization was approved.
 
 ## Alternatives considered
 
@@ -40,7 +42,7 @@ Before approval, reject or revise this ADR with no schema or runtime impact. Aft
 
 ## Owner gate
 
-G4 approval is required because this ADR establishes machine authentication, credential rotation/revocation, a public protocol, and a targeted dependency-security remediation. Approval authorizes only bounded P4 implementation on the P4 branch; it does not authorize deployment, production migration, master integration, P5, generic remote shell, or raw Codex JSON-RPC exposure.
+G4 approval was granted for the bounded machine-authentication contract, the single outbound HTTPS polling transport, and the targeted Next.js 15.5.25 remediation. Approval authorizes only P4 gate resolution and, after its security and regression gates pass, bounded P4 implementation on the P4 branch. It does not authorize deployment, production migration, master integration, P5, generic remote shell, or raw Codex JSON-RPC exposure.
 
 ## References and evidence
 

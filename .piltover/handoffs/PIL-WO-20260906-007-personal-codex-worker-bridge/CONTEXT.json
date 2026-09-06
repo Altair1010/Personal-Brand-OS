@@ -12,10 +12,15 @@
   "p4EntryGate": "PASS",
   "technicalPackage": "docs/Piltover-Master-Technical-Package-v1.0.0",
   "implementationRoute": "single-agent-single-branch",
-  "contractFreezeStatus": "PROPOSED_PENDING_OWNER_APPROVAL",
+  "contractFreezeStatus": "APPROVED",
   "securityGateStatus": "BLOCKED_SECURITY_GATE",
   "machineAuthProposal": "P4_MACHINE_AUTH_CONTRACT_PROPOSAL.md",
   "proposedAdr": "docs/adr/0003-p4-worker-machine-auth-and-transport.md",
+  "ownerApproval": {
+    "decision": "APPROVED",
+    "scope": "P4 Gate Resolution R1 machine authentication, HTTPS polling transport, and exact Next.js 15.5.25 security remediation",
+    "approvedAt": "2026-09-06"
+  },
   "dependencyAudit": {
     "total": 27,
     "moderate": 3,
