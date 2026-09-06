@@ -5,44 +5,26 @@
   "repository": "Altair1010/Personal-Brand-OS",
   "branch": "work/PIL-WO-20260906-007-personal-codex-worker-bridge",
   "baseCommit": "cb5c53c85d703ab5c83e13e921007e85ddc316a0",
-  "originMasterAtStart": "cb5c53c85d703ab5c83e13e921007e85ddc316a0",
+  "implementationCommit": "4e0922670bdef5a9399d17723748cd8edd905421",
   "p3ImplementationAncestor": "01098df178925717d16e06f1bb7b5f4eec3cf84c",
   "p3Status": "CANONICAL_DONE",
-  "p3Canonicalization": "VERIFIED",
-  "p4EntryGate": "PASS",
-  "technicalPackage": "docs/Piltover-Master-Technical-Package-v1.0.0",
-  "implementationRoute": "single-agent-single-branch",
   "contractFreezeStatus": "APPROVED",
   "securityGateStatus": "PASS",
-  "machineAuthProposal": "P4_MACHINE_AUTH_CONTRACT_PROPOSAL.md",
-  "proposedAdr": "docs/adr/0003-p4-worker-machine-auth-and-transport.md",
-  "ownerApproval": {
-    "decision": "APPROVED",
-    "scope": "P4 Gate Resolution R1 machine authentication, HTTPS polling transport, and exact Next.js 15.5.25 security remediation",
-    "approvedAt": "2026-09-06"
-  },
-  "dependencyAudit": {
-    "before": { "total": 27, "moderate": 3, "high": 22, "critical": 2 },
-    "after": { "total": 27, "moderate": 4, "high": 22, "critical": 1 },
-    "productionAfter": { "total": 11, "moderate": 4, "high": 7, "critical": 0 },
-    "nextBefore": "15.3.4",
-    "nextAfter": "15.5.25",
-    "criticalNextRcePresentAfter": false,
-    "p4ReachableCriticalHighBlocker": "NONE"
-  },
-  "gateVerification": {
-    "p1": "1 file / 6 tests PASS",
-    "p2": "6 files / 49 tests PASS",
-    "p3": "10 files / 70 tests PASS",
-    "full": "40 files / 237 tests PASS with maxWorkers=1",
+  "machineAuth": "256_BIT_BEARER_SHA256_VERIFIER",
+  "transport": "WORKER_INITIATED_HTTPS_POLLING",
+  "migration": "20260906070000_add_piltover_worker_credentials",
+  "localCodex": { "version": "codex-cli 0.153.4", "appServer": "PASS", "liveProof": "PASS" },
+  "verification": {
+    "p4Targeted": "14 PASS / 1 live skipped by default",
+    "p4Live": "1 PASS",
+    "p3": "70 PASS",
+    "p2": "49 PASS",
+    "p1Architecture": "6 PASS",
+    "full": "251 PASS / 1 live skipped",
     "build": "PASS",
-    "prismaValidate": "PASS",
+    "prisma": "PASS",
     "newTypeScriptDiagnostics": 0
   },
-  "localCodex": {
-    "version": "codex-cli 0.153.4",
-    "appServerHelp": "PASS",
-    "liveProof": "NOT_ATTEMPTED_BEFORE_GATES"
-  },
+  "canonicalization": "PENDING_OWNER_GATE",
   "p5Started": false
 }

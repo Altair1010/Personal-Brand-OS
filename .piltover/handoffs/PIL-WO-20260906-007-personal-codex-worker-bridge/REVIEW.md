@@ -1,107 +1,84 @@
 # P4 — ADVERSARIAL REVIEW
 
-STATUS:
-GATE_RESOLUTION_PASS
+STATUS: TECHNICALLY_COMPLETE
 
 ## MACHINE AUTHENTICATION
-
-Finding: the machine identity contract is now approved. Falsifier: Worker ID or registration alone can impersonate a machine. Evidence: approved proposal and ADR-0003 require a public lookup ID plus random 256-bit bearer secret and verifier-only persistence. Severity: CRITICAL. Resolution: implement credential validation before every Worker mutation.
+Finding: identity uses a public ID plus 256-bit secret. Falsifier: ID alone authenticates. Evidence: verifier-only persistence and invalid-credential tests. Severity: CRITICAL. Resolution: PASS.
 
 ## CREDENTIAL STORAGE
-
-Finding: approved persistence is non-recoverable. Falsifier: plaintext reaches DB, Git, log, or evidence. Evidence: ADR-0003 stores only SHA-256 verifier/lifecycle facts and permits one-time issuance only. Severity: CRITICAL. Resolution: enforce through schema/service tests and secret scans.
+Finding: plaintext is returned once and cannot be recovered. Falsifier: DB or Git contains usable material. Evidence: DB assertion and secret scan. Severity: CRITICAL. Resolution: PASS.
 
 ## CREDENTIAL REVOCATION
-
-Finding: immediate revocation and server-clock expiry are approved but not yet implemented. Falsifier: revoked or expired credential continues authenticating. Evidence: approved 90-day maximum and 10-minute rotation overlap. Severity: CRITICAL. Resolution: implementation must fail closed and preserve Job durability.
+Finding: revoke and expiry are immediate server-clock truth. Falsifier: revoked credential authenticates or rotation races revoke. Evidence: lifecycle tests and transactional compare/update. Severity: CRITICAL. Resolution: PASS.
 
 ## AUTHN ≠ AUTHZ
-
-Finding: separation is preserved in the proposal. Falsifier: credential bypasses capability, exact grant, ancestry, or lease. Evidence: P3 ports keep these authorities separate. Severity: CRITICAL. Resolution: all checks remain mandatory and independent.
+Finding: authentication returns Worker identity only. Falsifier: credential bypasses status, capability, grant, ancestry, or lease. Evidence: application and P3 authority boundaries. Severity: CRITICAL. Resolution: PASS.
 
 ## TENANT GRANT
-
-Finding: exact Workspace/Brand grants remain authoritative. Falsifier: authenticated Worker without exact grant claims or mutates. Evidence: approved ADR-0002 and P3 registry/queue behavior. Severity: CRITICAL. Resolution: revalidate on every authoritative operation.
+Finding: exact Workspace/Brand grants remain mandatory. Falsifier: capability-only Worker receives envelope. Evidence: execution-envelope negative test and P3 suite. Severity: CRITICAL. Resolution: PASS.
 
 ## CAPABILITY
-
-Finding: capability is technical ability only. Falsifier: capability string grants tenant access. Evidence: approved P3 contract. Severity: HIGH. Resolution: independent exact set inclusion after authentication.
+Finding: exact set inclusion is revalidated. Falsifier: missing capability executes. Evidence: envelope and P3 claim logic. Severity: HIGH. Resolution: PASS.
 
 ## LEASE
-
-Finding: execution-envelope and mutation authority must be current-lease-bound. Falsifier: same-tenant Worker reads an unrelated Run. Evidence: P3 opaque lease fencing. Severity: CRITICAL. Resolution: no generic Run access; require matching Worker/job/lease.
+Finding: every execution lookup and authoritative mutation is current-lease-bound. Falsifier: wrong Worker or historical lease succeeds. Evidence: envelope and P3 fencing tests. Severity: CRITICAL. Resolution: PASS.
 
 ## EXECUTION ENVELOPE
-
-Finding: minimum fields are proposed but not implemented. Falsifier: envelope exposes unrelated tenant data or accepts a historical lease. Evidence: package context-minimization rule. Severity: CRITICAL. Resolution: implement only after contract approval.
+Finding: only leased task data, opaque references, and repository alias are exposed. Falsifier: arbitrary Run/local path appears. Evidence: strict schema and integration assertions. Severity: CRITICAL. Resolution: PASS.
 
 ## ARBITRARY RUN ACCESS
-
-Finding: prohibited structurally by the proposed lease-bound API. Falsifier: `getAnyRun(workerId, runId)` exists. Evidence: no P4 route/code exists. Severity: CRITICAL. Resolution: preserve the boundary in typed tests.
+Finding: no generic Run lookup exists for Workers. Falsifier: grant-only enumeration API. Evidence: eight fixed semantic routes. Severity: CRITICAL. Resolution: PASS.
 
 ## PATH TRAVERSAL
-
-Finding: remote paths are prohibited; local aliases are proposed. Falsifier: absolute or `..` input resolves. Evidence: no P4 path resolver exists. Severity: CRITICAL. Resolution: canonicalize and contain locally after approval.
+Finding: remote paths are structurally absent. Falsifier: absolute, traversal, mixed separator, or unknown alias resolves. Evidence: local resolver tests. Severity: CRITICAL. Resolution: PASS.
 
 ## WINDOWS JUNCTION/SYMLINK
-
-Finding: lexical containment alone would be insufficient. Falsifier: approved alias resolves through a junction outside its root. Evidence: Windows target environment. Severity: HIGH. Resolution: final-target containment tests after approval.
+Finding: final real path is checked, not only lexical path. Falsifier: junction exits root. Evidence: junction test. Severity: HIGH. Resolution: PASS.
 
 ## REMOTE SHELL RISK
-
-Finding: no arbitrary command/executable/environment contract is proposed. Falsifier: network payload selects executable or argv. Evidence: proposed typed operations only. Severity: CRITICAL. Resolution: keep structurally absent.
+Finding: network contracts cannot select executable, argv, environment, or shell. Falsifier: raw command property accepted. Evidence: strict body rejection and fixed client routes. Severity: CRITICAL. Resolution: PASS.
 
 ## RAW JSON-RPC RISK
-
-Finding: raw method/params remain infrastructure-private. Falsifier: network or application port accepts an arbitrary method name. Evidence: package CodexRuntimePort rule. Severity: CRITICAL. Resolution: semantic port only after approval.
+Finding: App Server methods are infrastructure-private and fixed. Falsifier: caller supplies method/params. Evidence: semantic CodexRuntimePort and route schemas. Severity: CRITICAL. Resolution: PASS.
 
 ## CODEX APPROVAL
-
-Finding: consequential auto-approval is forbidden; exact behavior remains fail-closed. Falsifier: adapter approves every server request. Evidence: Owner gates and package approval model. Severity: CRITICAL. Resolution: bounded POC must avoid dangerous approval or pause safely.
+Finding: server approval requests fail closed. Falsifier: adapter auto-approves. Evidence: adapter terminates and emits APPROVAL_REQUIRED. Severity: CRITICAL. Resolution: PASS.
 
 ## CODEX PROCESS CRASH
-
-Finding: not yet tested. Falsifier: crash marks Run completed. Evidence: no adapter exists. Severity: HIGH. Resolution: failure-path test after gates.
+Finding: exit/startup/frame/execution failures cannot produce completion. Falsifier: crash maps to COMPLETED. Evidence: bounded adapter state and live proof. Severity: HIGH. Resolution: PASS.
 
 ## WORKER CRASH
-
-Finding: P3 durability already preserves leased Jobs; P4 recovery is pending. Falsifier: restart trusts local lease state. Evidence: P3 reconnect contract. Severity: HIGH. Resolution: server truth wins.
+Finding: P3 lease and Job remain canonical. Falsifier: local memory owns Job. Evidence: stateless polling client and P3 durability regression. Severity: HIGH. Resolution: PASS.
 
 ## CONTROL-PLANE RESTART
-
-Finding: transport recovery is pending selection. Falsifier: connection memory becomes authority. Evidence: P3 state is SQL canonical. Severity: HIGH. Resolution: selected transport must call P3 reconnect.
+Finding: reconnect reloads P3 truth. Falsifier: connection state restores authority. Evidence: authenticated reconnect route and P3 reconnect tests. Severity: HIGH. Resolution: PASS.
 
 ## CANCELLATION
-
-Finding: local interrupt remains best-effort; P3 rejection is canonical. Falsifier: late Codex result overwrites cancellation. Evidence: P3 terminal fencing. Severity: CRITICAL. Resolution: preserve P3 truth and test after approval.
+Finding: local interruption is best-effort while P3 terminal fencing is authoritative. Falsifier: late result overwrites cancellation. Evidence: authority-loss Worker test and P3 cancellation suite. Severity: CRITICAL. Resolution: PASS.
 
 ## RECONNECT
-
-Finding: machine credential must be revalidated on reconnect. Falsifier: offline cached identity restores authority after revoke. Evidence: proposed contract. Severity: CRITICAL. Resolution: fresh request authentication plus P3 reconciliation.
+Finding: every reconnect request reauthenticates and P3 revalidates Worker/grant/lease. Falsifier: offline cached credential restores access. Evidence: fixed route plus P3 negative cases. Severity: CRITICAL. Resolution: PASS.
 
 ## SECRET LEAK
-
-Finding: no credential has been created. Falsifier: real credential appears in diff/log/event. Evidence: contract-only diff. Severity: CRITICAL. Resolution: staged-diff and repository secret scans remain required.
+Finding: Worker credential is absent from events, child environment, audit metadata, Git, and logs. Falsifier: staged diff contains usable secret. Evidence: event minimization and final secret scan. Severity: CRITICAL. Resolution: PASS.
 
 ## DEPENDENCY SECURITY
-
-Finding: PASS for the P4 Worker boundary. Falsifier: critical React Flight RCE remains or regression appears after patch. Evidence: exact Next.js 15.5.25 upgrade, fresh audit with the RCE absent, P1/P2/P3 and full 237-test regression PASS, production build PASS. Severity: CRITICAL. Resolution: retain remaining non-P4-reachable package/build debt and reassess before packaging/release.
+Finding: blocking Next.js RCE is absent on 15.5.25; production audit has no critical finding. Falsifier: vulnerable Next remains resolved or P4-reachable Critical/High remains. Evidence: `npm ls`, fresh all/production audits, build and full regression. Severity: CRITICAL. Resolution: PASS with recorded non-reachable debt.
 
 ## P5 SCOPE LEAK
-
-Finding: role/context/permission references remain opaque. Falsifier: P4 resolves or compiles them. Evidence: proposal contains no P5 implementation. Severity: HIGH. Resolution: defer to P5.
+Finding: role/context/permission references remain opaque. Falsifier: resolver/compiler appears. Evidence: diff scope. Severity: HIGH. Resolution: PASS.
 
 ## OVERENGINEERING
+Finding: one SQL credential model, one HTTPS polling transport, standard library crypto/process APIs, and no new dependency. Falsifier: broker, WebSocket, SDK, VPS, or second auth system. Evidence: dependency and diff review. Severity: MEDIUM. Resolution: PASS.
 
-Finding: proposal chooses one transport and no new dependency; stronger auth remains an alternative. Falsifier: broker, generic RPC, multi-runtime SDK, or VPS appears. Evidence: contract-only diff. Severity: MEDIUM. Resolution: retain minimum route.
+## FIVE-AXIS CODE REVIEW
 
-## GATE RESOLUTION LANES
-
-- Credential: PASS — DB plaintext cannot authenticate; credential ID is not secret; Worker binding, expiry, revoke, and bounded overlap remain mandatory implementation checks.
-- Transport: PASS — one Worker-initiated HTTPS polling transport; no inbound workstation dependency or parallel transport.
-- Framework security: PASS — Next 15.5.25 builds and regresses; the blocking RCE is absent.
-- Authority: PASS — authentication remains identity only and cannot replace tenant grant, capability, ancestry, or lease.
+- Correctness: PASS after credential temporal-race, event identity, lease-renewal starvation, and bounded-process findings were corrected and re-tested.
+- Readability: PASS; semantic application ports isolate infrastructure details.
+- Architecture: PASS; P1 module-boundary suite is green after application dependency direction was corrected.
+- Security: PASS for the default-disabled P4 boundary; auth, exact grant, capability, lease, local path, secret, body, and process constraints are independent.
+- Performance: PASS for initial one-Owner scale; polling and SQL operations are bounded, with no speculative broker.
 
 ## CONCLUSION
 
-The P4 security/contract entry gate is PASS. Bounded implementation may resume in the same Work Order. No Worker route, schema, runtime, or Codex adapter was introduced during gate resolution.
+P4 is TECHNICALLY_COMPLETE on its phase branch. Canonicalization remains PENDING OWNER GATE. P5 has not started.
