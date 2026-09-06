@@ -29,7 +29,7 @@ An authenticated P2 actor with `agent.manage` at an already-approved exact Worke
 - Validation: `Authorization: Bearer <credential-id>.<secret>` over HTTPS; constant-time verifier comparison.
 - Rotation: issue a replacement, activate it, then revoke the old credential atomically or with an explicitly bounded overlap.
 - Revocation: immediate server-side denial; old leases remain historical but lose mutation authority.
-- Expiration: required; proposed default 90 days, configurable by policy.
+- Expiration: required; maximum 90 days.
 - Recovery: revoke and enroll a replacement; plaintext is never recoverable.
 - Replay: bearer replay is possible if the secret is stolen. TLS, redaction, bounded expiry, rotation, lease fencing, idempotency, and rate limits reduce impact but do not provide cryptographic per-request replay prevention.
 

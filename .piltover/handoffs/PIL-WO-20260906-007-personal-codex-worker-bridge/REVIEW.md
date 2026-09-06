@@ -1,19 +1,19 @@
 # P4 — ADVERSARIAL REVIEW
 
 STATUS:
-BLOCKED_BEFORE_IMPLEMENTATION
+GATE_RESOLUTION_PASS
 
 ## MACHINE AUTHENTICATION
 
-Finding: canonical semantics are incomplete. Falsifier: Worker ID or registration alone can impersonate a machine. Evidence: package requires authenticated identity but defines no credential lifecycle. Severity: CRITICAL. Resolution: Owner approval of the bounded proposal and ADR-0003.
+Finding: the machine identity contract is now approved. Falsifier: Worker ID or registration alone can impersonate a machine. Evidence: approved proposal and ADR-0003 require a public lookup ID plus random 256-bit bearer secret and verifier-only persistence. Severity: CRITICAL. Resolution: implement credential validation before every Worker mutation.
 
 ## CREDENTIAL STORAGE
 
-Finding: no approved server verifier or local secret-storage contract exists. Falsifier: plaintext reaches DB, Git, log, or evidence. Evidence: canonical security model forbids plaintext secrets. Severity: CRITICAL. Resolution: proposed non-recoverable verifier and Owner-only local storage outside Git.
+Finding: approved persistence is non-recoverable. Falsifier: plaintext reaches DB, Git, log, or evidence. Evidence: ADR-0003 stores only SHA-256 verifier/lifecycle facts and permits one-time issuance only. Severity: CRITICAL. Resolution: enforce through schema/service tests and secret scans.
 
 ## CREDENTIAL REVOCATION
 
-Finding: P3 can revoke Worker state but has no separate machine credential. Falsifier: revoked credential continues authenticating. Evidence: no credential model exists. Severity: CRITICAL. Resolution: explicit credential lifecycle and mutation-time revalidation.
+Finding: immediate revocation and server-clock expiry are approved but not yet implemented. Falsifier: revoked or expired credential continues authenticating. Evidence: approved 90-day maximum and 10-minute rotation overlap. Severity: CRITICAL. Resolution: implementation must fail closed and preserve Job durability.
 
 ## AUTHN ≠ AUTHZ
 
@@ -85,7 +85,7 @@ Finding: no credential has been created. Falsifier: real credential appears in d
 
 ## DEPENDENCY SECURITY
 
-Finding: BLOCKER. Falsifier: expose Worker route on direct production Next.js 15.3.4 while critical React Flight RCE is present. Evidence: fresh `npm audit --json`, 27 total advisories including 2 critical; npm recommends Next 15.5.25. Severity: CRITICAL. Resolution: Owner-approved targeted Next update and full regression before route exposure.
+Finding: PASS for the P4 Worker boundary. Falsifier: critical React Flight RCE remains or regression appears after patch. Evidence: exact Next.js 15.5.25 upgrade, fresh audit with the RCE absent, P1/P2/P3 and full 237-test regression PASS, production build PASS. Severity: CRITICAL. Resolution: retain remaining non-P4-reachable package/build debt and reassess before packaging/release.
 
 ## P5 SCOPE LEAK
 
@@ -95,6 +95,13 @@ Finding: role/context/permission references remain opaque. Falsifier: P4 resolve
 
 Finding: proposal chooses one transport and no new dependency; stronger auth remains an alternative. Falsifier: broker, generic RPC, multi-runtime SDK, or VPS appears. Evidence: contract-only diff. Severity: MEDIUM. Resolution: retain minimum route.
 
+## GATE RESOLUTION LANES
+
+- Credential: PASS — DB plaintext cannot authenticate; credential ID is not secret; Worker binding, expiry, revoke, and bounded overlap remain mandatory implementation checks.
+- Transport: PASS — one Worker-initiated HTTPS polling transport; no inbound workstation dependency or parallel transport.
+- Framework security: PASS — Next 15.5.25 builds and regresses; the blocking RCE is absent.
+- Authority: PASS — authentication remains identity only and cannot replace tenant grant, capability, ancestry, or lease.
+
 ## CONCLUSION
 
-The machine-authentication/core-protocol decision and the reachable Next.js critical advisory independently block P4 implementation. No schema, migration, dependency, application, Worker, network route, or Codex adapter change is allowed before the Owner resolves both gates.
+The P4 security/contract entry gate is PASS. Bounded implementation may resume in the same Work Order. No Worker route, schema, runtime, or Codex adapter was introduced during gate resolution.

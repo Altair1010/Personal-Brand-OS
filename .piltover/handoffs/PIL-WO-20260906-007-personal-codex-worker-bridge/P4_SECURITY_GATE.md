@@ -2,11 +2,11 @@
 
 ## Status
 
-BLOCKED_SECURITY_GATE
+PASS
 
 ## Evidence
 
-Fresh `npm audit --json` execution on 2026-09-06 reported:
+The pre-remediation `npm audit --json` execution on 2026-09-06 reported:
 
 - total: 27
 - moderate: 3
@@ -27,8 +27,44 @@ Fresh `npm audit --json` execution on 2026-09-06 reported:
 | Electron-builder, Prisma CLI, Browserslist, and related toolchain findings | Direct/transitive | Primarily development/build | Not on the proposed Worker request execution path based on current evidence | Mixed, some breaking | Non-blocking for contract gate; reassess before packaging/release |
 | Undici cache/parser findings | Transitive | Production dependency graph | Proposed Worker client may use Node built-in fetch; exact reachability must be rechecked after implementation | Available | Pending implementation, not the present critical blocker |
 
-## Blocking Decision
+## Remediation
 
-No public or machine-facing Worker mutation route may be added while the application remains on vulnerable Next.js 15.3.4. The smallest remediation is a targeted Next.js security update to 15.5.25, with lockfile-only dependency resolution changes, official advisory review, P1/P2/P3 regression, full tests, production build, standalone typecheck delta, and a fresh audit. Broad dependency upgrades and `npm audit fix --force` remain prohibited.
+Owner-approved exact upgrades were applied through normal npm resolution:
 
-The remediation requires Owner authorization because the P4 instructions prohibit dependency remediation without a gate and the exact Next version is pinned.
+- `next`: 15.3.4 to 15.5.25.
+- `eslint-config-next`: 15.3.4 to 15.5.25.
+- React, Prisma, AI SDKs, Electron, and other direct dependency declarations were unchanged.
+- No forced audit repair or broad dependency modernization was used.
+
+The official Next.js security guidance requires a patched stable release for the React Flight RCE, and the GitHub advisory identifies 15.5.7 as the first patched 15.5 release. Version 15.5.25 is beyond that threshold. The fresh npm audit confirms that GHSA-9qr9-h5gf-34mp is absent.
+
+## Post-remediation audit
+
+- All dependencies: 27 advisories: 4 moderate, 22 high, 1 critical.
+- Production install audit: 11 advisories: 4 moderate, 7 high, 0 critical.
+- Critical Next.js React Flight RCE: REMOVED.
+- Remaining critical `tar`: transitive through Electron packaging/build tooling; development-only and not reachable from the P4 Worker HTTP/runtime request path.
+- Remaining high Prisma CLI/build packages: development and migration tooling, not Worker request runtime.
+- Remaining high PostCSS and optional Sharp findings under Next: build/CSS and image-optimization paths; the approved P4 JSON Worker polling boundary performs neither CSS processing nor image optimization.
+- P4-reachable Critical/High blocker: NONE.
+
+## Regression evidence
+
+- P1 architecture: 1 file / 6 tests PASS.
+- P2 critical: 6 files / 49 tests PASS.
+- P3 critical: 10 files / 70 tests PASS.
+- Full repository: 40 files / 237 tests PASS with `maxWorkers=1`.
+- Production build: PASS on Next.js 15.5.25.
+- Prisma validate: PASS.
+- Standalone TypeScript: the two canonical TS2352 diagnostics remain; new diagnostics = 0.
+- Parallel baseline note: `maxWorkers=4` produced SQLite fixture hook timeouts on this Windows host; the same unmodified assertions pass sequentially before and after the upgrade.
+
+## Gate decision
+
+P4 SECURITY GATE: PASS. This decision permits bounded P4 implementation on the phase branch; it does not authorize deployment or imply that unrelated build/package advisories are resolved.
+
+## Sources
+
+- https://github.com/advisories/GHSA-9qr9-h5gf-34mp
+- https://nextjs.org/blog/security-update-2025-12-11
+- https://nextjs.org/blog/next-15-5

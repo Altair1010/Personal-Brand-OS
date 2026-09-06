@@ -13,7 +13,7 @@
   "technicalPackage": "docs/Piltover-Master-Technical-Package-v1.0.0",
   "implementationRoute": "single-agent-single-branch",
   "contractFreezeStatus": "APPROVED",
-  "securityGateStatus": "BLOCKED_SECURITY_GATE",
+  "securityGateStatus": "PASS",
   "machineAuthProposal": "P4_MACHINE_AUTH_CONTRACT_PROPOSAL.md",
   "proposedAdr": "docs/adr/0003-p4-worker-machine-auth-and-transport.md",
   "ownerApproval": {
@@ -22,12 +22,22 @@
     "approvedAt": "2026-09-06"
   },
   "dependencyAudit": {
-    "total": 27,
-    "moderate": 3,
-    "high": 22,
-    "critical": 2,
-    "blockingFinding": "Direct production Next.js 15.3.4 React Flight protocol RCE",
-    "auditRecommendedNextVersion": "15.5.25"
+    "before": { "total": 27, "moderate": 3, "high": 22, "critical": 2 },
+    "after": { "total": 27, "moderate": 4, "high": 22, "critical": 1 },
+    "productionAfter": { "total": 11, "moderate": 4, "high": 7, "critical": 0 },
+    "nextBefore": "15.3.4",
+    "nextAfter": "15.5.25",
+    "criticalNextRcePresentAfter": false,
+    "p4ReachableCriticalHighBlocker": "NONE"
+  },
+  "gateVerification": {
+    "p1": "1 file / 6 tests PASS",
+    "p2": "6 files / 49 tests PASS",
+    "p3": "10 files / 70 tests PASS",
+    "full": "40 files / 237 tests PASS with maxWorkers=1",
+    "build": "PASS",
+    "prismaValidate": "PASS",
+    "newTypeScriptDiagnostics": 0
   },
   "localCodex": {
     "version": "codex-cli 0.153.4",

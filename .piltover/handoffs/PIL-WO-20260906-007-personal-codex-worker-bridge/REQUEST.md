@@ -21,8 +21,8 @@ No P5 role/context/permission compiler, generic remote shell, raw Codex JSON-RPC
 - Branch: `work/PIL-WO-20260906-007-personal-codex-worker-bridge`
 - P4 entry gate: derived PASS from verified P3 canonical evidence.
 
-## Contract gate
+## Contract and security gate
 
-The canonical package does not select Worker credential lifecycle semantics or a concrete web transport. These are consequential trust-boundary and protocol decisions. P4 implementation is blocked pending Owner review of `P4_MACHINE_AUTH_CONTRACT_PROPOSAL.md` and ADR-0003.
+The Owner approved the R1 machine-authentication and transport contract on 2026-09-06: a public lookup ID plus random 256-bit bearer secret, verifier-only server persistence, maximum 90-day lifetime, immediate revocation, maximum 10-minute same-Worker rotation overlap, and one outbound authenticated HTTPS polling/long-polling transport. `P4_MACHINE_AUTH_CONTRACT_PROPOSAL.md` and ADR-0003 are APPROVED.
 
-The current dependency audit also blocks machine-facing route exposure until the direct production Next.js critical advisory is remediated through an explicitly approved, targeted update.
+The approved exact Next.js and matching ESLint configuration upgrade to 15.5.25 passed the required regression and reachability-based audit. The P4 security/contract entry gate is PASS; bounded P4 implementation may resume on this branch.
