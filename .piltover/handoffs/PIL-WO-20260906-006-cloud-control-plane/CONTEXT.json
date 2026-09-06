@@ -57,7 +57,7 @@
     "newTypeErrors": 0
   },
   "technicalCompletion": {
-    "implementationCheckpoint": "b9df074f8b930aea670bb05fab8da76a6cf9e88d",
+    "implementationCheckpoint": "01098df178925717d16e06f1bb7b5f4eec3cf84c",
     "p3Targeted": "10 files / 70 tests PASS",
     "p1P2Critical": "7 files / 55 tests PASS",
     "fullSuite": "40 files / 237 tests PASS",
@@ -68,7 +68,17 @@
     "newTypeErrors": 0,
     "remoteImplementationCheckpointVerified": true
   },
-  "canonicalizationStatus": "PENDING_OWNER_GATE",
+  "canonicalization": {
+    "status": "VERIFIED",
+    "ownerDecision": "APPROVED",
+    "implementationSha": "01098df178925717d16e06f1bb7b5f4eec3cf84c",
+    "canonicalMasterAfterImplementationReconciliation": "01098df178925717d16e06f1bb7b5f4eec3cf84c",
+    "p2Ancestry": "PRESERVED",
+    "historyRewrite": false,
+    "commitLoss": false,
+    "p4EntryGate": "PASS_AFTER_FINAL_CLOSEOUT_VERIFICATION"
+  },
+  "canonicalizationStatus": "VERIFIED",
   "p4Started": false,
   "p5Started": false
 }

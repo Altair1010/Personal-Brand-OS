@@ -213,5 +213,8 @@ Resolution: shared obvious-secret-key guard at persistence boundaries; full DLP 
 
 ## REVIEW VERDICT
 
-No Critical or Required finding remains unresolved. P3 is technically complete on its phase branch.
-Canonicalization remains a separate Owner gate; P4 remains blocked.
+No Critical or Required finding remains unresolved. The Owner approved canonical
+reconciliation of implementation SHA `01098df178925717d16e06f1bb7b5f4eec3cf84c`.
+That SHA was strictly fast-forwarded to `origin/master`; independent fetch,
+`git ls-remote`, artifact reachability, and P2 ancestry checks passed before the
+documentation-only closeout. P4 was not started during reconciliation.

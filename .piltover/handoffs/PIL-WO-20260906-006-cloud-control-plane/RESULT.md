@@ -1,6 +1,6 @@
 # P3 — CLOUD CONTROL PLANE
 
-STATUS: TECHNICALLY_COMPLETE
+STATUS: CANONICAL_DONE
 
 ## BASE
 
@@ -8,7 +8,7 @@ STATUS: TECHNICALLY_COMPLETE
 - P2 reachability: PASS; canonical P2, ADR-0001, its additive migration, and the R2 integrity closure remain ancestors.
 - Branch: `work/PIL-WO-20260906-006-cloud-control-plane`.
 - Work Order: `PIL-WO-20260906-006-cloud-control-plane`.
-- Relationship at implementation checkpoint: fast-forward safe, 12 commits ahead and 0 behind canonical master.
+- Relationship at reviewed technical closeout: fast-forward safe, 13 commits ahead and 0 behind canonical P2 master.
 
 ## APPROVED CONTRACTS
 
@@ -152,7 +152,8 @@ safely reconciles the expired lease. Worker offline never deletes or fails a val
 
 Added: NONE. `package.json` and lockfile are unchanged. The existing dependency tree reports 27
 audit advisories (3 moderate, 22 high, 2 critical); remediation is not introduced by P3 and was not
-mixed into this Work Order.
+mixed into this Work Order. P4 must triage the relevance of these advisories before exposing its
+machine-authentication or public transport boundary.
 
 ## SCOPE AUDIT
 
@@ -176,10 +177,11 @@ mixed into this Work Order.
 
 ## REMOTE PHASE BRANCH
 
-Implementation checkpoint `b9df074f8b930aea670bb05fab8da76a6cf9e88d` was pushed normally.
-After fetch, local HEAD, remote-tracking P3 ref, and independent `git ls-remote` output were equal.
-`origin/master` remained `decb72cfae5749037020cf29c5b48b1f4f4fd3f8`. The documentation closeout
-commit containing this result must be pushed as a normal descendant and verified before reporting the Owner gate.
+The Owner-reviewed technical implementation SHA is
+`01098df178925717d16e06f1bb7b5f4eec3cf84c`. It was pushed to `origin/master`
+by strict fast-forward from canonical P2. An independent fetch and `git ls-remote`
+both resolved canonical master to the reviewed implementation SHA before this
+documentation-only closeout was created.
 
 ## LIMITATIONS
 
@@ -191,13 +193,22 @@ commit containing this result must be pushed as a normal descendant and verified
 
 ## ACCEPTANCE
 
-TECHNICALLY_COMPLETE. Canonicalization is not authorized by this state.
+CANONICAL_DONE. The reviewed P3 implementation and its durable closeout evidence
+are canonical after final remote verification.
 
 ## CANONICALIZATION
 
-PENDING OWNER GATE. The only proposed operation is a strict fast-forward of master to the final
-verified P3 branch SHA, subject to fresh ancestry and remote-state proof after Owner approval.
+VERIFIED.
+
+- Implementation SHA: `01098df178925717d16e06f1bb7b5f4eec3cf84c`.
+- Canonical master after implementation reconciliation: `01098df178925717d16e06f1bb7b5f4eec3cf84c`.
+- P2 ancestry: PRESERVED.
+- History rewrite: NO.
+- Commit loss: NO.
+- P4 entry gate: PASS_AFTER_FINAL_CLOSEOUT_VERIFICATION.
 
 ## NEXT LEGAL PHASE
 
-P4 remains BLOCKED until P3 is CANONICAL_DONE. Do not start P4.
+P4 entry gate passes only after the documentation-only closeout commit is
+strictly fast-forwarded to canonical master and independently verified. P4 was
+not started by this Work Order.
