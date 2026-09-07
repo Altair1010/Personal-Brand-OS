@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "1.0",
+  "workOrderId": "PIL-WO-20260908-008-agent-control-plane",
+  "status": "BLOCKED_OWNER_CONTRACT_GATE",
+  "updatedAt": "2026-09-08T05:04:16+07:00",
+  "phase": "P5",
+  "gate": "P5-G1",
+  "baseRef": "aa1ed10b4b94b08c7f142e2e28841b4754d7bf39",
+  "branch": "gate/P5-G1-agent-control-plane-contract-freeze",
+  "phaseBranch": "phase/P5-agent-control-plane",
+  "p4Canonical": "PASS",
+  "p5Started": true,
+  "implementationStarted": false,
+  "contractFreeze": "OWNER_DECISION_REQUIRED",
+  "blockingReason": "The canonical package fixes the major P5 boundaries but omits consequential identity, role tenancy, policy composition, instruction precedence, context snapshot, and executable autonomy semantics.",
+  "ownerGate": "P5_CANONICAL_CONTRACT",
+  "schemaMutation": "NONE",
+  "applicationMutation": "NONE",
+  "dependencyMutation": "NONE",
+  "p4Mutation": "NONE",
+  "p6PlusStarted": false,
+  "phaseIntegration": "NOT_AUTHORIZED_WHILE_BLOCKED"
+}

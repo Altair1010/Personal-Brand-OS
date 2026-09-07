@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "1.0",
+  "workOrderId": "PIL-WO-20260908-008-agent-control-plane",
+  "phase": "P5",
+  "gate": "P5-G1",
+  "baseRef": "aa1ed10b4b94b08c7f142e2e28841b4754d7bf39",
+  "branch": "gate/P5-G1-agent-control-plane-contract-freeze",
+  "phaseBranch": "phase/P5-agent-control-plane",
+  "canonicalPackagePath": "docs/Piltover-Master-Technical-Package-v1.0.0",
+  "canonicalPhaseSpec": "12_PHASES/P5_AGENT_CONTROL_PLANE.md",
+  "p4Canonical": "PASS",
+  "p5Started": true,
+  "implementationStarted": false,
+  "readStrategy": "PROGRESSIVE",
+  "resolvedContracts": [
+    "P5 owns semantic run governance before the P3/P4 execution boundary",
+    "P3 remains canonical for AgentRun state and ApprovalRequest state",
+    "P4 remains canonical for machine identity, worker transport, tenant grants, capabilities, lease, local repository mapping, and Codex runtime",
+    "Each run records exact configuration references",
+    "Context is minimum sufficient, tenant-scoped, hashed, and versioned",
+    "Tool permission is deny-by-default and cannot bypass human approval",
+    "AI output remains proposal state until an authorized transition"
+  ],
+  "consequentialGaps": [
+    "Agent Definition stable identity, ownership, lifecycle, and version immutability semantics",
+    "Agent Role tenancy, inheritance, composition, binding, lifecycle, and versioning",
+    "Permission composition and initiator authority ceiling",
+    "Context source authority, snapshot semantics, retention, and secret handling",
+    "Instruction precedence and prompt-injection treatment",
+    "Executable autonomy, budget, concurrency, retry, and approval-wait limits",
+    "Run binding and stale-policy revalidation semantics"
+  ],
+  "adrCreated": false,
+  "adrReason": "No new consequential decision may be recorded before the consolidated Owner Contract Gate is resolved."
+}
