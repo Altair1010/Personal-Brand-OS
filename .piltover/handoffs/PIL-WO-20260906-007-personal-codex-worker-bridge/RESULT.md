@@ -188,3 +188,20 @@ default-disabled, and P5 semantic role/context/permission resolution is not impl
 
 P4 is a release candidate ready for the explicit Owner canonicalization gate. It is not
 `CANONICAL_DONE`, and P5 remains blocked.
+
+## P4-G7 OWNER CANONICALIZATION APPROVAL
+
+Owner approval: YES.
+
+- Approved release branch: `phase/P4-personal-codex-worker`.
+- Approved release SHA: `94830b422e1bdc4935e37dcf57c2785c00372b82`.
+- Approved integration strategy: `STRICT_FAST_FORWARD`.
+- Canonicalization state: `OWNER_APPROVED_PENDING_INTEGRATION`.
+- P5 entry gate: BLOCKED until canonical closeout is committed and remote master, phase, and G7
+  are proven equal.
+- Authorized scope: documentation evidence and strict fast-forward Git reconciliation only.
+- Excluded scope: product, schema, migration, dependency, deployment, production database, and P5
+  mutation.
+
+The G6 technical findings remain unchanged. This approval record does not claim
+`CANONICAL_DONE` and does not start P5.

@@ -38,3 +38,14 @@ integrate only passing release evidence back into the phase branch by strict fas
 This authorization does not permit product feature expansion, production deployment, production
 database migration, P5 work, or phase-to-master integration. Canonicalization remains a separate
 explicit Owner decision.
+
+## P4-G7 canonical reconciliation gate
+
+On 2026-09-08, the Owner explicitly approved canonical reconciliation of
+`phase/P4-personal-codex-worker` at
+`94830b422e1bdc4935e37dcf57c2785c00372b82` using strict fast-forward history only.
+
+The approval authorizes the remote G7 checkpoint, durable approval evidence, strict fast-forward
+integration through the phase branch and master, canonical closeout evidence, and exact remote
+verification. It does not authorize source, schema, migration, dependency, deployment, production
+database, or P5 changes.
