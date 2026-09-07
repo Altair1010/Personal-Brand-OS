@@ -872,6 +872,7 @@ model WorkerCredential {
   secretVerifier           String
   issuedAt                 DateTime
   expiresAt                DateTime
+  familyExpiresAt          DateTime
   revokedAt                DateTime?
   createdByUserIdentityId  String?
   revokedByUserIdentityId  String?

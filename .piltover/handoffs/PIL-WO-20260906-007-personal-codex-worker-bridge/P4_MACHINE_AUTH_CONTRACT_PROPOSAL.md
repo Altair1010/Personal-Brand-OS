@@ -6,6 +6,8 @@ APPROVED
 
 Owner approval was granted on 2026-09-06 by the P4 Gate Resolution R1 execution authorization. The approved contract is the opaque bearer credential and HTTPS polling route defined below; the alternative options remain historical decision evidence only.
 
+Revision R2, Machine Identity Governance Closure, was approved through P4-G5. R2 corrects governance authority and bearer self-rotation without changing the credential's role as a global Worker identity or the approved transport.
+
 ## Problem
 
 The canonical package requires authenticated, revocable Worker identity and an outbound resumable connection, but does not define enrollment, credential form, server-side verification storage, rotation, expiration, replay behavior, recovery, or a concrete transport. These choices alter the machine trust boundary, public protocol, persistence, and operations. They cannot be inferred from Worker registration, capabilities, tenant grants, or leases.
@@ -23,7 +25,7 @@ Piltover Worker authentication and Codex/OpenAI authentication remain separate s
 
 ## Option A — Opaque Bearer Credential over HTTPS
 
-An authenticated P2 actor with `agent.manage` at an already-approved exact Worker target issues a cryptographically random 256-bit credential. The Worker receives the plaintext once through an Owner-controlled local enrollment step. The server stores only a credential ID, Worker ID, SHA-256 verifier, status, created/last-used/expiry/revocation timestamps, and attributable audit facts.
+An authenticated P2 actor authorized to govern every current active exact Worker grant issues a cryptographically random 256-bit credential. The Worker receives the plaintext once through an Owner-controlled local enrollment step. The server stores only a credential ID, Worker ID, SHA-256 verifier, status, created/expiry/family-expiry/revocation timestamps, and attributable audit facts.
 
 - Enrollment: human-approved, one-time plaintext delivery.
 - Validation: `Authorization: Bearer <credential-id>.<secret>` over HTTPS; constant-time verifier comparison.
@@ -61,7 +63,7 @@ Use Option A for the initial one-Owner P4 POC, with all of these constraints:
 2. Server stores only a SHA-256 verifier and lifecycle/audit facts.
 3. The presented credential separates a public lookup identifier from 256-bit secret material using a stable safe encoding, conceptually `<credential-id>.<secret>`.
 4. Credential is bound to exactly one Worker and has a maximum lifetime of 90 days.
-5. Rotation uses a maximum 10-minute overlap and both credentials authenticate only the same Worker; the old credential then fails.
+5. Rotation uses a maximum 10-minute overlap and both credentials authenticate only the same Worker; the old credential then fails. Bearer self-rotation never extends the immutable credential-family expiry.
 6. Revocation is immediate and expiration is evaluated using the server/control-plane clock.
 7. Recovery is revoke-and-re-enroll; secrets are never recoverable.
 8. Worker-side plaintext is supplied through a process environment variable or an Owner-only local configuration file outside Git. The implementation must verify restrictive local access before use and must not print the value.
@@ -90,6 +92,7 @@ After the security gate is cleared, add one additive `WorkerCredential` model an
 - `workerId`
 - `secretVerifier`
 - `issuedAt`, `expiresAt`, `createdAt`
+- immutable `familyExpiresAt`, initialized to `expiresAt` by human-governed issuance and inherited by every self-rotated replacement
 - `createdByUserIdentityId` when issuance is a human governance action
 - `revokedAt`, `revokedByUserIdentityId` optional
 - `supersededByCredentialId` and `rotationStartedAt` only if required by the implemented overlap algorithm
@@ -106,6 +109,17 @@ The Worker relation is restrictive. Credential lifecycle events are appended to 
 | Local repository authority | Opaque repository alias from envelope | Local immutable allowlist | Alias exists; resolved real path remains inside configured root; approved repository | Validated local repository handle | unknown alias, absolute remote path, traversal, junction/symlink escape | Pure deterministic resolution | Local paths never returned to control plane | Local config outside repository state | Personal Worker | Remote data cannot select a path |
 | CodexRuntimePort | Bounded run spec and validated repository handle | Worker application after all server/local checks | Supported installed protocol; bounded task; adapter self-test passes | Safe events and terminal result | unsupported protocol, timeout, crash, cancellation, approval required | One local runtime attempt per authoritative lease; stale output rejected by P3 | Codex auth remains local to Codex | Runtime state is non-canonical; P3 stores events/result | worker runtime application | Raw JSON-RPC stays inside infrastructure adapter |
 | Reconnect/cancellation | Worker identity, known leases, acknowledged sequences | Machine auth plus P3 reconnect/lease checks | Current credential and Worker; canonical server state available | Authoritative lease statuses, event deltas, actions | credential/Worker/grant/lease loss; invalid sequence | Safe repeat | No credentials in events | P3 remains canonical | workers/agents application | Local interrupt is best-effort; stale mutation is denied |
+
+## Revision R2 — Machine Identity Governance Closure
+
+- `WorkerCredential` remains a global machine identity. P3 `WorkerWorkspaceGrant` and `WorkerBrandGrant` remain independent exact tenant authorization; `WorkerCapability` and `WorkerLease` remain independent technical and attempt authorities.
+- Human issuance and credential-record revocation enumerate every ACTIVE Workspace and Brand grant for the Worker and require P2 `agent.manage` at every exact scope. A denial at any scope denies the global credential mutation before credential or audit persistence.
+- The supplied legacy target argument is compatibility data only and is not an authorization source of truth.
+- A Worker with zero active tenant grants cannot be issued or globally revoked through tenant-scoped `agent.manage`. No platform bootstrap authority exists in the canonical package, so no first-grant fallback is invented. Existing credentials may still authenticate or self-rotate while otherwise valid after all grants are removed.
+- Tenant-local removal uses exact grant revocation. It removes authority only from that tenant and does not revoke the global credential or unrelated grants.
+- Human-governed issuance starts a new credential family with at most 90 days of trust. Self-rotation inherits the family's immutable maximum expiry, and each replacement expires no later than that bound.
+- Credential revocation remains record-specific. Revoking one record does not claim to revoke its replacement. Disabling or revoking the Worker is the existing operation that disables the Worker identity as a whole.
+- Grant enumeration, every P2 authorization decision, and credential mutation execute in one SQLite/Prisma Serializable transaction. Concurrent grant and credential changes must serialize or abort; a later new grant still requires its own tenant administrator's explicit authorization.
 
 ## Security and Failure Cases
 

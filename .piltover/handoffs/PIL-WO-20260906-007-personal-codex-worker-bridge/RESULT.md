@@ -17,7 +17,7 @@ ADR-0003 and `P4_MACHINE_AUTH_CONTRACT_PROPOSAL.md` are APPROVED. P4 uses a 256-
 
 ## MACHINE AUTHENTICATION
 
-`WorkerCredential` is additive and contains no plaintext secret. Issuance uses cryptographically secure randomness and returns plaintext once. Authentication uses constant-time verifier comparison. Rotation is atomically single-success and preserves Worker identity. Revocation remains independently available to an exact-scope P2 `agent.manage` actor after grant revocation. Authentication yields identity only; Worker ACTIVE state, capability, exact tenant grant, P2 ancestry, and current lease remain independent conditions.
+`WorkerCredential` is additive and contains no plaintext secret. Issuance uses cryptographically secure randomness and returns plaintext once. Authentication uses constant-time verifier comparison. Rotation is atomically single-success, preserves Worker identity, and cannot exceed the immutable credential-family expiry. Human issue and credential-record revoke require `agent.manage` across every active exact Worker grant. Tenant-local removal uses exact grant revocation. Authentication yields identity only; Worker ACTIVE state, capability, exact tenant grant, P2 ancestry, and current lease remain independent conditions.
 
 ## TRANSPORT
 
@@ -47,18 +47,31 @@ PASS. A real App Server execution traversed P3 Run/Job persistence, authenticate
 
 `20260906070000_add_piltover_worker_credentials`: fresh database PASS; populated P3 database PASS; second deploy PASS; P2/P3 counts unchanged. Existing migrations were not edited.
 
+`20260908010000_add_worker_credential_family_expiry` is a new forward-only migration. It adds non-null `familyExpiresAt` and backfills every existing connected rotation chain to the minimum existing record expiry in that chain. This is the narrowest fail-closed bound when the original pre-R2 horizon is no longer reconstructable, and it never extends an existing record expiry.
+
+## G5 MACHINE IDENTITY AUTHORITY CLOSURE
+
+- cross-tenant issuance: targeted falsifier PASS; A-only actor cannot mint for Worker A+B, no credential or issuance audit is created.
+- cross-tenant global revoke: targeted falsifier PASS; A-only actor cannot revoke a credential serving B.
+- tenant local revoke: targeted falsifier PASS; exact A grant revoke removes A authority while B and the credential remain unchanged.
+- rotation family bound: targeted falsifier PASS across repeated near-expiry rotations.
+- stolen credential horizon: targeted falsifier PASS; bearer-only possession cannot extend family expiry, issue a fresh family, revoke tenant grants, or change capabilities.
+- migration: targeted forward-migration and legacy-chain backfill PASS.
+- live POC: PASS; the explicit live-only test completed 1/1 in 132.83 seconds, and no matching App Server process remained afterward.
+- regression: PASS; P4, P3, P2, P1 architecture, full repository, production build, Prisma validation, TypeScript delta, diff check, and secret scan completed without a G5 regression.
+
 ## SECURITY
 
 Next.js and `eslint-config-next` remain exactly 15.5.25. Final audit: complete tree 27 advisories (4 moderate, 22 high, 1 critical); production tree 11 (4 moderate, 7 high, 0 critical). The blocking Next.js React Flight RCE is absent. Remaining Critical/High findings are not materially reachable through this Worker JSON boundary and remain explicit debt. Secret scan found no credential, API key, or private key material.
 
 ## VERIFICATION
 
-- P4 targeted default: 5 files PASS, 1 live file skipped; 14 tests PASS, 1 skipped.
+- P4 targeted default: 6 files / 23 tests PASS; the separate live file is skipped unless explicitly enabled.
 - P4 real live POC: 1 file / 1 test PASS.
 - P3 critical: 10 files / 70 tests PASS.
 - P2 critical: 6 files / 49 tests PASS.
 - P1 architecture: 1 file / 6 tests PASS.
-- Full repository: 45 files PASS, 1 live file skipped; 251 tests PASS, 1 skipped.
+- Full repository: 46 files PASS, 1 live file skipped; 260 tests PASS, 1 skipped.
 - Production build: PASS on Next.js 15.5.25; all eight P4 routes compiled.
 - Prisma format/validate/generate: PASS.
 - Standalone TypeScript: two historical TS2352 diagnostics unchanged; new diagnostics = 0.
@@ -76,6 +89,10 @@ Bearer replay risk remains within the bounded credential lifetime; TLS, rotation
 ## CANONICALIZATION
 
 PENDING OWNER GATE.
+
+## PERMANENT GIT LIFECYCLE
+
+Every future master prompt receives one remote `gate/PX-Gn-*` branch created from the current `phase/PX-*` branch and pushed before implementation. A passing gate is committed, pushed, remotely verified, and then integrated into its phase branch under the authorized strategy. A phase becomes `CANONICAL_DONE` only after all gates, phase regression, Owner Gate, controlled phase-to-master integration, and remote master verification. No remote gate means the gate is not done; no integrated phase means the phase is not technically complete; no verified master integration means the phase is not canonical.
 
 ## NEXT LEGAL PHASE
 

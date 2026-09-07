@@ -82,3 +82,39 @@ Finding: one SQL credential model, one HTTPS polling transport, standard library
 ## CONCLUSION
 
 P4 is TECHNICALLY_COMPLETE on its phase branch. Canonicalization remains PENDING OWNER GATE. P5 has not started.
+
+## G5 MACHINE IDENTITY AUTHORITY CLOSURE
+
+### Authentication lane
+
+Finding: each credential record still binds to exactly one Worker, stores only a verifier, and returns only an authenticated Worker principal. Tenant grants, capabilities, and leases were not copied into authentication. Resolution: PASS after targeted and full regression.
+
+### Governance lane
+
+Finding: R1 authorized issue/revoke from one caller-selected target, allowing an A-only actor to control a global identity with an active B grant. Resolution: whole-Worker enumeration now requires P2 `agent.manage` for every ACTIVE exact Workspace and Brand grant inside the credential transaction. Zero-active-grant tenant governance fails closed. Targeted cross-tenant issue/revoke and local grant isolation falsifiers PASS; full regression PASS.
+
+### Rotation lane
+
+Finding: R1 self-rotation calculated `now + lifetime`, allowing repeated bearer rotation to extend compromise indefinitely. Resolution: each human issuance creates an immutable `familyExpiresAt`; replacements inherit it and use `min(now + requested lifetime, familyExpiresAt)`. Authentication checks both record and family expiry. Repeated-rotation and stolen-bearer falsifiers PASS; full regression PASS.
+
+### Tenant authorization lane
+
+Finding: credentials remain global identity only. Tenant execution still requires P3 exact active grant, active ancestry, capability coverage, and current lease. Local tenant removal revokes the exact grant and does not revoke global identity or unrelated grants. Resolution: targeted PASS; P3 regression PASS.
+
+### Concurrency lane
+
+Finding: a grant-set snapshot followed by credential mutation outside one transaction would permit a stale authorization commit. Resolution: Worker resolution, active-grant enumeration, every exact-scope authorization decision, and credential mutation use one explicit SQLite Serializable Prisma transaction. Concurrent writers serialize or abort. A grant added after issuance remains an explicit authorization by that tenant's administrator. No distributed lock was added. Resolution: implementation review and full regression PASS.
+
+SQLite takes a database write lock for the forward table-rebuild migration. Production execution was neither authorized nor performed. If later authorized, it requires a controlled maintenance window and verified backup. Migration tests verify row preservation, fail-closed family-expiry backfill, indexes, foreign keys, and idempotent deployment.
+
+### Revocation semantics
+
+Credential revocation is record-specific. Revoking an old rotated record does not disable the replacement and makes no family-wide claim. `Worker` disable/revoke is the existing whole-machine-identity kill switch. Exact tenant grant revoke is the local tenant isolation operation.
+
+### Stolen credential threat model
+
+An attacker holding only a valid bearer secret may authenticate and self-rotate while the record and family remain valid. The attacker cannot extend the family horizon, create a fresh family without a human P2 identity governing every active grant, change capabilities, change or revoke grants, or gain tenant authority absent an explicit active P3 grant. After family expiry, every credential in that family fails authentication.
+
+### G5 conclusion
+
+Five independent lanes PASS: authentication, governance, rotation, tenant authorization, and concurrency. The live Codex proof PASS, all required regressions PASS, and P4 remains a technically complete phase candidate pending the separate Owner canonicalization gate. P5 has not started.

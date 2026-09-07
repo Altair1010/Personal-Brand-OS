@@ -89,16 +89,18 @@ describe("P4 Worker machine authentication and execution envelope", () => {
     await expect(credentials.authenticate(rotated.credential)).resolves.toMatchObject({ workerId: "worker-a" });
   });
 
-  it("allows authorized governance revocation after the Worker grant was revoked", async () => {
+  it("keeps an enrolled credential valid when its final tenant grant is locally revoked", async () => {
     const credentials = new PrismaWorkerCredentialStore(fixture.db, clock);
     const issued = await credentials.issue(
       fixture.ownerActor, "worker-a", { type: "WORKSPACE", id: "workspace-a" }, 60_000, "issue-a",
     );
     await registry.revokeWorkspace(fixture.ownerActor, "worker-a", "workspace-a", "grant-revoke-a");
-    await credentials.revoke(
+    await expect(credentials.revoke(
       fixture.ownerActor, issued.credentialId, { type: "WORKSPACE", id: "workspace-a" }, "credential-revoke-a",
-    );
-    await expect(credentials.authenticate(issued.credential)).rejects.toThrow("AUTH_CREDENTIAL_REVOKED");
+    )).rejects.toThrow("WORKER_ACTIVE_GRANT_REQUIRED");
+    expect((await fixture.db.workerCredential.findUniqueOrThrow({ where: { id: issued.credentialId } })).revokedAt).toBeNull();
+    expect(await fixture.db.auditEntry.count({ where: { action: "WORKER_CREDENTIAL_REVOKED" } })).toBe(0);
+    await expect(credentials.authenticate(issued.credential)).resolves.toMatchObject({ workerId: "worker-a" });
     await expect(credentials.authenticate("not-a-credential")).rejects.toThrow("AUTH_INVALID_CREDENTIAL");
   });
 
