@@ -118,3 +118,71 @@ An attacker holding only a valid bearer secret may authenticate and self-rotate 
 ### G5 conclusion
 
 Five independent lanes PASS: authentication, governance, rotation, tenant authorization, and concurrency. The live Codex proof PASS, all required regressions PASS, and P4 remains a technically complete phase candidate pending the separate Owner canonicalization gate. P5 has not started.
+
+## P4 PHASE RELEASE REVIEW
+
+### Reverse-graph conclusion
+
+The reviewed integrated phase has one safe authority chain: remotely verified P4 code establishes
+global Worker identity; P3 exact grants establish tenant authority; capabilities establish technical
+eligibility; the current lease fences each attempt; the local immutable alias resolves filesystem
+authority; and the fixed Codex adapter owns runtime authority. No credential, route, envelope, or
+runtime shortcut collapses these layers. P5 remains blocked because P4 is not canonical.
+
+### Axis A — Correctness: PASS
+
+All phase terminal transitions remain owned by P3. Live runs reached `COMPLETED` through real App
+Server protocol state, and targeted tests denied stale, wrong-Worker, revoked, expired, cancelled,
+and authority-lost mutations. Late results cannot replace newer canonical state.
+
+### Axis B — Security: PASS
+
+Whole-Worker governance and immutable family expiry close the G5 cross-tenant and stolen-bearer
+defects. Exact grant, capability, lease, bounded body, strict schemas, final-real-path containment,
+no-shell execution, private fixed JSON-RPC, approval fail-closed, event/result secret rejection, and
+child-environment credential stripping remain independent. Fresh tracked-file and live-log signature
+scans found no real secret. The production audit contains zero critical advisories and no reviewed
+Critical/High path is materially reachable through the P4 Worker boundary.
+
+### Axis C — Durability: PASS
+
+Disconnect, restart, reclaim, grant loss, Worker disable, credential revoke, lease expiry, and
+cancellation defer to P3 persisted state and lease fencing. The Worker reconnects by querying server
+truth; connection or process memory cannot restore authority.
+
+### Axis D — Operability: PASS
+
+Credential authentication/rotation, heartbeat, polling, lease renewal, reconnect, bounded Codex
+execution, result submission, shutdown, and cleanup are deterministic at the verified one-Owner
+scale. Two consecutive real runs completed inside independent 240-second process deadlines with zero
+matching App Server or fixture orphan after each run. The historical long-running symptom was not
+reproduced and therefore was not patched.
+
+One non-product anomaly was isolated during verification: concurrent P2 and P3 Prisma-heavy test
+processes caused a P2 fixture setup hook to exceed ten seconds. The same backup file passed alone,
+and the entire P2 suite passed without timeout changes when executed with one Vitest worker. Root
+cause: verification-harness resource contention. Smallest correction: serialize that regression
+lane. Failure transfer: none to runtime or product state.
+
+### Axis E — Architecture: PASS
+
+The phase remains a modular-monolith P4 bridge: outbound HTTPS polling, a semantic runtime port,
+one local resolver, one credential model, no broker, no WebSocket, no inbound workstation port, no
+generic remote execution, no second authorization system, and no P5 resolver/compiler/orchestrator.
+The exact phase diff contains no unexplained PBOS feature mutation.
+
+### Migration review
+
+The G5 table rebuild copies every pre-existing credential column, restores all four foreign keys,
+the primary key, unique successor constraint, and both lookup indexes, and preserves rotation IDs.
+Clone `foreign_key_check` returned no rows. Connected legacy chains receive the minimum evidenced
+expiry; no record expiry or family authority is extended. The current development clone had no
+credential rows, so invalidation was zero. A future populated database may require re-enrollment
+after fail-closed shortening. SQLite write locking requires a verified backup and coordinated
+maintenance window; no production migration was performed.
+
+### Final finding
+
+No Critical or required release blocker remains. P4-G6 is PASS and may be integrated by strict
+fast-forward into the P4 phase branch. Master canonicalization remains an explicit Owner gate;
+`CANONICAL_DONE` must not be set and P5 must not start.

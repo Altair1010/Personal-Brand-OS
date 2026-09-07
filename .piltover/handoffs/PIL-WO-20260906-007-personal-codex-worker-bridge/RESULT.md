@@ -97,3 +97,94 @@ Every future master prompt receives one remote `gate/PX-Gn-*` branch created fro
 ## NEXT LEGAL PHASE
 
 P5 remains BLOCKED until P4 is CANONICAL_DONE.
+
+## P4-G6 PHASE RELEASE CANDIDATE
+
+STATUS: PASS.
+
+### Git relationship
+
+- Canonical master: `cb5c53c85d703ab5c83e13e921007e85ddc316a0`.
+- Reviewed phase input SHA: `c169c33c2e3b1e39fc8c75916aa27e1c5f20157d`.
+- Empty remote G6 checkpoint SHA: `c169c33c2e3b1e39fc8c75916aa27e1c5f20157d`.
+- Release gate: `gate/P4-G6-phase-release-candidate`; its evidence commit is the commit containing this section and must be resolved through the remotely verified Git ref.
+- The phase was eight commits ahead and zero behind master at verification input; merge-base was canonical master and strict fast-forward canonicalization was structurally available.
+- G5 was integrated. The legacy P4 evidence branch and durable gate branches remained preserved. No history rewrite, squash, rebase, force push, master mutation, or commit loss occurred.
+
+### Migration impact
+
+A SQLite backup snapshot of the current `prisma/dev.db` was created in a disposable `F:\tmp`
+directory. The source database was not opened for migration. Before migration it contained no P4
+`WorkerCredential` table and therefore zero credentials, zero authenticable credential records,
+and zero rotation chains. All four pending Piltover migrations applied to the clone, and a second
+deploy reported no pending migration.
+
+After migration the clone contained zero credentials, zero past family expiries, zero shortened
+effective lifetimes, zero invalidated credentials, and zero credentials requiring re-enrollment.
+All pre-existing PBOS table counts were unchanged. `foreign_key_check` was clean; all twelve
+credential columns, four foreign keys, the primary key, unique rotation relation, and both Worker
+lookup indexes were present. Data loss: NO. Security weakening or authority extension: NO.
+Credential invalidation in this development snapshot: 0. Production migration: NOT PERFORMED.
+Any future SQLite table rebuild requires a verified backup, write coordination, and a controlled
+maintenance window.
+
+### Live stability
+
+Two consecutive real executions used `codex-cli 0.153.4` and independent external process
+deadlines of 240 seconds in addition to the canonical Vitest and adapter bounds.
+
+- Run 1: 2026-09-08 03:52:36 +07:00 to 03:55:01 +07:00, 144.60 seconds, exit 0, P3 terminal assertion `COMPLETED`, App Server count 0 before and 0 after, disposable fixture count 0 after cleanup.
+- Run 2: 2026-09-08 03:55:36 +07:00 to 03:57:37 +07:00, 120.67 seconds, exit 0, P3 terminal assertion `COMPLETED`, App Server count 0 before and 0 after, disposable fixture count 0 after cleanup.
+
+The historical approximately 22-minute symptom did not reproduce. No product or test timeout was
+changed. A first P2 run executed Prisma-heavy files concurrently and produced only a fixture
+`beforeEach` timeout; the failing file passed alone in 6.23 seconds and the complete P2 suite passed
+with one Vitest worker, establishing test-process resource contention rather than a P2 defect.
+
+### Security summary
+
+The final reverse graph preserved machine authentication, tenant authorization, capability,
+lease, local filesystem authority, and Codex authority as independent layers. G5 cross-tenant
+issue/revoke, zero-grant fail-closed behavior, local grant isolation, bounded credential-family
+rotation, stolen-bearer limits, and record-specific revocation all passed. Worker requests remain
+strict, independently authenticated, body-bounded, and default-disabled. P3 rejects obvious secret
+metadata in events/results; the Codex child environment removes Piltover machine credential
+variables; tracked P4 files and live logs contained no credential, API key, private key, or bearer
+signature.
+
+`next` and `eslint-config-next` remained exactly 15.5.25. Fresh audit counts were 27 for the full
+tree (4 moderate, 22 high, 1 critical) and 11 for production (4 moderate, 7 high, 0 critical).
+Reachability review found no Critical/High advisory materially reachable through the P4 Worker JSON
+boundary. No dependency remediation or package mutation occurred in G6.
+
+### Regression summary
+
+- P4 targeted including G5: 6 files / 23 tests PASS.
+- Real live Codex: 1 file / 1 test PASS twice.
+- P3 critical: 10 files / 70 tests PASS.
+- P2 critical: 6 files / 49 tests PASS with one Vitest worker after the concurrency diagnosis.
+- P1 architecture: 1 file / 6 tests PASS.
+- Full repository: 46 files PASS, 1 live file skipped by default; 260 tests PASS, 1 skipped.
+- Production build: PASS; all eight P4 routes compiled.
+- Prisma format, validate, generate, fresh migration, populated P3 migration, clone migration, and second deploy: PASS.
+- Standalone TypeScript: the same two historical TS2352 diagnostics exist on canonical master and phase; new diagnostics: 0.
+- `git diff --check`, P5 implementation scan, and secret signature scans: PASS.
+
+### Scope and release review
+
+The phase diff contains 41 explained files: contracts/ADR/handoff evidence, schema, two migrations,
+bounded Worker application/infrastructure, eight fixed routes, tests, and the approved exact Next.js
+pair update. No unrelated PBOS feature change was identified. Correctness: PASS. Security: PASS.
+Durability: PASS. Operability: PASS. Architecture: PASS. P5 started: FALSE. Deployment, UI,
+production database mutation, and master mutation: NONE.
+
+### Known non-blocking limitations
+
+Bearer replay remains possible inside bounded credential validity. HTTPS/TLS remains a deployment
+requirement. Polling is not push. Dependency advisory debt remains. SQLite migration requires write
+coordination. The G5 fail-closed migration may shorten or invalidate legacy rotated credentials in
+a future database that contains them. P4 is not deployed, P4 routes remain policy-governed and
+default-disabled, and P5 semantic role/context/permission resolution is not implemented.
+
+P4 is a release candidate ready for the explicit Owner canonicalization gate. It is not
+`CANONICAL_DONE`, and P5 remains blocked.
