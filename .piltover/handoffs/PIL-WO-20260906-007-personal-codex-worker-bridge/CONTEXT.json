@@ -47,10 +47,16 @@
     "productionMigrationPerformed": false
   },
   "phaseReleaseCandidate": "PASS",
-  "canonicalization": "OWNER_APPROVED_PENDING_INTEGRATION",
+  "canonicalization": "VERIFIED",
   "ownerApproval": "YES",
   "approvedReleaseSha": "94830b422e1bdc4935e37dcf57c2785c00372b82",
+  "approvalSha": "8b72a8b95f662e95fac4642cb7d1d96b3e4b2e9c",
+  "canonicalImplementationReleaseSha": "94830b422e1bdc4935e37dcf57c2785c00372b82",
+  "finalCloseoutSha": "RESOLVE_FROM_VERIFIED_REMOTE_G7_REF",
   "approvedStrategy": "STRICT_FAST_FORWARD",
-  "p5EntryGate": "BLOCKED_PENDING_CANONICAL_CLOSEOUT",
+  "masterReconciliation": "STRICT_FAST_FORWARD_VERIFIED",
+  "historyRewrite": false,
+  "commitLoss": false,
+  "p5EntryGate": "PASS",
   "p5Started": false
 }

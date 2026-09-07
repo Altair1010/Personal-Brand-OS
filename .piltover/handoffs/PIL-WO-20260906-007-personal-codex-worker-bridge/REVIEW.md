@@ -186,3 +186,26 @@ maintenance window; no production migration was performed.
 No Critical or required release blocker remains. P4-G6 is PASS and may be integrated by strict
 fast-forward into the P4 phase branch. Master canonicalization remains an explicit Owner gate;
 `CANONICAL_DONE` must not be set and P5 must not start.
+
+## P4-G7 CANONICAL RECONCILIATION REVIEW
+
+The Owner approved exactly `phase/P4-personal-codex-worker` at
+`94830b422e1bdc4935e37dcf57c2785c00372b82` for strict fast-forward canonical reconciliation.
+The remote G7 branch was created at that reviewed SHA before canonical mutation. Approval evidence
+was committed at `8b72a8b95f662e95fac4642cb7d1d96b3e4b2e9c`, pushed, independently verified, and integrated
+through the phase branch before the first master fast-forward.
+
+The reviewed G6 tree did not change: G7 contains documentation evidence only. No source, schema,
+migration, dependency, test, deployment, production database, or P5 mutation occurred. Therefore
+the expensive G6 phase suite was not redundantly rerun.
+
+Canonical artifact inspection from remote master confirmed the Worker credential schema, both P4
+credential migrations, whole-Worker governance, immutable family expiry, authenticated control
+plane, HTTPS client, execution envelope, Personal Worker, local repository resolver,
+`CodexRuntimePort`, App Server adapter, all eight Worker routes, ADR-0003, the approved machine-auth
+contract, and G5/G6 evidence.
+
+Final acceptance requires independent live-remote equality of master, the P4 phase branch, and G7
+at the closeout commit. With that proof, P3 ancestry remains intact, G5 and G6 remain reachable and
+preserved, history rewrite and commit loss are both absent, P4 is `CANONICAL_DONE`, and the P5 entry
+gate is PASS while P5 itself remains unstarted.

@@ -205,3 +205,28 @@ Owner approval: YES.
 
 The G6 technical findings remain unchanged. This approval record does not claim
 `CANONICAL_DONE` and does not start P5.
+
+## P4 CANONICAL CLOSEOUT
+
+STATUS: `CANONICAL_DONE`.
+
+- Canonicalization: VERIFIED.
+- Canonical implementation and reviewed release SHA:
+  `94830b422e1bdc4935e37dcf57c2785c00372b82`.
+- Owner approval SHA: `8b72a8b95f662e95fac4642cb7d1d96b3e4b2e9c`.
+- Final closeout SHA: resolve from the equal, independently verified remote `master`,
+  `phase/P4-personal-codex-worker`, and `gate/P4-G7-canonical-reconciliation` refs. A commit cannot
+  contain its own object ID without changing that ID.
+- G5 machine identity authority closure: PASS.
+- G6 phase release candidate: PASS.
+- G7 canonical reconciliation: PASS.
+- Master integration strategy: strict fast-forward only.
+- History rewrite: NO.
+- Commit loss: NO.
+- Deployment: NOT PERFORMED.
+- Production migration: NOT PERFORMED.
+- P5 started: FALSE.
+
+The P5 entry gate is PASS only with the final remote proof that master, the P4 phase branch, and G7
+all resolve to the closeout commit and that the historical G5 and G6 branches remain preserved.
+No P5 branch or implementation was created by this closeout.
