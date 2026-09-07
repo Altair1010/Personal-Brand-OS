@@ -1,78 +1,73 @@
 # Result — PIL-WO-20260908-008-agent-control-plane
 
-Status: BLOCKED_OWNER_CONTRACT_GATE
+Status: CONTRACT_FREEZE_PASS
 
 ## Git
 
-- Base: `aa1ed10b4b94b08c7f142e2e28841b4754d7bf39`
-- Gate branch: `gate/P5-G1-agent-control-plane-contract-freeze`
+- Canonical master and P5 phase base: `aa1ed10b4b94b08c7f142e2e28841b4754d7bf39`
+- Original blocked G1: `gate/P5-G1-agent-control-plane-contract-freeze` at `2b599e822af0a1d8ac09464d8e6fc837c7ab5932`
+- Corrective gate: `gate/P5-G1R1-owner-contract-resolution`
 - Phase branch: `phase/P5-agent-control-plane`
-- Initial phase and gate remote checkpoint: `aa1ed10b4b94b08c7f142e2e28841b4754d7bf39`
-- Phase integration: not authorized while the contract is unresolved
+- G1R1 was created from the blocked G1 head so the blocked evidence and its Owner resolution form one auditable lineage.
+- Master integration is not authorized by this gate.
 
-## Outcome
+## G1 Historical Outcome
 
-The package-supported boundary is frozen in `P5_CANONICAL_CONTRACT_FREEZE.md`, but G1 cannot pass. The package does not resolve several consequential contracts required by the G1 acceptance criteria: stable agent-definition identity/ownership, AgentRole tenancy/inheritance/versioning, permission composition and initiator ceiling, context snapshot/authority semantics, instruction precedence, concrete autonomy limits, and stale-policy revalidation.
+The original G1 correctly ended at `BLOCKED_OWNER_CONTRACT_GATE`. The Technical Package fixed the main P5/P3/P4 boundaries but did not define seven consequential contracts: agent identity/versioning, AgentRole semantics, permission composition, context authority/snapshot rules, instruction precedence, executable autonomy limits, and immutable Run revalidation. G1 performed no schema or runtime mutation and was not integrated into the phase branch.
 
-## What Changed
+## G1R1 Outcome
 
-- Created the next legal P5 Work Order packet.
-- Recorded the package-supported P5 objective and P3/P4 ownership boundary.
-- Produced the canonical-source map, ASCII architecture, core-entity disposition, threat model, falsifier matrix, deferred scope, and one consolidated Owner Contract Gate.
-- Created no ADR because the consequential decisions remain unresolved.
+The Owner decision in P5-G1R1 resolves all seven contract groups and approves a minimum sufficient P5 V1 governance model:
 
-## Files Changed
+- `AgentDefinition` is the stable semantic identity; immutable published `AgentDefinitionVersion` is execution identity.
+- One immutable `AgentRoleVersion` binds each Run. AgentRole is distinct from P2 human RBAC, and P5 V1 has no role inheritance or composition.
+- Authority is deny-by-default intersection. No Agent artifact can exceed the authenticated initiator ceiling or widen a higher-level deny.
+- Every Run receives an immutable canonical-hashed `ContextPackage`, `PermissionManifest`, and concrete `RunBudget`.
+- Exact-scope context is the default. Descendant aggregation is explicit, enumerated, fully authorized, and evidenced; sibling and cross-Organization inclusion is denied.
+- Retrieved content and tool output remain data and cannot alter policy, permission, approval, Worker, or lease authority.
+- Retry and approval resume reuse the original immutable artifacts. Restrictive policy or revoked authority denies future action; permissive policy never widens an existing Run.
+- P3 remains the durable AgentRun/Approval owner, P4 remains the sole Worker/runtime/Codex boundary, and P6 tool/MCP implementation remains deferred.
 
-- `.piltover/handoffs/PIL-WO-20260908-008-agent-control-plane/REQUEST.md`
-- `.piltover/handoffs/PIL-WO-20260908-008-agent-control-plane/CONTEXT.json`
-- `.piltover/handoffs/PIL-WO-20260908-008-agent-control-plane/STATUS.json`
-- `.piltover/handoffs/PIL-WO-20260908-008-agent-control-plane/RESULT.md`
-- `.piltover/handoffs/PIL-WO-20260908-008-agent-control-plane/REVIEW.md`
-- `.piltover/handoffs/PIL-WO-20260908-008-agent-control-plane/P5_CANONICAL_CONTRACT_FREEZE.md`
+The full approved contract is in `P5_CANONICAL_CONTRACT_FREEZE.md`. The durable decision and evolution path are recorded in `docs/adr/0004-p5-agent-control-contract.md`.
 
 ## Verification Actually Run
 
-| Command / Check | Result |
+| Check | Result |
 |---|---|
-| `git fetch origin --prune` plus tracking and live `ls-remote` checks for master, P4 phase, and P4-G7 | PASS — all equal `aa1ed10b4b94b08c7f142e2e28841b4754d7bf39` |
-| Canonical P4 `STATUS.json` read from `origin/master` | PASS — `CANONICAL_DONE`, `VERIFIED`, P5 entry PASS, P5 not started |
-| P3/P4 ancestry checks | PASS |
-| P5 phase local/tracking/live checkpoint | PASS — exact base SHA |
-| P5-G1 gate local/tracking/live empty checkpoint | PASS — exact base SHA before research |
-| Work Order ID inventory | PASS — `008` was not occupied and follows `007` |
-| `CONTEXT.json` and `STATUS.json` PowerShell JSON parse | PASS |
-| Required artifact and freeze-heading audit | PASS |
-| Placeholder scan | PASS — zero `TBD`, `TODO`, `FIXME`, or placeholder markers |
-| Documentation-only scope audit | PASS |
-| `git diff --check` | PASS |
+| Master, P5 phase, and original G1 tracking/live preflight | PASS — exact required SHAs |
+| Empty G1R1 local/tracking/live checkpoint before contract mutation | PASS — `2b599e822af0a1d8ac09464d8e6fc837c7ab5932` |
+| `CONTEXT.json` and `STATUS.json` parse and required state fields | PASS |
+| Freeze status, R1 section, resolved questions, and contract-field assertions | PASS |
+| ADR-0004 numbering, status, and required sections | PASS |
+| Seven-lane adversarial contract review | PASS |
+| Exact staged artifact inventory | PASS — six Work Order documents and ADR-0004 only |
+| `git diff --cached --check` | PASS |
 | Changed-artifact credential/private-key signature scan | PASS — zero matches |
-| Current canonical P5 runtime/model keyword scan | PASS — no P5 implementation exists or was added |
+| Schema, migration, runtime, route, test, dependency, P3/P4 mutation audit | PASS — none |
+| P6+ implementation scope audit | PASS — semantics only; implementation deferred |
+| Repository-artifact language audit | PASS — English only |
 
-No runtime tests, build, Prisma command, migration, or live Codex POC was run. The G1 contract explicitly requires proportional documentation checks only.
+Final G1R1 remote SHA equality, strict fast-forward phase integration, and unchanged-master proofs are post-commit publication checks and are reported from live Git evidence rather than predicted here.
 
-## Data / Migrations
+No runtime test, build, Prisma command, migration, or live Codex POC is required for this documentation-only gate.
 
-None. No schema or migration file was modified and no production database action occurred.
+## Scope
 
-## Security Implications
+- Schema change: NONE
+- Migration change: NONE
+- Runtime/application change: NONE
+- Route change: NONE
+- Dependency change: NONE
+- P3/P4 change: NONE
+- P6+ implementation: NONE
+- Deployment or production database action: NONE
+- P5 runtime implementation started: NO
 
-The gate fails closed before implementation. It prevents unreviewed role escalation, cross-tenant context aggregation, union-of-permissions escalation, prompt-injection policy override, stale manifests, approval bypass, capability/permission confusion, and P4 bypass from becoming schema or runtime behavior.
+## Gate Result
 
-## Risks or Limitations
+- G1 original: BLOCKED_OWNER_CONTRACT_GATE
+- G1R1: PASS, subject to the remote publication and strict fast-forward proofs required by this gate
+- P5-G1 contract freeze: APPROVED
+- P5-G2 entry gate: PASS only after G1R1 is remote-verified and integrated into the remote P5 phase branch
 
-- Package-level concepts establish direction but not executable semantics for the Owner-gated items.
-- Existing P3/P4 `roleRef`, `contextRef`, and `permissionManifestRef` values are opaque by design; this is safe only while P5 resolution is not enabled.
-- P5 implementation remains blocked, and the blocked G1 evidence must not be integrated into the P5 phase as an approved contract.
-
-## Acceptance Criteria Evidence
-
-- Canonical preflight and remote checkpoints: PASS.
-- Actual P5 phase specification and bounded source recovery: PASS.
-- Package-resolved P5/P3/P4 boundary: PASS.
-- Threat model and falsifier matrix: PASS.
-- Consequential contract completeness: FAIL; Owner decision required.
-- No runtime/schema/dependency/P4/P6+ mutation: PASS.
-
-## Follow-up
-
-Resolve `OWNER GATE — P5 CANONICAL CONTRACT` as one reviewed decision packet. Then revise this G1 freeze and perform a new verification/commit before any G1-to-phase integration. Do not start P5-G2 from the blocked state.
+Do not start P5-G2 in this gate.

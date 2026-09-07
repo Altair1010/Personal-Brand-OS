@@ -1,13 +1,13 @@
 # PIL-WO-20260908-008-agent-control-plane — P5 Agent Control Plane Contract Freeze
 
-Status: IN_PROGRESS
+Status: CONTRACT_FREEZE_PASS
 Phase: P5
-Gate: P5-G1
+Gate: P5-G1R1
 Base ref expected: `aa1ed10b4b94b08c7f142e2e28841b4754d7bf39`
 
 ## Objective
 
-Recover the canonical P5 Agent Control Plane contract from the Owner Technical Package, map it against the canonical P3/P4 implementation, freeze every package-resolved boundary, and surface one consolidated Owner gate for consequential gaps before any P5 schema or runtime mutation.
+Recover the canonical P5 Agent Control Plane contract from the Owner Technical Package, map it against the canonical P3/P4 implementation, and freeze the minimum sufficient Owner-approved V1 contract before any P5 schema or runtime mutation. G1R1 resolves the seven consequential gaps surfaced by the original G1 without erasing that fail-closed history.
 
 ## Why Now
 
@@ -27,7 +27,8 @@ P4 is canonical and the P5 entry gate is open. P5 cannot safely implement role r
 - Preserve human RBAC, agent role, context authority, run permission, worker capability, worker tenant grant, lease, and approval as separate authorities.
 - Documentation and architecture evidence only; no schema, migration, route, dependency, P4, UI, deployment, or runtime implementation change.
 - All tracked artifacts are English.
-- One consolidated Owner gate rather than fragmented implementation questions.
+- The Owner decision in P5-G1R1 is authoritative for the seven previously unresolved contract groups.
+- No implementation begins in this gate; P5-G2 remains a separate gate.
 
 ## Acceptance Criteria
 
@@ -38,6 +39,9 @@ P4 is canonical and the P5 entry gate is open. P5 cannot safely implement role r
 - [x] Core entities, identity, tenancy, context, permission, approval, versioning, autonomy, and execution handoff are assessed against canonical evidence.
 - [x] Critical threats and future falsifiers are mapped.
 - [x] Consequential gaps are consolidated into one Owner Contract Gate.
+- [x] The Owner Contract Gate resolves identity/versioning, role, permission, context, instruction, autonomy, and run-binding semantics.
+- [x] ADR-0004 records the approved trust-boundary decision without duplicating the complete freeze.
+- [x] G1R1 is published and strictly fast-forwarded into the P5 phase branch after proportional verification.
 - [ ] P5 implementation is authorized. This is intentionally false in G1.
 
 ## Required Verification

@@ -2,291 +2,372 @@
 
 ## Status
 
-OWNER_DECISION_REQUIRED
+APPROVED
 
-The Technical Package is authoritative for the contracts it states. This artifact freezes those resolved contracts and marks consequential omissions explicitly. It does not authorize schema or runtime implementation.
+The Technical Package remains authoritative for the contracts it states. P5-G1 correctly stopped at `OWNER_DECISION_REQUIRED`; the Owner decision in P5-G1R1 resolves the seven consequential omissions and approves this minimum sufficient P5 V1 governance contract. This artifact authorizes later gated design and implementation, not schema or runtime mutation in G1R1.
+
+## Owner Contract Resolution R1
+
+The Owner approves the complete P5 V1 contract recorded below: minimum sufficient Agent governance that is tenant-safe, historically auditable, deny-by-default, immutable per Run, concretely bounded, monotonic in authority, compatible with P3/P4, and evolvable without weakening prior truth. The resolution closes the seven questions preserved in the final historical section; it does not retroactively make the original blocked G1 a passing gate by itself.
 
 ## Canonical Sources
 
-- `00_META/SOURCE_OF_TRUTH.md` — product and repository authority
-- `00_META/DECISION_LOG.md` — locked autonomy, tenancy, worker, Codex, MCP, and modular-monolith decisions
-- `01_GOVERNANCE/TECHNICAL_CONSTITUTION.md` — canonical truth, fail-closed boundaries, context minimization, primary AI path, and Owner supremacy
-- `01_GOVERNANCE/OWNER_GATES.md` — action classes and payload-bound approval object
-- `01_GOVERNANCE/CHANGE_AND_ADR_POLICY.md` — ADR threshold for auth, permission, protocol, and trust-boundary decisions
-- `02_ARCHITECTURE/SYSTEM_ARCHITECTURE.md`, `MODULE_BOUNDARIES.md`, `PORTS_AND_ADAPTERS.md`, `RUNTIME_TOPOLOGY.md`, and `STATE_AND_EVENT_MODEL.md` — plane ownership, module ownership, ports, no-VPS runtime, and run states
-- `03_DOMAIN/DOMAIN_MODEL.md`, `TENANCY_AND_RBAC.md`, and `WORK_MODEL.md` — conceptual agent graph, tenant hierarchy, human RBAC, and work scope
-- `04_DATA/TARGET_SCHEMA.md` and `TARGET_DATA_ARCHITECTURE.md` — conceptual P5 persistence candidates and canonical SQL rules
-- `05_AGENT_CONTROL/AGENT_CONTROL_PLANE.md`, `CONTEXT_COMPILER.md`, `AUTONOMY_AND_APPROVAL.md`, and `STEWARD_INSPECTOR_DEV.md` — P5 flow, persisted references, minimum context, action classes, and proposal boundaries
-- `06_CODEX_BRIDGE/BRIDGE_SPEC.md`, `PERSONAL_CODEX_WORKER.md`, `JOB_LEASE_AND_RECONNECT.md`, and `CODEX_RUNTIME_ADAPTER.md` — downstream P4 boundary
-- `07_MCP/MCP_PERMISSION_MODEL.md` and `MCP_SERVER_SPEC.md` — future consumer evidence for deny-by-default run manifests and approval-aware tools; not authorization to implement P6
-- `10_QUALITY/ERROR_TAXONOMY.md`, `OBSERVABILITY.md`, `SECURITY_MODEL.md`, and `TEST_STRATEGY.md` — stable errors, trace/audit, trust boundaries, and critical tests
-- `12_PHASES/P5_AGENT_CONTROL_PLANE.md` — actual canonical P5 phase specification
-- `schemas/run-request.schema.json`, `run-event.schema.json`, `run-result.schema.json`, and `approval.schema.json` — transport-independent P3/P4 references already reserved for P5
+- `00_META/SOURCE_OF_TRUTH.md` and `00_META/DECISION_LOG.md`
+- `01_GOVERNANCE/TECHNICAL_CONSTITUTION.md`, `OWNER_GATES.md`, and `CHANGE_AND_ADR_POLICY.md`
+- `02_ARCHITECTURE/SYSTEM_ARCHITECTURE.md`, `MODULE_BOUNDARIES.md`, `PORTS_AND_ADAPTERS.md`, `RUNTIME_TOPOLOGY.md`, and `STATE_AND_EVENT_MODEL.md`
+- `03_DOMAIN/DOMAIN_MODEL.md`, `TENANCY_AND_RBAC.md`, and `WORK_MODEL.md`
+- `04_DATA/TARGET_SCHEMA.md` and `TARGET_DATA_ARCHITECTURE.md`
+- `05_AGENT_CONTROL/AGENT_CONTROL_PLANE.md`, `CONTEXT_COMPILER.md`, `AUTONOMY_AND_APPROVAL.md`, and `STEWARD_INSPECTOR_DEV.md`
+- `06_CODEX_BRIDGE/BRIDGE_SPEC.md`, `PERSONAL_CODEX_WORKER.md`, `JOB_LEASE_AND_RECONNECT.md`, and `CODEX_RUNTIME_ADAPTER.md`
+- `07_MCP/MCP_PERMISSION_MODEL.md` and `MCP_SERVER_SPEC.md` as future-consumer evidence only
+- `10_QUALITY/ERROR_TAXONOMY.md`, `OBSERVABILITY.md`, `SECURITY_MODEL.md`, and `TEST_STRATEGY.md`
+- `12_PHASES/P5_AGENT_CONTROL_PLANE.md`
+- `schemas/run-request.schema.json`, `run-event.schema.json`, `run-result.schema.json`, and `approval.schema.json`
+- Owner-approved P5-G1R1 contract resolution dated 2026-09-08
+- `docs/adr/0004-p5-agent-control-contract.md`
 
 ## P5 Objective
 
-The package defines P5 as production-grade run governance delivering roles and definition versions, context package hashing/versioning, tool permission manifests, run traces, budgets/concurrency, retry policy, approval pause/resume, proposal patterns, and AgentRun diagnostics. It expressly forbids autonomous canonical Brand or Strategy mutation.
+P5 provides minimum sufficient, production-grade AgentRun governance: immutable agent and role versions, tenant-safe context compilation, deny-by-default permission manifests, concrete budgets, durable approval integration, monotonic revalidation, run traces, and exact historical evidence. It does not authorize autonomous canonical Brand/Strategy mutation or create a generalized enterprise policy language.
 
 ## Boundary
 
+### P3
+
+P3 remains canonical for durable `AgentRun`, Job, retry, lease-related run truth, and the single durable `ApprovalRequest` lifecycle. P5 classifies and binds semantic authority; it does not create a second approval store.
+
 ### P4
 
-P4 owns machine authentication, exact Worker tenant grants, Worker capabilities, lease authority, outbound Worker transport, local repository alias resolution, and the Codex Runtime adapter. P4 accepts opaque `roleRef`, `contextRef`, and `permissionManifestRef` values and must not interpret them as tenant authority.
+P4 remains sole owner of Worker machine identity, exact Worker tenant grants, Worker capabilities, current lease enforcement, outbound Worker transport, local repository alias resolution, `CodexRuntimePort`, and the App Server process. P5 cannot select local paths, executables, shell commands, environment secrets, Worker credentials, or raw Codex JSON-RPC methods, and cannot call Codex directly.
 
 ### P5
 
-P5 owns semantic resolution before execution: selecting the exact agent definition version, resolving the operating role, compiling authorized minimum context, compiling least-privilege run permission, determining approval requirements, and binding exact artifacts to the canonical run.
+P5 resolves the exact `AgentDefinitionVersion` and `AgentRoleVersion`, compiles the immutable authorized minimum `ContextPackage`, compiles the immutable least-privilege `PermissionManifest`, binds the concrete `RunBudget`, classifies approvals, and supplies opaque semantic references to P3/P4.
 
-### Later Phases
+### P6 and Later
 
-P6 exposes scoped Piltover tools through MCP and enforces both human RBAC and the P5 run manifest. P7+ domain migration, intelligence, integrations, learning, UI, marketplaces, multi-agent orchestration, and deployment are deferred. P5 must not call Codex directly or implement a generic tool broker.
+P6 maps stable `toolRef`, action, resource scope, approval class, and constraints to actual Piltover/MCP tools. P5 does not implement MCP, a marketplace, plugin registry, or generic tool broker. Domain agents, multi-agent orchestration, memory/RAG platforms, UI, deployment, and other later-phase features remain deferred.
 
-## Package-Supported System Graph
+## Approved System Graph
 
 ```text
                     AUTHENTICATED INITIATOR
                               |
-                              v
-                     TENANT-SAFE TASK/RUN
+                    P2 AUTHORITY CEILING
                               |
                               v
-                        ROLE RESOLVER
+                     TENANT-SAFE RUN TASK
                               |
                               v
-                 AGENT DEFINITION VERSION REF
+                 ONE AGENT ROLE VERSION
+                              |
+                              v
+               ONE AGENT DEFINITION VERSION
                               |
                               v
                       CONTEXT COMPILER
-                  minimum + scoped + hashed
+                exact scope + explicit inputs
                               |
                               v
-                 TOOL PERMISSION MANIFEST
-                  deny by default + scoped
+                    CONTEXT PACKAGE
+               immutable snapshot + content hash
+                              |
+                              v
+                   PERMISSION COMPILER
+            deny by default + intersection only
+                              |
+                              v
+                  PERMISSION MANIFEST
+                 immutable authority ceiling
                               |
                               v
                    APPROVAL CLASSIFICATION
                               |
                               v
-                  P3 AgentRun / ApprovalRequest
+                 P3 AgentRun / ApprovalRequest
                               |
                               v
-                   P3 Job + current lease
-                              |
-                              v
-                P4 authenticated exact Worker
-                              |
-                              v
-                 P4 CodexRuntimePort adapter
+                 P4 Worker + lease + runtime
                               |
                               v
                             CODEX
 ```
 
-The package does not name a persisted `ResolvedExecutionPlan`. The minimum safe interpretation is that the immutable references already carried by `RunRequest` and persisted by `AgentRun` collectively materialize the resolved plan. Naming a new aggregate is deferred until the Owner decisions below are resolved.
-
 ## Core Entities
 
-| Entity | Canonical evidence | P5 need now | Freeze state |
-|---|---|---:|---|
-| AgentRole | Domain graph, P5 phase, agent-control flow | Yes | Semantics incomplete |
-| AgentDefinitionVersion | Domain graph, P5 phase, persisted run references | Yes | Stable parent identity/ownership incomplete |
-| AgentRun | Existing P3 durable model | Existing | P3-owned; P5 binds semantic artifacts before creation |
-| ContextPackage | Context Compiler and `contextRef {id, hash}` | Yes | Authority/snapshot semantics incomplete |
-| Tool Permission Manifest | P5 phase, MCP permission model, `permissionManifestRef` | Yes | Shape/composition/staleness incomplete |
-| AgentStep | Target schema and trace requirement | Consumer exists in diagnostics | Persistence boundary not specified |
-| ToolCall | Target schema and trace/audit requirement | Consumer exists in enforcement/diagnostics | Persistence boundary not specified |
-| RunArtifact | Target schema and RunResult refs | Consumer exists | P5 ownership/retention not specified |
-| RoleBinding | Only human RBAC bindings are defined | Unproven for AgentRole | Defer; do not reuse P2 bindings by assumption |
-| AgentDefinition | Not a named package entity | Unproven | Do not invent until Owner defines stable identity model |
+| Entity | Stable meaning | P5 V1 rule |
+|---|---|---|
+| `AgentDefinition` | Stable semantic Agent identity | Exactly one owner scope; `ACTIVE`, `SUSPENDED`, or `ARCHIVED` |
+| `AgentDefinitionVersion` | Immutable execution identity | `DRAFT`, `PUBLISHED`, or `RETIRED`; only published is selectable/executable |
+| `AgentRole` | Stable operating-role identity, distinct from human RBAC | Exactly one owner scope |
+| `AgentRoleVersion` | Immutable Run operating constraints | One exact published version per Run; no inheritance/composition |
+| `ContextPackage` | Exact compiled context used by a Run | Immutable snapshot/reference set with canonical content hash |
+| `PermissionManifest` | Final compiled authority ceiling | Immutable, scoped, canonical-hashed, expiring grants |
+| `RunBudget` | Concrete bounded autonomy | Immutable per Run; every layer may only lower limits |
+| `AgentRun` | Durable canonical run | P3-owned; binds all exact semantic artifacts and provenance |
+| `ApprovalRequest` | Durable consequential-action decision | P3-owned; exact action/target/payload bound |
+
+No additional stable `Agent` entity exists in P5 V1. `AgentStep`, `ToolCall`, and `RunArtifact` remain consumer-driven implementation candidates; G1R1 does not decide their physical persistence.
 
 ## Identity Model
 
-- `requestedBy` is the authenticated human identity provenance and is governed by P2 server-side RBAC.
-- AgentRole is a logical operating role, not the P2 human `OWNER/ADMIN/...` role set.
-- AgentDefinitionVersion identifies the configuration executed by the AgentRun.
-- Worker identity identifies the machine executing the run and confers no semantic agent permission.
-- Canonical invariant: a historical run records exact configuration identity/version references, relevant prompt/skill hash, context hash, permission manifest reference, Worker, and runtime protocol version.
+- Stable semantic Agent identity is `AgentDefinition`.
+- Execution identity is one exact `AgentDefinitionVersion`.
+- Requested human provenance, Agent Definition, Agent Role, Worker identity, and approver identity are separate principals/concepts.
+- A historical Run remains pinned to exact immutable versions and compiled artifacts forever.
+- Mutable `latest` resolution cannot reinterpret historical Runs.
 
-Unresolved: the package does not define a stable Agent or AgentDefinition identity distinct from `AgentDefinitionVersion`; version lifecycle/immutability rules; ownership; activation/retirement; or whether `roleRef` identifies a role version, a definition version, or a composed binding.
+`AgentDefinition` lifecycle is `ACTIVE`, `SUSPENDED`, or `ARCHIVED`. A suspended or archived definition cannot be selected for new Runs. Version lifecycle is:
 
-## Tenancy
+- `DRAFT`: mutable and not executable.
+- `PUBLISHED`: immutable and executable.
+- `RETIRED`: immutable, historically readable, and not selectable for a new Run.
 
-The canonical tenant hierarchy is Platform → Organization → Workspace → Brand. Tenant-bound reads/writes fail closed on unknown scope, and Brand A context may never enter Brand B merely because one user can access both. `AgentRun` already carries Organization, optional Workspace, and optional Brand ancestry.
+At most one current published version is selected by default for a definition. Explicit historical references remain immutable evidence, not a route around new-Run selection rules.
 
-Unresolved: the package does not state whether AgentRole and AgentDefinitionVersion are global, Organization-owned, Workspace-owned, Brand-owned, or mixed; whether a Workspace run may aggregate child Brand data; or whether AgentRole inheritance/composition exists.
+## Role Model
+
+`AgentRole` describes how an Agent may operate in one Run context. It is not P2 `OWNER`, `ADMIN`, `EDITOR`, or `VIEWER`, and it does not reuse P2 `RoleBinding`. One Run binds exactly one `AgentRoleVersion`; `roleRef` means that version, not the stable parent and not an Agent Definition.
+
+AgentRole versions use `DRAFT`, `PUBLISHED`, and `RETIRED` with the same mutability/executability rules as definition versions. P5 V1 has no role inheritance, role composition, or simultaneous multiple roles. Any later privilege lattice requires a separate ADR and cannot reinterpret existing Runs.
+
+Agent Definition says what the Agent is designed to do. Agent Role says how it may operate. Either may request capabilities or narrow behavior, permission, or context; neither can grant human authority, tenant authority, Worker authority, or widen any higher boundary.
+
+## Tenancy and Applicability
+
+Each `AgentDefinition` and `AgentRole` has exactly one owner scope: `PLATFORM`, `ORGANIZATION`, `WORKSPACE`, or `BRAND`.
+
+- Platform-owned artifacts may be applicable to any tenant Run.
+- Organization-owned artifacts may apply to that Organization or its descendant Workspace/Brand Runs.
+- Workspace-owned artifacts may apply to that Workspace or its descendant Brand Runs.
+- Brand-owned artifacts apply only to that exact Brand.
+- Cross-Organization and cross-sibling applicability is denied.
+
+Applicability is not tenant authorization. A platform/ancestor artifact cannot make tenant data readable or manufacture a human/Worker grant.
 
 ## Context Compiler
 
-### Inputs fixed by source
+### Inputs
 
-- RunRequest and task intent
-- exact Organization/Workspace/Brand scope
-- resolved AgentRole/definition configuration
-- requested/required data classes
-- RBAC and tool policy
-- freshness/confidence inputs
-- context budget and prioritization
+- Exact tenant ancestry and Run/task request
+- Exact `AgentDefinitionVersion` and `AgentRoleVersion`
+- Explicit requested context sources and data classes
+- Required/optional classification for every source
+- P2 initiator read authority and tenant policy
+- Freshness/version evidence and context-token budget
 
-### Output fixed by source
+### Output
 
-A bounded minimum-sufficient ContextPackage with a stable ID and hash/version reference. It excludes unrelated Brands, bulk historical material, entire reference libraries, and arbitrary trace history. It has no independent mutation authority.
+Every executable Run receives one immutable `ContextPackage`. Small structured material may be snapshotted by value; large material may be held through a content-addressed immutable artifact/reference. Both forms record source reference, source version/fingerprint where available, content hash, included scope, data class, and compilation timestamp. A later source change never mutates an existing Run.
 
-### Authority
+Context required to explain a retained AgentRun cannot be deleted while that Run remains inside canonical audit retention. Physical long-term purge policy is deferred.
 
-Existence is not authority. Every included object must belong to the resolved run scope and be readable under server-side authorization. Cross-Organization, sibling Workspace, and sibling Brand inclusion fail closed.
+### Scope and Aggregation
 
-### Immutability and Freshness
+The default data rule is exact Run scope only:
 
-The exact compiled result used by a historical run must remain auditable by ID and hash. Freshness/confidence filters apply before compilation.
+- Organization Run: Organization-scoped business data only.
+- Workspace Run: exact Workspace business data only.
+- Brand Run: exact Brand business data only.
 
-Unresolved: source snapshot versus live-reference semantics; retention/reconstruction guarantees; secret classes and redaction; explicit child aggregation policy; exact handling when a referenced source changes or disappears; and whether authorization failure excludes one item or rejects the whole compilation.
+Ancestor governance policy may constrain a Run but is not automatically imported business context. No implicit child, sibling, or ancestor business-data aggregation exists.
+
+Organization or Workspace Runs may aggregate descendant data only when the task explicitly requires it, exact descendant IDs are enumerated, the initiator has read authority for every included scope, the definition allows the data class, the role allows aggregation, tenant policy permits it, and the ContextPackage records every included scope. There is no wildcard “all Brands I can access” without an explicit canonical selection policy. Brand Runs cannot aggregate sibling Brands; sibling Workspaces and cross-Organization context are denied.
+
+### Required, Optional, Freshness, and Secrets
+
+A required source authorization failure, missing source, invalid scope, or required freshness failure rejects the entire compilation. An optional source may be excluded only with a deterministic recorded reason.
+
+Raw API keys, passwords, bearer credentials, private keys, Codex/OpenAI authentication material, and other secrets never enter a ContextPackage. A future tool may receive only an opaque authorized secret reference; actual resolution belongs to an approved secure tool/runtime boundary. Retrieved content cannot smuggle secret values into persisted context evidence.
 
 ## Permission Compiler
 
-### Fixed composition constraints
-
-- Start from deny by default.
-- Scope every permission to Organization/Workspace/Brand.
-- A tool permission cannot bypass human approval.
-- Expired or cancelled runs lose write authority.
-- All writes carry run and audit correlation.
-- Human RBAC, run permission, Worker capability, Worker tenant grant, and lease are independent required checks.
-- A higher-level explicit deny cannot safely be widened by a lower-level allow under the Constitution's fail-closed rule.
-
-### Required conceptual intersection
+P5 begins from deny and computes intersection only. There is no permission union. For a candidate action every required condition is an `AND`:
 
 ```text
-effective run authority
-  = tenant-valid operation
-  AND initiator-authorized request
-  AND agent-definition requirement
-  AND agent-role policy
-  AND tenant/platform policy
-  AND explicit run manifest allow
-  AND approval state when required
-  AND Worker capability
-  AND exact Worker tenant grant
+Platform / Constitution policy
+  AND tenant policy
+  AND authenticated initiator authority ceiling
+  AND AgentDefinitionVersion constraints
+  AND AgentRoleVersion constraints
+  AND Run/task request
+  AND PermissionManifest explicit grant
+  AND P3 approval state when required
+  AND P4 Worker capability
+  AND P4 exact Worker tenant grant
   AND current lease
   AND P4 local/runtime constraints
+  = executable action
 ```
 
-This is a safety lower bound inferred from multiple canonical constraints, not a package-defined precedence algorithm. The exact compiler must not be implemented until its unresolved ordering and conflict rules are approved.
+Explicit deny at any applicable governance/policy level wins. Missing required authority denies. Organization policy constrains Workspace policy, which constrains Brand policy; a child may narrow or specialize but cannot widen an ancestor deny. Sibling policies never compose.
 
-Unresolved: manifest schema; resource/filesystem/network/Git/external-mutation fields; expiry; fingerprint/version; initiator ceiling; role composition; conflict precedence beyond deny-by-default; cache invalidation; and stale-manifest revalidation.
+An AgentRun can never compile authority broader than the authenticated initiator possesses for the requested operation and exact target. P2 remains the human authority source. `agent.run` alone cannot become Strategy write, deployment, Git master mutation, credential administration, or another unheld capability.
 
-## Approval Integration
+## PermissionManifest V1
 
-P5 classifies an intended action as automatic, reversible policy-based write, or gated. P3 remains the only durable ApprovalRequest store and state machine. Approvals bind action, target, payload hash/version, requester, approver, expiry, and one-time identifier. P4 may proceed only while run, approval, Worker, grant, capability, and lease authority remain valid.
+Every Run receives one immutable final manifest with:
 
-Unresolved: whether an approved run resumes against its original immutable manifest or must recompile/revalidate current policy; which actions require one-time consumption; and how standing policies are versioned and bound.
+- `id`
+- exact Run/tenant scope
+- `AgentDefinitionVersion` reference
+- `AgentRoleVersion` reference
+- `policyRevisionSetHash`
+- `createdAt` and `expiresAt`
+- canonical `contentHash`
+- `grants[]`
 
-## P4 Execution Handoff
+Each final grant contains a stable/opaque `toolRef`, allowed actions, exact resource scopes, required human capability where applicable, approval class, and bounded constraints. The manifest contains final allowed authority, not competing allow/deny rules. Canonical serialization and hashing are mandatory. P6 owns the later concrete tool catalog and mapping.
 
-P5 should populate the existing P3 `RunRequest` references rather than introduce raw Codex instructions or P4 protocol churn:
+## Action Classes and Approval Integration
 
-- exact tenant ancestry
-- `roleRef`
-- task
-- `contextRef { id, hash }`
-- `permissionManifestRef`
-- required Worker capabilities
-- idempotency/correlation material
+P5 V1 has exactly three policy classes:
 
-P3 persists these fields and owns queue/run/approval state. P4 produces an execution envelope only for an authenticated active Worker with an exact active tenant grant, required capabilities, and current lease. P5 cannot select a local path, executable, environment, raw shell, raw JSON-RPC method, or bypass `CodexRuntimePort`.
+- `AUTOMATIC`: explicitly allowed read-only, non-mutating action.
+- `POLICY_WRITE`: explicitly allowed, reversible/idempotent/auditable, exact-scope write within initiator and current policy ceilings, with no external commitment and no destructive/security-sensitive effect.
+- `GATED`: durable P3 approval required. This includes destructive or non-reversible action, external commitment, canonical Git/master mutation, deployment/production mutation, security/permission change, credential/secret-sensitive action, and anything policy marks gated.
+
+P3 is the single durable `ApprovalRequest` owner. Approval binds the original exact action, target, payload, requester/approver requirements, expiry, and consumption state. Changed payload requires a new approval. Approval never widens the immutable manifest.
 
 ## Instruction Precedence
 
-The package establishes that retrieved/user/domain content cannot override the Technical Constitution, Owner gates, tenant authorization, run permission, or P4 enforcement. It does not define a complete prompt assembly precedence among system policy, Agent definition, Agent Role, task instruction, retrieved context, and tool output.
-
-Safe unresolved graph:
-
 ```text
-OWNER / CONSTITUTION / SERVER ENFORCEMENT
-                   |
-                   v
-       package-approved system policy
-                   |
-              [GAP: order]
-          +--------+--------+
-          |                 |
- Agent definition      Agent role
-          +--------+--------+
-                   |
-              task instruction
-                   |
-       retrieved context [DATA]
-                   |
-            tool output [DATA]
+NON-PROMPT ENFORCEMENT
+Constitution / Owner Gates / P2 / P3 / P4
+                    |
+                    v
+PLATFORM SYSTEM POLICY
+                    |
+                    v
+TENANT GOVERNANCE POLICY
+Organization -> Workspace -> Brand
+                    |
+                    v
+AgentDefinitionVersion instructions
+                    |
+                    v
+AgentRoleVersion instructions
+                    |
+                    v
+Run / Task instruction
+                    |
+                    v
+Retrieved context = DATA
+                    |
+                    v
+Tool output = DATA
 ```
 
-Until the Owner freezes the middle ordering and override rules, retrieved context and tool output are data only and no runtime prompt compiler may be implemented.
+A lower tier may specialize only within every higher-tier constraint. It cannot override a higher deny or hard policy. Retrieved content and tool output remain structurally separated data even if they contain phrases claiming system, administrator, or override authority. Prompt text cannot alter tenant authority, manifest, approval, Worker capability/grant, or lease.
 
-## State / Versioning
+## RunBudget V1
 
-- AgentRun state remains the existing explicit P3 state machine.
-- Approval state remains the existing P3 state machine.
-- Configuration references and context/permission fingerprints must be persisted per run.
-- Historical meaning cannot follow a mutable `latest` definition, role, context, or permission object.
-- Policy-based retries must retain idempotency and cannot silently widen authority.
+P5 V1 uses concrete enforceable limits, not vague `LOW`, `MEDIUM`, or `HIGH` labels.
 
-Unresolved: definition/role draft-active-retired lifecycle, semantic version identity, immutable content storage, permission invalidation, and whether retries reuse or recompile artifacts after policy change.
+| Limit | Default | Platform hard ceiling |
+|---|---:|---:|
+| `maxSteps` | 24 | 64 |
+| `maxToolCalls` | 48 | 128 |
+| `maxRuntimeSeconds` | 900 | 1800 |
+| `maxContextTokens` | 64000 | 128000 |
+| `maxConcurrentRunsPerOrganization` | 2 | 4 |
+| `maxRetries` | 1 | 2 |
+| `nestedRunsAllowed` | false | false |
+| `maxApprovalWaitSeconds` | 86400 | 172800 |
+
+The effective value is the minimum of platform ceiling, tenant policy, definition version, role version, request budget, and downstream runtime/model limit. Every layer may lower limits; none may raise a higher ceiling.
+
+P5 owns step/tool/context limits, retry policy, Agent-level concurrency, and approval-wait policy. P3 remains durable run/job/retry truth. P4 enforces runtime/process timeout where applicable. The runtime/model may further lower context tokens. Nested and multi-agent Runs are prohibited in P5 V1.
+
+## Immutable Run Binding
+
+A canonical AgentRun must preserve:
+
+- `agentDefinitionVersionRef`
+- `roleRef` identifying `AgentRoleVersion`
+- `contextRef { id, hash }`
+- `permissionManifestRef` and `permissionManifestHash`
+- `policyRevisionSetHash`
+- immutable `RunBudget` or equivalent reference plus hash
+- authenticated `requestedBy` provenance
+- exact tenant ancestry
+
+P5-G2 may add shared-contract/schema fields explicitly. P4 may transport new opaque references but does not interpret P5 semantics. Once created, the definition version, role version, context snapshot, permission manifest, and budget are frozen.
+
+## Revalidation, Retry, and Resume
+
+Revalidation occurs before execution begins, after approval resume, before retry execution, before every `POLICY_WRITE`, and before every `GATED` action. It compares current governing policy and initiator authority with the manifest policy revisions.
+
+- More restrictive current policy or revoked initiator authority denies/invalidate future authority.
+- More permissive current policy does not widen the original manifest.
+- A retry in the same Run reuses exact definition, role, context, manifest, and budget.
+- A stale/invalidated retry does not recompile; it returns `RUN_POLICY_STALE` or equivalent and requires a new Run for new compilation.
+- Approval resume requires the original manifest, exact action/target/payload, valid unconsumed approval, current P2/approver requirements, current tenant policy, current Run state, and current downstream authority.
+- Retries/resumes keep the same historical context snapshot. Fresh source data requires a new Run.
+
+## Policy Monotonicity Law
+
+During the life of one AgentRun, authority may stay the same or become narrower. It may never silently become wider. This applies to permission, context authority, tenant authority, approval, budget, and tool access. Wider authority or fresher context always requires a new Run.
+
+## P4 Execution Handoff
+
+P5 populates semantic references in the existing P3/P4 seam and may extend it additively in P5-G2. P3 persists them and owns run/queue/approval truth. P4 creates an execution envelope only for an authenticated active Worker with exact active tenant grant, required capabilities, and current lease. There is no P5-to-Codex path.
 
 ## Threat Model
 
-| Threat | Attack path | Failed invariant | Canonical control | P5 owner | Downstream owner | Required falsifier |
-|---|---|---|---|---|---|---|
-| Cross-tenant context leak | Run A references resource B | Context matches exact tenant | Exact ancestry, server RBAC, minimum graph | Context Compiler | P2 tenant guard | A/B and sibling-scope denial |
-| Role privilege escalation | Local AgentRole implies global admin | AgentRole is not human RBAC | P2 capability check plus separate run policy | Role/Permission Resolver | P2 | Agent role cannot grant absent human authority |
-| Definition mutation after run | Mutable latest rewrites history | Exact historical configuration | Version references and hashes | Definition registry | P3 run evidence | Edit active definition; old run fingerprint unchanged |
-| Permission union escalation | One allow widens another deny | Least privilege | Deny-by-default, fail closed | Permission Compiler | P6 tool enforcement/P4 boundary | Organization deny plus role allow remains denied |
-| Prompt-injection override | Retrieved text claims system authority | Data cannot become policy | Server enforcement and context minimization | Instruction/Context compiler | Tool adapter | Malicious context cannot alter manifest/approval |
-| Stale manifest | Policy revoked after compile | Current authority cannot silently widen | Explicit states and fail closed | Permission lifecycle | P3/P6 | Revocation before tool call denies future mutation |
-| Unauthorized tool call | Model emits unlisted tool | Manifest allowlist required | Deny-by-default manifest | Permission Compiler | P6 | Unknown/unlisted tool denied and audited |
-| Approval bypass | Tool mutates without valid decision | Consequential action is gated | Payload-bound P3 approval | Policy classifier | P3/P6 | Missing/expired/mismatched/replayed approval denied |
-| Capability confused with permission | Capable Worker executes denied tool | Capability is not permission | Independent checks | Permission Compiler | P4/P6 | Capability present plus manifest deny yields deny |
-| Human authority confused with AgentRole | Launcher delegates excess authority | Agent never exceeds authorized initiation | P2/P5 separation | Resolver/Compiler | P2 | `agent.run` cannot produce unheld mutation right |
-| Unbounded autonomy | Retry/tool loop consumes indefinitely | Execution is bounded | P5 budgets/concurrency/retry objective | Budget policy | P3/P4 runtime | Step/tool/time/retry limit terminates safely |
-| P4 bypass | P5 calls Codex/local path directly | P4 remains execution boundary | CodexRuntimePort and Worker protocol | P5 handoff | P4 | No P5 dependency on adapter/JSON-RPC/local paths |
+| Threat | Approved closure | Required falsifier |
+|---|---|---|
+| Role escalation | AgentRole cannot exceed P2 initiator ceiling or tenant scope | `agent.run` cannot compile an unheld mutation capability |
+| Cross-tenant context | Exact scope default; explicit enumerated descendant aggregation only | Organization/Workspace/Brand sibling and cross-Organization denials |
+| Permission union | Intersection only; any deny/missing requirement denies | Role allow cannot override tenant/initiator deny |
+| Prompt injection | Retrieved context/tool output are structurally data only | Injection text cannot alter manifest, approval, or authority |
+| Stale manifest | Restrictive policy/current revocation denies future action | Revoke after compile, then deny start/retry/write/resume |
+| Permissive policy change | Original manifest remains ceiling | Later allow does not widen existing Run |
+| Approval bypass | `GATED` requires payload-bound durable P3 approval | Missing/expired/changed/consumed approval denies |
+| Capability confusion | Worker capability is an independent downstream check | Manifest allow plus missing capability denies |
+| Historical mutation | Published versions and compiled artifacts are immutable | Later edit cannot change old Run hashes/content |
+| P4 bypass | P5 cannot name/runtime-invoke raw local/Codex mechanisms | Dependency and payload scans reject bypass fields/imports |
+| Unbounded loop | Concrete RunBudget and no nested Runs | Every budget/timeout/concurrency boundary terminates safely |
+| Secret disclosure | Raw secrets never enter context/manifest evidence | Secret fixtures are excluded and audited |
 
 ## Falsifier Matrix
 
 | Contract | Future falsifier |
 |---|---|
-| Historical identity | A definition update cannot change an existing run's definition content/hash |
-| Tenant ownership | Organization A role/definition/context/manifest cannot bind to Organization B run |
-| Workspace isolation | Workspace A cannot aggregate sibling Workspace B context |
-| Brand isolation | Brand A cannot include sibling Brand B context even for a dual-authorized user |
-| Context minimality | Unrequested and unauthorized data classes are absent from the compiled package |
-| Permission intersection | Any required deny or missing authority keeps the action denied |
-| Initiator ceiling | A human with only `agent.run` cannot compile canonical mutation authority |
-| Capability separation | Manifest allow plus missing Worker capability cannot execute |
-| Approval binding | Changed payload, target, action, expiry, or consumed nonce cannot resume execution |
-| Stale policy | Revoked policy before a consequential tool call denies that call |
-| Prompt injection | Context/tool text cannot alter instruction tier, permission, or approval state |
-| Bounded autonomy | Steps, tool calls, duration, retries, concurrency, and approval wait terminate at fixed limits |
-| P4 boundary | Resolved plans cannot name raw executable, local absolute path, environment secret, or raw Codex RPC |
-| Retry safety | Retry cannot widen context/permission or duplicate a non-idempotent effect |
+| Identity/version | Draft is non-executable; published is immutable; retired is not newly selectable; old Run remains exact |
+| Artifact ownership | Platform/ancestor applicability never becomes tenant read authority |
+| Role | Exactly one published `AgentRoleVersion`; inheritance/composition rejected |
+| Context | Required failure rejects compilation; optional exclusion has deterministic evidence |
+| Aggregation | No wildcard/sibling/cross-Organization aggregation; every descendant ID is proven |
+| Secrets | Raw secret values never persist in context, manifest, audit, event, or trace |
+| Permission | Every condition intersects; missing authority and explicit deny remain deny |
+| Initiator | Human with only `agent.run` cannot compile Strategy write or other unheld capability |
+| Instruction | Retrieved/tool text cannot change instruction tier or non-prompt controls |
+| Approval | Exact action/target/payload/expiry/consumption is revalidated on resume |
+| Budget | Default and hard ceilings are enforced; lower layers cannot raise them; nested Runs fail |
+| Retry | Exact immutable artifacts are reused and stale restrictive policy returns explicit failure |
+| Monotonicity | Permissive change cannot widen an existing Run; a new Run is required |
+| P4 boundary | P5 payload cannot contain local path, executable, shell, secret, Worker credential, or raw RPC |
 
 ## Deferred Scope
 
 - Physical schema, migrations, repositories, routes, services, and runtime implementation
-- P6 MCP server and final tool catalog compatibility decisions
-- Domain-specific Marketing agents and P7+ business logic
-- RAG/vector infrastructure, memory platform, self-learning, marketplaces, multi-agent orchestration, external channels, UI, deployment, and paid-model adapters
-- Cache implementation; only invalidation requirements may be frozen after policy inputs are known
+- P6 MCP server, tool catalog, marketplace, plugin registry, and generic external tool broker
+- Domain-specific agents and P7+ business logic
+- Role inheritance/composition and simultaneous multi-role Runs
+- Nested/multi-agent orchestration
+- Long-term physical purge policy, cache implementation, RAG/vector infrastructure, self-learning, UI, deployment, and external channels
 
-## Open Questions
+## Resolved Owner Questions
 
-### OWNER GATE — P5 CANONICAL CONTRACT
+The original G1 asked seven consequential questions and correctly blocked. P5-G1R1 resolves them as follows:
 
-One consolidated Owner decision is required. The Owner should approve an explicit answer to each group, or provide a revised canonical package section that answers it.
+1. **Agent identity and ownership:** `AgentDefinition` is stable identity, `AgentDefinitionVersion` is immutable execution identity, and ownership is exactly one platform/Organization/Workspace/Brand scope with ancestor-to-descendant applicability but no authority grant.
+2. **Agent Role:** stable `AgentRole` plus immutable versions; `roleRef` is one `AgentRoleVersion`; no P2 binding reuse, inheritance, composition, or multiple roles in V1.
+3. **Permission:** deny-by-default intersection with explicit-deny precedence, initiator ceiling, canonical-hashed expiring final manifest, exact resource grants, and no union.
+4. **Context:** exact-scope immutable snapshot, explicit enumerated descendant aggregation, required/optional failure semantics, audit retention, and no raw secrets.
+5. **Instruction:** non-prompt enforcement outranks platform, tenant, definition, role, and task instruction; retrieved context and tool output are data only.
+6. **Autonomy:** the concrete default/hard-ceiling `RunBudget` above; each layer may only lower; nested Runs are prohibited.
+7. **Run binding/revalidation:** exact artifacts and provenance are immutable per Run; retry/resume reuse them, restrictive current authority denies, and permissive change never widens.
 
-1. **Agent identity and ownership** — Is the stable object `AgentDefinition` with immutable `AgentDefinitionVersion`, or is the version itself the only identity? Which levels may own definitions (platform, Organization, Workspace, Brand), and what are the draft/active/retired rules?
-2. **Agent Role model** — Which tenant levels own AgentRole, may roles inherit or compose, how are conflicts and explicit denies resolved, are roles versioned, and what object does `roleRef` identify? Confirm that P2 human RBAC bindings are not reused as AgentRole bindings.
-3. **Permission composition and initiator ceiling** — Freeze the ordered inputs, deny precedence, manifest schema/fingerprint/expiry, resource scopes, and the rule that compiled authority is never broader than the authenticated initiator's authority for the requested operation.
-4. **Context authority and immutability** — Freeze allowed source ownership, child/ancestor aggregation rules, snapshot versus live-reference behavior, retention/reconstruction, secret classification/redaction, and whole-compile versus item-exclusion failure behavior.
-5. **Instruction precedence** — Freeze the exact order and override rules for platform/system policy, Agent definition, Agent Role, task instruction, retrieved context, and tool output; explicitly classify retrieved content/tool output as untrusted data unless a separately authorized instruction source says otherwise.
-6. **Autonomy and limits** — Define executable meanings and owners for step count, tool calls, runtime, token/context budget, concurrency, retries, nested runs, and approval wait. Named autonomy levels, if used, must map to these concrete limits and mutation/approval classes.
-7. **Run binding and revalidation** — Decide what exact immutable references P3 stores, whether approval resume/retry reuses the original artifacts or recompiles current policy, and which policy changes invalidate an unstarted or paused manifest.
-
-No ADR is created in G1 because these are unresolved Owner decisions rather than architecture decisions already made by this gate. After approval, ADR policy requires a durable record for any newly selected permission, auth, protocol, or trust-boundary semantics not already added to the canonical package.
+No consequential Owner-contract blocker remains for P5-G2 design. G1R1 itself remains contract-only and must stop after verified phase integration.
