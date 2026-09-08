@@ -131,6 +131,9 @@ The first parallel full-suite attempts exposed Windows SQLite/Prisma test-fixtur
 
 ### Gate Result
 
-- P5-G2: PASS, subject to final diff/security checks, remote G2 SHA equality, and strict fast-forward phase integration.
+- P5-G2: PASS.
+- Implementation commit `8e6eff31c28957b3516b09ab5138604e51fc15eb` passed final diff, scope, secret-signature, targeted, architecture, Prisma, and TypeScript-delta checks.
+- The implementation commit was verified equal across local G2, the remote-tracking G2 ref, and the live GitHub G2 ref, then integrated into `phase/P5-agent-control-plane` by strict fast-forward.
+- The final documentation closeout commit is published and phase-integrated through the same strict fast-forward lifecycle; its exact remote SHA is reported from live Git evidence.
 - P5-G3 entry gate: PASS only after those Git proofs complete.
 - P5 remains `IN_PROGRESS`; it is not technically complete or canonical.

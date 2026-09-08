@@ -23,5 +23,5 @@
   "dependencyMutation": "NONE",
   "p4Mutation": "NONE",
   "p6PlusStarted": false,
-  "phaseIntegration": "AUTHORIZED_AFTER_VERIFIED_G2_PASS"
+  "phaseIntegration": "STRICT_FAST_FORWARD_VERIFIED"
 }
