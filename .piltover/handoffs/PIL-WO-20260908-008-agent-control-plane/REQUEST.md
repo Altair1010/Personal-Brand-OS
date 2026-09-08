@@ -1,8 +1,8 @@
-# PIL-WO-20260908-008-agent-control-plane — P5 Agent Control Plane Contract Freeze
+# PIL-WO-20260908-008-agent-control-plane — P5 Agent Control Plane
 
-Status: CONTRACT_FREEZE_PASS
+Status: IN_PROGRESS
 Phase: P5
-Gate: P5-G1R1
+Gate: P5-G2
 Base ref expected: `aa1ed10b4b94b08c7f142e2e28841b4754d7bf39`
 
 ## Objective
@@ -63,3 +63,9 @@ G0 analysis plus reversible internal documentation. The unresolved policy choice
 - P4 protocol or implementation changes
 - P6 MCP implementation or later-phase domain features
 - UI, deployment, infrastructure, or dependency changes
+
+## P5-G2 — Definition and Role Registry Foundation
+
+Implement the minimum persistent and internal-service foundation for stable `AgentDefinition` and `AgentRole` identities plus immutable version histories. The gate must enforce exact owner ancestry, parent/version lifecycle, one atomic current publication, deterministic hashes, historical exact-version reads, P2-governed mutation, and safe audit evidence.
+
+G2 remains limited to the registry foundation. Context compilation, permission compilation, RunBudget enforcement, P3 AgentRun binding, P4/Codex changes, P6 tools, public routes, UI, deployment, and production migration remain outside this request.

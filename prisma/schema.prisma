@@ -75,6 +75,8 @@ model Organization {
   workspaceGrants    WorkerWorkspaceGrant[]
   brandGrants        WorkerBrandGrant[]
   auditEntries       AuditEntry[]
+  agentDefinitions   AgentDefinition[]
+  agentRoles         AgentRole[]
 }
 
 model Membership {
@@ -113,6 +115,8 @@ model Workspace {
   workerGrants      WorkerWorkspaceGrant[]
   brandWorkerGrants WorkerBrandGrant[]
   approvals         ApprovalRequest[]
+  agentDefinitions  AgentDefinition[]
+  agentRoles        AgentRole[]
 
   @@unique([id, organizationId])
   @@index([organizationId, status])
@@ -166,6 +170,8 @@ model Brand {
   jobs               Job[]
   workerGrants       WorkerBrandGrant[]
   approvals          ApprovalRequest[]
+  agentDefinitions   AgentDefinition[]
+  agentRoles         AgentRole[]
 
   @@unique([id, organizationId])
   @@unique([id, workspaceId, organizationId])
@@ -754,6 +760,86 @@ model ExportHistory {
 
   @@index([userId])
   @@index([organizationId, brandId])
+}
+
+model AgentDefinition {
+  id             String   @id
+  name           String
+  ownerScope     String
+  organizationId String?
+  workspaceId    String?
+  brandId        String?
+  status         String   @default("ACTIVE")
+  revision       Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization?            @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  workspace    Workspace?               @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  brand        Brand?                   @relation(fields: [brandId, workspaceId, organizationId], references: [id, workspaceId, organizationId], onDelete: Restrict)
+  versions     AgentDefinitionVersion[]
+
+  @@index([ownerScope, organizationId, workspaceId, brandId, status])
+}
+
+model AgentDefinitionVersion {
+  id                String    @id
+  definitionId      String
+  versionOrdinal    Int
+  baseRevision      Int
+  status            String    @default("DRAFT")
+  specSchemaVersion String
+  semanticPayload   Json
+  contentHash       String?
+  publishedAt       DateTime?
+  retiredAt         DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  definition AgentDefinition @relation(fields: [definitionId], references: [id], onDelete: Restrict)
+
+  @@unique([definitionId, versionOrdinal])
+  @@index([definitionId, status, versionOrdinal])
+}
+
+model AgentRole {
+  id             String   @id
+  name           String
+  ownerScope     String
+  organizationId String?
+  workspaceId    String?
+  brandId        String?
+  status         String   @default("ACTIVE")
+  revision       Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization?      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  workspace    Workspace?         @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  brand        Brand?             @relation(fields: [brandId, workspaceId, organizationId], references: [id, workspaceId, organizationId], onDelete: Restrict)
+  versions     AgentRoleVersion[]
+
+  @@index([ownerScope, organizationId, workspaceId, brandId, status])
+}
+
+model AgentRoleVersion {
+  id                String    @id
+  roleId            String
+  versionOrdinal    Int
+  baseRevision      Int
+  status            String    @default("DRAFT")
+  specSchemaVersion String
+  semanticPayload   Json
+  contentHash       String?
+  publishedAt       DateTime?
+  retiredAt         DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  role AgentRole @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  @@unique([roleId, versionOrdinal])
+  @@index([roleId, status, versionOrdinal])
 }
 
 model AgentRun {

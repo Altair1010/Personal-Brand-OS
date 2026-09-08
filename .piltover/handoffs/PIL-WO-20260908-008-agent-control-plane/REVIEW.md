@@ -139,3 +139,35 @@ Every edge now has a canonical owner. Applicability is never authorization, capa
 - ADR threshold: PASS — ADR-0004 records the new permission/trust/lifecycle decision and its evolution path.
 
 The passing G1R1 lineage may be strictly fast-forwarded into `phase/P5-agent-control-plane` after proportional checks and live remote SHA verification. This review does not authorize master integration or P5-G2 execution.
+
+## P5-G2 Registry Foundation Review
+
+Decision: PASS, subject to final publication and integration proofs.
+
+| Lane | First safety question | Evidence and result |
+|---|---|---|
+| Identity | Can a stable parent be reused or silently moved? | PASS — unique IDs, owner identity DB trigger, no delete service, no extra Agent/Persona/Profile entity |
+| Tenancy | Can invalid or cross-tenant ancestry persist? | PASS — exact owner-shape CHECK constraints plus Organization/Workspace/Brand compound foreign keys; service resolves ancestry before authorization |
+| Versioning | Can two published versions or stale last-write-wins occur? | PASS — partial unique index, serializable replacement transaction, and parent-revision CAS |
+| Immutability | Can historical semantic content or hashes change? | PASS — strict payload parsing, publication-time canonical hash, DB update/delete triggers for published/retired versions |
+| Authorization | Can applicability or AgentRole substitute for human authority? | PASS — Organization mutation requires P2 `organization.manage`; Workspace/Brand mutation requires exact P2 `agent.manage`; PLATFORM mutation fails closed |
+| Migration | Can P5 alter P2/P3/P4 rows? | PASS — forward-only additive tables/indexes/triggers, exact populated-row preservation, zero legacy conversion, clean FK check |
+| Future compatibility | Did G2 implement context, permission, Run binding, P4, or P6 semantics? | PASS — narrow V1 definition/role payloads and registry selection only; later compilers and runtime boundaries remain absent |
+
+### Root-Cause Corrections
+
+1. Initial DB review showed that valid owner columns could be changed together after parent creation. The first invalid edge was mutable owner identity, not applicability logic. A failing direct-DB falsifier was added, then owner-identity triggers made parent ID and owner ancestry immutable.
+2. Four-worker full regression exposed P2 backup fixture timeout under concurrent full migration deploys. The cause was migration-process amplification from per-test G2 database creation. G2 consolidated registry tests onto one disposable suite database, preserved isolation through generated identities and delta assertions, and reduced targeted runtime by roughly 74%. Final full proof ran sequentially under the established Windows SQLite rule.
+3. Concurrent Prisma generate failed once with `EPERM` while build/tests held the Windows query-engine DLL. No code was patched. Sequential Prisma format/validate/generate passed after the owning processes exited.
+
+### Five-Axis Quality Review
+
+- Correctness: PASS — lifecycle, publication, stale conflict, applicability, historical resolution, and error paths have behavioral falsifiers.
+- Readability: PASS — one domain contract and one internal Prisma registry keep G2 concepts local; no public surface or speculative provider abstraction was added.
+- Architecture: PASS — domain code is provider-free, Prisma remains in infrastructure, existing P2 access and stable-hash primitives are reused, and P1 boundary tests pass.
+- Security: PASS — fail-closed validation/authorization, exact ancestry, immutable history, safe audit evidence, no raw payload audit, and no new dependency or secret surface.
+- Performance/operability: PASS — bounded point lookups and transactional writes only; test migration contention was removed at its G2 fixture source.
+
+### Known Non-Blocking Limitation
+
+The canonical P2 package has no authenticated platform-bootstrap authority. G2 therefore represents PLATFORM ownership and supports its applicability/historical semantics but rejects human PLATFORM registry mutation with `UNAUTHORIZED`. A future Owner-approved platform provisioning path is required before PLATFORM artifacts can be created through an application service. G2 does not weaken this edge with a caller-supplied actor ID.

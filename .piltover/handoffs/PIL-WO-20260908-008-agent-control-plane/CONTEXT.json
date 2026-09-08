@@ -2,9 +2,9 @@
   "schemaVersion": "1.0",
   "workOrderId": "PIL-WO-20260908-008-agent-control-plane",
   "phase": "P5",
-  "gate": "P5-G1R1",
+  "gate": "P5-G2",
   "baseRef": "aa1ed10b4b94b08c7f142e2e28841b4754d7bf39",
-  "branch": "gate/P5-G1R1-owner-contract-resolution",
+  "branch": "gate/P5-G2-definition-role-registry-foundation",
   "originalBlockedGate": "gate/P5-G1-agent-control-plane-contract-freeze",
   "originalBlockedGateSha": "2b599e822af0a1d8ac09464d8e6fc837c7ab5932",
   "phaseBranch": "phase/P5-agent-control-plane",
@@ -12,7 +12,7 @@
   "canonicalPhaseSpec": "12_PHASES/P5_AGENT_CONTROL_PLANE.md",
   "p4Canonical": "PASS",
   "p5Started": true,
-  "implementationStarted": false,
+  "implementationStarted": true,
   "readStrategy": "PROGRESSIVE",
   "resolvedContracts": [
     "P5 owns semantic run governance before the P3/P4 execution boundary",
@@ -34,5 +34,15 @@
   ],
   "adrCreated": true,
   "adr": "docs/adr/0004-p5-agent-control-contract.md",
-  "p5G2EntryGate": "PASS"
+  "p5G2EntryGate": "PASS",
+  "definitionRoleRegistry": "PASS",
+  "registryModels": [
+    "AgentDefinition",
+    "AgentDefinitionVersion",
+    "AgentRole",
+    "AgentRoleVersion"
+  ],
+  "registryMigration": "prisma/migrations/20260908090000_add_p5_agent_registries/migration.sql",
+  "platformMutation": "FAIL_CLOSED_NO_CANONICAL_PLATFORM_AUTHORITY",
+  "p5G3EntryGate": "PASS"
 }
