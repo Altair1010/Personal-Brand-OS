@@ -1,10 +1,10 @@
-# Personal Brand OS — packaging (M12, unsigned).
+# Piltover — packaging (M12 lineage, unsigned).
 # Convention: the asar holds ONLY the Electron JS shell. Everything a child process
 # spawns (Next standalone server, Prisma CLI + engines, tsx + esbuild, seed + schema +
 # migrations) lives under extraResources at process.resourcesPath — real on-disk paths,
 # because child_process.spawn / ELECTRON_RUN_AS_NODE cannot reach into app.asar.
 appId: com.personalbrandos.app
-productName: Personal Brand OS
+productName: Piltover
 
 directories:
   output: release
@@ -147,7 +147,7 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: Personal Brand OS
+  shortcutName: Piltover
 
 mac:
   target:
@@ -157,4 +157,4 @@ mac:
   identity: null # unsigned — accept Gatekeeper warning
 
 dmg:
-  title: Personal Brand OS
+  title: Piltover

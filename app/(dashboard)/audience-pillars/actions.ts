@@ -6,6 +6,7 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { OBJECTIVES } from "@/lib/constants";
 import { normalizeRatioTo100 } from "@/lib/strategy-engine/normalizeRatio";
+import { resolveLocalPiltoverScope } from "@/lib/piltover/h1/local-scope";
 
 // Single-user local app: fixed ids match the seed (prisma/seed.ts).
 const USER_ID = "local";
@@ -184,6 +185,7 @@ export async function saveSegments(
   }
 
   const items = parsed.data;
+  const scope = await resolveLocalPiltoverScope();
 
   await db.$transaction(async (tx) => {
     // Diff-delete: only among rows belonging to THIS user+goal.
@@ -224,7 +226,13 @@ export async function saveSegments(
         });
       } else {
         await tx.audienceSegment.create({
-          data: { userId: USER_ID, goalId, ...data },
+          data: {
+            userId: USER_ID,
+            organizationId: scope.organizationId,
+            brandId: scope.brandId,
+            goalId,
+            ...data,
+          },
         });
       }
     }
@@ -253,6 +261,8 @@ export async function savePillars(
   if (!goalId) {
     return { ok: false, error: "Chưa có mục tiêu đang hoạt động" };
   }
+
+  const scope = await resolveLocalPiltoverScope();
 
   // Never trust incoming ratios — re-normalize to sum exactly 100 in code.
   const normalized = normalizeRatioTo100(
@@ -293,7 +303,14 @@ export async function savePillars(
         });
       } else {
         await tx.contentPillar.create({
-          data: { userId: USER_ID, goalId, status: "active", ...data },
+          data: {
+            userId: USER_ID,
+            organizationId: scope.organizationId,
+            brandId: scope.brandId,
+            goalId,
+            status: "active",
+            ...data,
+          },
         });
       }
     }

@@ -2,12 +2,13 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Loader2, Pencil, X } from "lucide-react";
+import { Check, FilePlus2, Loader2, Pencil, X } from "lucide-react";
 import { OBJECTIVE_COLORS, OBJECTIVES, type Objective } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { PostChip } from "./PostChip";
 import { updateDailyPlan } from "@/app/(dashboard)/strategy/actions";
+import { createDraftFromDailyPlan } from "@/app/(dashboard)/studio/actions";
 import type { CalendarDayDTO } from "@/app/(dashboard)/studio/actions";
 
 interface DayCellProps {
@@ -37,6 +38,18 @@ export function DayCell({ day }: DayCellProps) {
   const [cta, setCta] = useState(day.suggestedCta ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+
+  function createDraft() {
+    setError(null);
+    start(async () => {
+      const res = await createDraftFromDailyPlan(day.dailyPlanId);
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      router.push(`/studio/${res.data.draftId}`);
+    });
+  }
 
   function save() {
     setError(null);
@@ -140,8 +153,23 @@ export function DayCell({ day }: DayCellProps) {
         </>
       )}
 
-      <div className="mt-auto">
+      <div className="mt-auto space-y-1">
         <PostChip post={day.post} />
+        {!day.post && !editing && (
+          <button
+            type="button"
+            onClick={createDraft}
+            disabled={pending}
+            className="inline-flex w-full items-center justify-center gap-1 rounded-md border px-2 py-1 text-[11px] hover:bg-muted disabled:opacity-50"
+          >
+            {pending ? (
+              <Loader2 className="size-3 animate-spin" />
+            ) : (
+              <FilePlus2 className="size-3" />
+            )}
+            Tạo trong Studio
+          </button>
+        )}
       </div>
     </div>
   );

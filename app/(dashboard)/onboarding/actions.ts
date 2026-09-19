@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { brandDnaSchema, type BrandDnaInput } from "@/lib/validators/brandDna";
 import { goalSchema, type GoalInput } from "@/lib/validators/goal";
+import { resolveLocalPiltoverScope } from "@/lib/piltover/h1/local-scope";
 
 // Single-user local app: fixed ids match the seed (prisma/seed.ts).
 const USER_ID = "local";
@@ -76,9 +77,17 @@ export async function saveGoal(
   const appState = await db.appState.findUnique({ where: { id: APPSTATE_ID } });
   const activeGoalId = appState?.activeGoalId ?? undefined;
 
+  const scope = activeGoalId ? null : await resolveLocalPiltoverScope();
   const goal = activeGoalId
     ? await db.goal.update({ where: { id: activeGoalId }, data })
-    : await db.goal.create({ data: { userId: USER_ID, ...data } });
+    : await db.goal.create({
+        data: {
+          userId: USER_ID,
+          organizationId: scope!.organizationId,
+          brandId: scope!.brandId,
+          ...data,
+        },
+      });
 
   await db.appState.upsert({
     where: { id: APPSTATE_ID },

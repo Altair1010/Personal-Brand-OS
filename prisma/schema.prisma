@@ -75,8 +75,10 @@ model Organization {
   workspaceGrants    WorkerWorkspaceGrant[]
   brandGrants        WorkerBrandGrant[]
   auditEntries       AuditEntry[]
-  agentDefinitions   AgentDefinition[]
-  agentRoles         AgentRole[]
+  agentDefinitions      AgentDefinition[]
+  agentRoles            AgentRole[]
+  adCampaigns           AdCampaign[]
+  adMetricObservations  AdMetricObservation[]
 }
 
 model Membership {
@@ -170,8 +172,10 @@ model Brand {
   jobs               Job[]
   workerGrants       WorkerBrandGrant[]
   approvals          ApprovalRequest[]
-  agentDefinitions   AgentDefinition[]
-  agentRoles         AgentRole[]
+  agentDefinitions      AgentDefinition[]
+  agentRoles            AgentRole[]
+  adCampaigns           AdCampaign[]
+  adMetricObservations  AdMetricObservation[]
 
   @@unique([id, organizationId])
   @@unique([id, workspaceId, organizationId])
@@ -218,6 +222,56 @@ model MetricObservation {
   @@unique([brandId, dedupeKey])
   @@index([organizationId, brandId, metricKey, observedAt])
   @@index([legacyPostId])
+}
+
+model AdCampaign {
+  id              String    @id @default(cuid())
+  organizationId  String
+  brandId         String
+  goalId          String?
+  strategyId      String?
+  creativeDraftId String?
+  name            String
+  objective       String
+  audience        Json?
+  budgetAmount    Float?
+  budgetCurrency  String    @default("VND")
+  bidIntent       String?
+  status          String    @default("DRAFT")
+  deliveryMode    String    @default("INTERNAL_DEMO")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  brand        Brand                 @relation(fields: [brandId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  metrics      AdMetricObservation[]
+
+  @@index([organizationId, brandId, status])
+  @@index([goalId])
+  @@index([strategyId])
+  @@index([creativeDraftId])
+}
+
+model AdMetricObservation {
+  id             String     @id @default(cuid())
+  campaignId     String
+  organizationId String
+  brandId        String
+  metricKey      String
+  numericValue   Float
+  observedAt     DateTime   @default(now())
+  source         String     @default("MANUAL")
+  provenance     Json?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  campaign     AdCampaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  brand        Brand        @relation(fields: [brandId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([campaignId, metricKey, observedAt])
+  @@index([organizationId, brandId, metricKey, observedAt])
+  @@index([campaignId, observedAt])
 }
 
 model AppState {

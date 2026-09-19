@@ -12,6 +12,7 @@ import {
   CalendarDays,
   BarChart2,
   ClipboardList,
+  Megaphone,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -50,6 +51,11 @@ const NAV_ITEMS = [
     ],
   },
   {
+    label: "Paid Media / Ads",
+    href: "/ads",
+    icon: Megaphone,
+  },
+  {
     label: "Hiệu suất",
     href: "/performance",
     icon: BarChart2,
@@ -86,7 +92,7 @@ export function Sidebar() {
       <div className="flex h-14 items-center border-b px-3">
         {!collapsed && (
           <span className="font-semibold text-sm text-primary truncate">
-            Personal Brand OS
+            Piltover
           </span>
         )}
         {collapsed && (

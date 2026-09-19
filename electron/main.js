@@ -90,7 +90,7 @@ function createWindow() {
   win = new BrowserWindow({
     width: 1400,
     height: 900,
-    title: "Personal Brand OS",
+    title: "Piltover",
     backgroundColor: "#ffffff",
     webPreferences: { contextIsolation: true, nodeIntegration: false },
   });

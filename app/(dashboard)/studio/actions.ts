@@ -12,6 +12,7 @@ import {
   CTA_INTENSITY,
   FORMATS,
 } from "@/lib/constants";
+import { resolveLocalPiltoverScope } from "@/lib/piltover/h1/local-scope";
 
 // Single-user local app: fixed ids match the seed (prisma/seed.ts).
 const USER_ID = "local";
@@ -292,6 +293,73 @@ export async function getCalendarData(): Promise<CalendarData> {
   return { hasStrategy: true, days };
 }
 
+export async function createDraftFromDailyPlan(
+  dailyPlanId: string,
+): Promise<ActionResult<{ draftId: string }>> {
+  const scope = await resolveLocalPiltoverScope();
+  const day = await db.dailyPlan.findUnique({
+    where: { id: dailyPlanId },
+    include: {
+      weeklyPlan: {
+        include: { strategyVersion: { include: { strategy: true } } },
+      },
+    },
+  });
+
+  if (!day || day.weeklyPlan.strategyVersion.strategy.userId !== USER_ID) {
+    return { ok: false, error: "Không tìm thấy kế hoạch ngày." };
+  }
+
+  const strategy = day.weeklyPlan.strategyVersion.strategy;
+  if (strategy.organizationId && strategy.organizationId !== scope.organizationId) {
+    return { ok: false, error: "Kế hoạch không thuộc organization hiện tại." };
+  }
+  if (strategy.brandId && strategy.brandId !== scope.brandId) {
+    return { ok: false, error: "Kế hoạch không thuộc brand hiện tại." };
+  }
+
+  const existing = await db.contentIdea.findFirst({
+    where: { userId: USER_ID, dailyPlanId },
+    include: { drafts: { select: { id: true }, take: 1 } },
+  });
+  if (existing?.drafts[0]) {
+    return { ok: true, data: { draftId: existing.drafts[0].id } };
+  }
+
+  const idea = existing ?? await db.contentIdea.create({
+    data: {
+      userId: USER_ID,
+      organizationId: scope.organizationId,
+      brandId: scope.brandId,
+      dailyPlanId,
+      pillarId: day.plannedPillarId,
+      title: day.suggestedTopic?.trim() || `Nội dung ngày ${day.dayIndex}`,
+      objectiveKey: day.plannedObjective,
+      angle: "strategy-plan",
+      source: "strategy-plan",
+    },
+  });
+
+  const draft = await db.contentDraft.create({
+    data: {
+      contentIdeaId: idea.id,
+      userId: USER_ID,
+      organizationId: scope.organizationId,
+      brandId: scope.brandId,
+      version: 1,
+      status: "draft",
+      objectiveKey: idea.objectiveKey,
+      pillarId: idea.pillarId,
+      topic: idea.title,
+    },
+    select: { id: true },
+  });
+
+  revalidatePath("/studio");
+  revalidatePath("/calendar");
+  return { ok: true, data: { draftId: draft.id } };
+}
+
 // ============================================================
 // Mutations
 // ============================================================
@@ -308,6 +376,8 @@ export async function createDraftFromIdea(
     data: {
       contentIdeaId: idea.id,
       userId: USER_ID,
+      organizationId: idea.organizationId,
+      brandId: idea.brandId,
       version: 1,
       status: "draft",
       objectiveKey: idea.objectiveKey,
@@ -327,9 +397,12 @@ export async function createBlankDraft(): Promise<
   ActionResult<{ draftId: string }>
 > {
   try {
+    const scope = await resolveLocalPiltoverScope();
     const draft = await db.contentDraft.create({
       data: {
         userId: USER_ID,
+        organizationId: scope.organizationId,
+        brandId: scope.brandId,
         version: 1,
         status: "draft",
         topic: "Bản nháp mới",

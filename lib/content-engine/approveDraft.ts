@@ -78,6 +78,8 @@ export async function approveDraft(draftId: string): Promise<ApproveDraftResult>
       data: {
         contentDraftId: draftId,
         userId: USER_ID,
+        organizationId: draft.organizationId,
+        brandId: draft.brandId,
         strategyVersionId,
         dailyPlanId,
         finalText,

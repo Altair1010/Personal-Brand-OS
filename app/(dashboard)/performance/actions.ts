@@ -23,6 +23,7 @@ import {
 } from "@/lib/facebook/graph";
 import { encryptString, decryptString } from "@/lib/ai/keystore";
 import { METRIC_SOURCES } from "@/lib/constants";
+import { resolveLocalPiltoverScope } from "@/lib/piltover/h1/local-scope";
 
 // Single-user local app: fixed ids match the seed (prisma/seed.ts).
 const USER_ID = "local";
@@ -309,12 +310,18 @@ export async function runInsight(): Promise<
 
   const out = enforceLowConfidence(result.data, withMetrics.length);
 
-  // Reset insights của user rồi tạo batch mới từ out.insights.
-  await db.performanceInsight.deleteMany({ where: { userId: USER_ID } });
+  const scope = await resolveLocalPiltoverScope();
+
+  // Refresh organic insights without deleting the paid-media learning stream.
+  await db.performanceInsight.deleteMany({
+    where: { userId: USER_ID, NOT: { scope: "ads" } },
+  });
   for (const ins of out.insights) {
     await db.performanceInsight.create({
       data: {
         userId: USER_ID,
+        organizationId: scope.organizationId,
+        brandId: scope.brandId,
         scope: ins.scope,
         refId: ins.refId ?? null,
         period,

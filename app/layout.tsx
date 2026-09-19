@@ -6,8 +6,8 @@ import { Providers } from "@/components/Providers";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Personal Brand OS",
-  description: "Hệ thống quản lý thương hiệu cá nhân",
+  title: "Piltover",
+  description: "AI-assisted marketing operations system",
 };
 
 // Root layout: html/body/Providers only. The dashboard shell (AppShell + AuthGate) lives in

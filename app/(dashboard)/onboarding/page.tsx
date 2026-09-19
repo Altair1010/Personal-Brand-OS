@@ -55,7 +55,7 @@ export default async function OnboardingPage() {
     <>
       <PageHeader
         title="Onboarding"
-        description="Thiết lập thương hiệu cá nhân của bạn"
+        description="Thiết lập Brand DNA và mục tiêu vận hành marketing"
       />
       <OnboardingWizard initial={initial} />
     </>

@@ -5,6 +5,7 @@
 import { db } from "@/lib/db";
 import type { StrategyOutput } from "@/lib/prompts/strategy";
 import type { AssembledStrategy } from "./assembleStrategy";
+import { resolveLocalPiltoverScope } from "@/lib/piltover/h1/local-scope";
 
 const USER_ID = "local";
 const APP_STATE_ID = "singleton";
@@ -38,6 +39,8 @@ export async function createStrategyVersion(
     throw new Error("StrategyVersion.reason là bắt buộc (non-empty).");
   }
 
+  const scope = await resolveLocalPiltoverScope();
+
   return db.$transaction(async (tx) => {
     // 1. Tìm/tạo Strategy cho (userId, goalId).
     let strategy = await tx.strategy.findFirst({
@@ -47,6 +50,8 @@ export async function createStrategyVersion(
       strategy = await tx.strategy.create({
         data: {
           userId: USER_ID,
+          organizationId: scope.organizationId,
+          brandId: scope.brandId,
           goalId: args.goalId,
           name: args.name,
           timeframeDays: 30,

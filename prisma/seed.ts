@@ -4,6 +4,7 @@
 // The canonical building logic lives in seedCore.ts (reused by the M10 reset action).
 import { PrismaClient } from "@prisma/client";
 import { seedCore } from "./seedCore";
+import { runP2Backfill } from "../lib/piltover/modules/platform/infrastructure/p2-backfill";
 
 const db = new PrismaClient();
 
@@ -18,6 +19,10 @@ async function main() {
   console.log(`\nSeeding domain: ${domain}\n`);
 
   await seedCore(db, domain);
+
+  // Ensure the local demo data participates in Piltover's canonical tenant graph.
+  // The P2 backfill is deterministic and idempotent.
+  await runP2Backfill(db);
 
   // --- count table ---
   const counts = {

@@ -22,6 +22,7 @@ const BREADCRUMB_MAP: Record<string, string> = {
   "/strategy": "Chiến lược",
   "/studio": "Studio",
   "/calendar": "Lịch",
+  "/ads": "Paid Media / Ads",
   "/performance": "Hiệu suất",
   "/review": "Đánh giá tuần",
   "/settings": "Cài đặt",
@@ -77,7 +78,7 @@ export function Topbar() {
       {/* Breadcrumb */}
       <nav aria-label="breadcrumb">
         <ol className="flex items-center gap-1.5 text-sm">
-          <li className="text-muted-foreground">Personal Brand OS</li>
+          <li className="text-muted-foreground">Piltover</li>
           <li className="text-muted-foreground">/</li>
           <li className="font-medium text-foreground">{label}</li>
         </ol>
