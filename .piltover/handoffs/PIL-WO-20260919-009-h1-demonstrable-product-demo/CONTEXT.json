@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0",
+  "workOrderId": "PIL-WO-20260919-009-h1-demonstrable-product-demo",
+  "horizon": "H1_DEMONSTRABLE",
+  "baseRef": "f641c740e17f8920b556416731fcbc4f1973fef0",
+  "baseBranch": "origin/phase/P5-agent-control-plane",
+  "branch": "work/PIL-H1-demonstrable-product-demo",
+  "controlMethod": "AMH v0.3 Partial",
+  "deliveryPhilosophy": "experimental unnamed vertical-product-outcome overlay",
+  "productProgressRule": "user-visible delta OR material invariant protection",
+  "mutationModel": "bounded parallel evidence; one consequential mutation authority",
+  "primaryOutcome": "end-to-end local marketing loop with organic and internal paid/ads paths",
+  "externalAdsMutation": "OUT_OF_SCOPE_H1",
+  "h2Started": false
+}
