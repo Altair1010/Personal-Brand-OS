@@ -10,6 +10,7 @@ import { LatestInsightCard } from "@/components/performance/LatestInsightCard";
 import { ConnectFacebookForm } from "@/components/performance/ConnectFacebookForm";
 import { PaidPerformanceTable } from "@/components/performance/PaidPerformanceTable";
 import {
+  getAIRuntimeStatus,
   getPaidPerformanceData,
   getPerformanceData,
   listFacebookAccounts,
@@ -23,10 +24,11 @@ export default async function PerformancePage({
   searchParams: Promise<{ fb?: string }>;
 }) {
   const { fb } = await searchParams;
-  const [data, accounts, paid] = await Promise.all([
+  const [data, accounts, paid, aiRuntime] = await Promise.all([
     getPerformanceData(fb ?? null),
     listFacebookAccounts(),
     getPaidPerformanceData(),
+    getAIRuntimeStatus(),
   ]);
 
   return (
@@ -78,11 +80,12 @@ export default async function PerformancePage({
             <HookPerfTable groups={data.aggregates.byHook} />
           </section>
 
-          <section>
-            <LatestInsightCard insights={data.latestInsights} />
-          </section>
         </div>
       )}
+
+      <section className="mt-8">
+        <LatestInsightCard insights={data.latestInsights} aiRuntime={aiRuntime} />
+      </section>
     </>
   );
 }

@@ -11,10 +11,15 @@ import {
 } from "@/lib/performance-engine/aggregate";
 import { computeDaysSincePost } from "@/lib/performance-engine/computeDaysSincePost";
 import { runModule } from "@/lib/ai/run";
+import { resolveModelConfig } from "@/lib/ai/adapter";
 import {
   performanceModule,
   enforceLowConfidence,
 } from "@/lib/prompts/performance";
+import {
+  marketingIntelligenceModule,
+  validateMarketingIntelligenceEvidenceRefs,
+} from "@/lib/prompts/marketing-intelligence";
 import {
   verifyPageToken,
   resolvePostId,
@@ -294,33 +299,185 @@ export async function runInsight(): Promise<
     weakPillars: string[];
   }>
 > {
-  const perfPosts = await loadPerfPosts();
-  const withMetrics = perfPosts.filter((p) => p.metrics !== null);
-  if (withMetrics.length < 1) {
-    return { ok: false, error: "Chưa có đủ số liệu để phân tích" };
+  const tenant = await resolveLocalTenant(db);
+  const [perfPosts, paidRows, appState] = await Promise.all([
+    loadPerfPosts(),
+    db.metaAdsMetricSnapshot.findMany({
+      where: {
+        organizationId: tenant.organizationId,
+        brandId: tenant.brandId,
+      },
+      orderBy: { capturedAt: "desc" },
+      take: 20,
+      include: {
+        metaAdsCampaign: {
+          select: {
+            id: true,
+            name: true,
+            state: true,
+            marketingCampaign: {
+              select: {
+                objective: true,
+                strategyVersionId: true,
+              },
+            },
+          },
+        },
+      },
+    }),
+    db.appState.findUnique({
+      where: { id: "singleton" },
+      select: { activeStrategyId: true },
+    }),
+  ]);
+
+  const organicWithMetrics = perfPosts.filter((post) => post.metrics !== null);
+  if (organicWithMetrics.length < 1 && paidRows.length < 1) {
+    return { ok: false, error: "Chưa có đủ số liệu Organic hoặc Paid để phân tích" };
   }
+
+  const latestStrategy = appState?.activeStrategyId
+    ? await db.strategyVersion.findFirst({
+        where: { strategyId: appState.activeStrategyId },
+        orderBy: { version: "desc" },
+        include: { strategy: { select: { name: true } } },
+      })
+    : null;
 
   const period = "30 ngày gần nhất";
-  const inputData = buildInsightInput(withMetrics, period);
 
-  const result = await runModule(performanceModule, inputData);
-  if (!result.ok) {
-    return { ok: false, error: result.error };
+  if (paidRows.length > 0) {
+    const organicRows = await db.post.findMany({
+      where: {
+        userId: USER_ID,
+        organizationId: tenant.organizationId,
+        brandId: tenant.brandId,
+        metrics: { some: {} },
+      },
+      include: { metrics: true },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    });
+
+    const input = {
+      period,
+      strategy: {
+        versionId: latestStrategy?.id ?? null,
+        name: latestStrategy?.strategy.name ?? null,
+        objective: paidRows[0]?.metaAdsCampaign.marketingCampaign.objective ?? null,
+      },
+      organic: organicRows.map((post) => {
+        const m = post.metrics[0] ?? null;
+        return {
+          refId: post.id,
+          title: post.topic ?? "Untitled post",
+          reach: m?.reach ?? null,
+          engagement: m?.engagement ?? null,
+          comments: m?.comments ?? null,
+          saves: m?.saves ?? null,
+          source: m?.source ?? "unknown",
+        };
+      }),
+      paid: paidRows.map((row) => ({
+        refId: row.metaAdsCampaignId,
+        campaignName: row.metaAdsCampaign.name,
+        state: row.metaAdsCampaign.state,
+        spendMinor: row.spendMinor,
+        impressions: row.impressions,
+        reach: row.reach,
+        clicks: row.clicks,
+        linkClicks: row.linkClicks,
+        conversions: row.conversions,
+        conversionValueMinor: row.conversionValueMinor,
+        source: row.source,
+      })),
+    };
+
+    const result = await runModule(marketingIntelligenceModule, input);
+    if (!result.ok) return { ok: false, error: result.error };
+
+    const refCheck = validateMarketingIntelligenceEvidenceRefs(input, result.data);
+    if (!refCheck.ok) {
+      return {
+        ok: false,
+        error: `AI evidence refs không hợp lệ: ${refCheck.invalidRefs.join(", ")}`,
+      };
+    }
+
+    const latestRun = await db.promptRun.findFirst({
+      where: { moduleKey: marketingIntelligenceModule.key, status: "ok" },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    });
+
+    await db.performanceInsight.deleteMany({
+      where: {
+        userId: USER_ID,
+        organizationId: tenant.organizationId,
+        brandId: tenant.brandId,
+      },
+    });
+
+    for (const ins of result.data.insights) {
+      await db.performanceInsight.create({
+        data: {
+          userId: USER_ID,
+          organizationId: tenant.organizationId,
+          brandId: tenant.brandId,
+          scope: ins.scope,
+          refId: ins.refId ?? null,
+          period,
+          finding: ins.finding,
+          evidence: {
+            text: ins.evidence,
+            refs: ins.evidenceRefs,
+            mode: "organic_paid",
+          },
+          recommendation: ins.recommendation,
+          confidence: ins.confidence,
+          aiPromptRunId: latestRun?.id ?? null,
+        },
+      });
+    }
+
+    revalidatePath("/performance");
+    revalidatePath("/review");
+    revalidatePath("/");
+
+    return {
+      ok: true,
+      data: {
+        count: result.data.insights.length,
+        warnings: result.data.warnings,
+        topPosts: [],
+        weakPillars: [],
+      },
+    };
   }
 
-  const out = enforceLowConfidence(result.data, withMetrics.length);
+  const inputData = buildInsightInput(organicWithMetrics, period);
+  const result = await runModule(performanceModule, inputData);
+  if (!result.ok) return { ok: false, error: result.error };
 
-  // Reset insights của user rồi tạo batch mới từ out.insights.
-  await db.performanceInsight.deleteMany({ where: { userId: USER_ID } });
+  const out = enforceLowConfidence(result.data, organicWithMetrics.length);
+  await db.performanceInsight.deleteMany({
+    where: {
+      userId: USER_ID,
+      organizationId: tenant.organizationId,
+      brandId: tenant.brandId,
+    },
+  });
   for (const ins of out.insights) {
     await db.performanceInsight.create({
       data: {
         userId: USER_ID,
+        organizationId: tenant.organizationId,
+        brandId: tenant.brandId,
         scope: ins.scope,
         refId: ins.refId ?? null,
         period,
         finding: ins.finding,
-        evidence: { text: ins.evidence },
+        evidence: { text: ins.evidence, mode: "organic_only" },
         recommendation: ins.recommendation,
         confidence: ins.confidence,
       },
@@ -328,6 +485,8 @@ export async function runInsight(): Promise<
   }
 
   revalidatePath("/performance");
+  revalidatePath("/review");
+  revalidatePath("/");
   return {
     ok: true,
     data: {
@@ -530,4 +689,30 @@ export async function getPaidPerformanceData(): Promise<PaidMetricDTO[]> {
     conversions: row.conversions,
     source: row.source,
   }));
+}
+
+export type AIRuntimeStatus = {
+  ready: boolean;
+  provider: string | null;
+  model: string | null;
+  reason: string | null;
+};
+
+export async function getAIRuntimeStatus(): Promise<AIRuntimeStatus> {
+  try {
+    const cfg = await resolveModelConfig();
+    return {
+      ready: true,
+      provider: cfg.provider,
+      model: cfg.model,
+      reason: null,
+    };
+  } catch (error) {
+    return {
+      ready: false,
+      provider: null,
+      model: null,
+      reason: error instanceof Error ? error.message : "AI runtime chưa cấu hình.",
+    };
+  }
 }

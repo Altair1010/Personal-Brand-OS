@@ -14,10 +14,15 @@ import {
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { AiLoading } from "@/components/AiLoading";
-import { runInsight, type InsightDTO } from "@/app/(dashboard)/performance/actions";
+import {
+  runInsight,
+  type AIRuntimeStatus,
+  type InsightDTO,
+} from "@/app/(dashboard)/performance/actions";
 
 interface LatestInsightCardProps {
   insights: InsightDTO[];
+  aiRuntime: AIRuntimeStatus;
 }
 
 function confidenceBadge(confidence: string) {
@@ -35,7 +40,7 @@ function confidenceBadge(confidence: string) {
   );
 }
 
-export function LatestInsightCard({ insights }: LatestInsightCardProps) {
+export function LatestInsightCard({ insights, aiRuntime }: LatestInsightCardProps) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
@@ -55,19 +60,36 @@ export function LatestInsightCard({ insights }: LatestInsightCardProps) {
   }
 
   const generateButton = (
-    <Button type="button" size="sm" disabled={pending} onClick={onGenerate}>
+    <Button
+      type="button"
+      size="sm"
+      disabled={pending || !aiRuntime.ready}
+      onClick={onGenerate}
+    >
       <Sparkles className="size-4" />
-      Sinh insight
+      Phân tích Organic + Paid
     </Button>
   );
 
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between space-y-0">
-        <CardTitle className="text-base">Insight từ AI</CardTitle>
+        <CardTitle className="text-base">Marketing Intelligence</CardTitle>
         {generateButton}
       </CardHeader>
       <CardContent className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <Badge variant={aiRuntime.ready ? "default" : "outline"}>
+            {aiRuntime.ready ? "AI READY" : "AI NOT CONFIGURED"}
+          </Badge>
+          {aiRuntime.ready ? (
+            <span className="text-muted-foreground">
+              {aiRuntime.provider} · {aiRuntime.model}
+            </span>
+          ) : (
+            <span className="text-muted-foreground">{aiRuntime.reason}</span>
+          )}
+        </div>
         {error && <ErrorState message={error} />}
         {warnings.length > 0 && (
           <ul className="list-disc space-y-1 rounded-md border border-amber-200 bg-amber-50 p-3 pl-6 text-xs text-amber-800">
@@ -83,7 +105,7 @@ export function LatestInsightCard({ insights }: LatestInsightCardProps) {
           <EmptyState
             icon={Lightbulb}
             title="Chưa có insight"
-            description="Nhập số liệu rồi bấm Sinh insight để AI phân tích hiệu suất."
+            description="Nhập Organic/Paid evidence rồi chạy intelligence để AI phân tích hiệu suất và đề xuất vòng học tiếp theo."
           />
         ) : (
           <div className="space-y-3">

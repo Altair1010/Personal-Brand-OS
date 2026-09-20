@@ -131,3 +131,30 @@ Dashboard
 ```
 
 Meta Ads remains truth-preserving: the UI shows `EXTERNAL_NOT_CONNECTED` until a real provider integration exists.
+
+## H1.3 implementation — Runtime + Intelligence Loop
+
+The H1 intelligence path is now:
+
+```text
+Organic evidence ───────┐
+                        ├─→ Marketing Intelligence
+Paid / Meta evidence ───┘          │
+                                   ├─ evidence-ref validation
+                                   ├─ tenant-scoped persistence
+                                   └─ recommendation
+                                            │
+                                            ▼
+                                    PerformanceInsight
+                                            │
+                                            ▼
+                                      Review / Revision
+                                            │
+                                            ▼
+                                      Next Strategy
+```
+
+Provider truth remains explicit:
+- structured AI runtime path is verified with an injected adapter;
+- real provider canary is currently blocked because no model/credential is configured;
+- H1.3 must not be promoted to fully verified until that canary passes or the Owner explicitly accepts the limitation.

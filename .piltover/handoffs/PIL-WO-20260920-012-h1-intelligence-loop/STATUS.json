@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1.0",
+  "workOrderId": "PIL-WO-20260920-012-h1-intelligence-loop",
+  "status": "BLOCKED",
+  "phase": "H1",
+  "gate": "H1.3",
+  "implementation": "COMPLETE",
+  "structuredAIRuntime": "PASS_WITH_INJECTED_ADAPTER",
+  "realProviderCanary": "BLOCKED_CONFIGURATION",
+  "blockingReason": "No AI model selected and local Anthropic/OpenAI API keys are empty",
+  "nextAllowedAction": "Configure an approved AI model and credential, then rerun H1.3 provider canary before H1.4"
+}
