@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0",
+  "workOrderId": "PIL-WO-20260920-009-h1-demonstrable",
+  "gate": "H1.0",
+  "branch": "work/H1-demonstrable-product-demo",
+  "baseRef": "f641c740e17f8920b556416731fcbc4f1973fef0",
+  "baseRemote": "origin/phase/P5-agent-control-plane",
+  "canonicalMasterAtStart": "aa1ed10b4b94b08c7f142e2e28841b4754d7bf39",
+  "method": "AMH v0.3 Partial",
+  "deliveryPhilosophy": "vertical product outcome",
+  "targetHorizon": "H1 Demonstrable",
+  "evidenceRoot": "F:\\tmp\\evidence AMH v0.3",
+  "startedAt": "2026-09-20T11:55:30+07:00"
+}

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "1.0",
+  "workOrderId": "PIL-WO-20260920-009-h1-demonstrable",
+  "status": "DONE",
+  "phase": "H1",
+  "gate": "H1.0",
+  "branch": "work/H1-demonstrable-product-demo",
+  "baselineSha": "f641c740e17f8920b556416731fcbc4f1973fef0",
+  "verticalSliceMap": "PASS",
+  "baselineInventory": "PASS",
+  "prismaValidate": "PASS",
+  "fullSuiteFreshVerdict": "UNKNOWN_STALLED",
+  "productionBuildFreshVerdict": "UNKNOWN_STALLED",
+  "runtimeMutation": "NONE",
+  "schemaMutation": "NONE",
+  "dependencyMutation": "NONE",
+  "nextGate": "H1.1"
+}
