@@ -8,7 +8,12 @@ import { PillarPerfTable } from "@/components/performance/PillarPerfTable";
 import { HookPerfTable } from "@/components/performance/HookPerfTable";
 import { LatestInsightCard } from "@/components/performance/LatestInsightCard";
 import { ConnectFacebookForm } from "@/components/performance/ConnectFacebookForm";
-import { getPerformanceData, listFacebookAccounts } from "./actions";
+import { PaidPerformanceTable } from "@/components/performance/PaidPerformanceTable";
+import {
+  getPaidPerformanceData,
+  getPerformanceData,
+  listFacebookAccounts,
+} from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -18,9 +23,10 @@ export default async function PerformancePage({
   searchParams: Promise<{ fb?: string }>;
 }) {
   const { fb } = await searchParams;
-  const [data, accounts] = await Promise.all([
+  const [data, accounts, paid] = await Promise.all([
     getPerformanceData(fb ?? null),
     listFacebookAccounts(),
+    getPaidPerformanceData(),
   ]);
 
   return (
@@ -37,11 +43,15 @@ export default async function PerformancePage({
         <ConnectFacebookForm accounts={accounts} />
       </section>
 
+      <section className="mb-8">
+        <PaidPerformanceTable rows={paid} />
+      </section>
+
       {data.rows.length === 0 ? (
         <EmptyState
           icon={BarChart2}
-          title="Chưa có bài đăng"
-          description="Duyệt bản nháp thành bài đăng rồi nhập chỉ số thủ công để theo dõi hiệu suất."
+          title="Chưa có Organic post"
+          description="Duyệt bản nháp thành bài đăng để theo dõi Organic. Paid evidence vẫn hiển thị phía trên."
         />
       ) : (
         <div className="space-y-8">

@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1.0",
+  "workOrderId": "PIL-WO-20260920-011-h1-demonstrable-experience",
+  "phase": "H1",
+  "gate": "H1.2",
+  "branch": "work/H1-demonstrable-product-demo",
+  "baseCommit": "c5ea0998c6d502a71759d2f90c53ec30651e2979",
+  "method": "AMH v0.3 Partial",
+  "deliveryPhilosophy": "vertical product outcome",
+  "primaryDelta": "demonstrable local UI over the H1 product spine",
+  "liveExternalMutation": false
+}

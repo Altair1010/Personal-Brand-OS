@@ -23,6 +23,7 @@ import {
 } from "@/lib/facebook/graph";
 import { encryptString, decryptString } from "@/lib/ai/keystore";
 import { METRIC_SOURCES } from "@/lib/constants";
+import { resolveLocalTenant } from "@/lib/piltover/modules/marketing/infrastructure/local-tenant";
 
 // Single-user local app: fixed ids match the seed (prisma/seed.ts).
 const USER_ID = "local";
@@ -481,4 +482,52 @@ export async function fetchMetricFromUrl(
 
   revalidatePath("/performance");
   return { ok: true, data: { postId } };
+}
+
+export type PaidMetricDTO = {
+  id: string;
+  campaignName: string;
+  state: string;
+  capturedAt: string;
+  spendMinor: number | null;
+  impressions: number | null;
+  reach: number | null;
+  clicks: number | null;
+  linkClicks: number | null;
+  conversions: number | null;
+  source: string;
+};
+
+export async function getPaidPerformanceData(): Promise<PaidMetricDTO[]> {
+  let tenant;
+  try {
+    tenant = await resolveLocalTenant(db);
+  } catch {
+    return [];
+  }
+  const rows = await db.metaAdsMetricSnapshot.findMany({
+    where: {
+      organizationId: tenant.organizationId,
+      brandId: tenant.brandId,
+    },
+    orderBy: { capturedAt: "desc" },
+    take: 20,
+    include: {
+      metaAdsCampaign: { select: { name: true, state: true } },
+    },
+  });
+
+  return rows.map((row) => ({
+    id: row.id,
+    campaignName: row.metaAdsCampaign.name,
+    state: row.metaAdsCampaign.state,
+    capturedAt: row.capturedAt.toISOString(),
+    spendMinor: row.spendMinor,
+    impressions: row.impressions,
+    reach: row.reach,
+    clicks: row.clicks,
+    linkClicks: row.linkClicks,
+    conversions: row.conversions,
+    source: row.source,
+  }));
 }

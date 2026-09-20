@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "1.0",
+  "workOrderId": "PIL-WO-20260920-011-h1-demonstrable-experience",
+  "status": "DONE",
+  "phase": "H1",
+  "gate": "H1.2",
+  "runtimeMutation": "UI_AND_SERVER_ACTIONS",
+  "schemaMutation": "NONE",
+  "dependencyMutation": "NONE",
+  "metaAdsLiveMutation": "NONE",
+  "uiContractTests": "PASS_5_OF_5",
+  "productSpineRegression": "PASS_2_OF_2",
+  "architectureRegression": "PASS_6_OF_6",
+  "runtimeRoutes": "PASS_HTTP_200_ROOT_CAMPAIGNS_PERFORMANCE",
+  "typescriptDelta": "NO_NEW_DIAGNOSTICS",
+  "nextGate": "H1.3"
+}

@@ -111,3 +111,23 @@ Meta Ads H1 states:
 `DRAFT → READY → EXTERNAL_NOT_CONNECTED | SYNCED → PAUSED | COMPLETED`.
 
 No H1 code may represent `EXTERNAL_NOT_CONNECTED` as a successful live campaign.
+
+## H1.2 closure — Demonstrable Experience
+
+The H1 product spine is now exposed through a navigable local UI:
+
+```text
+Dashboard
+  → Onboarding / Brand DNA
+  → Strategy
+  → Studio / Approval
+  → Campaigns
+      ├─ Organic scheduling
+      └─ Meta Ads seam + manual paid evidence
+  → Performance
+      ├─ Organic metrics
+      └─ Meta Ads performance
+  → Insight
+```
+
+Meta Ads remains truth-preserving: the UI shows `EXTERNAL_NOT_CONNECTED` until a real provider integration exists.

@@ -11,6 +11,7 @@ import {
   PenSquare,
   CalendarDays,
   BarChart2,
+  Megaphone,
   ClipboardList,
   Settings,
   ChevronLeft,
@@ -48,6 +49,11 @@ const NAV_ITEMS = [
       { label: "Studio", href: "/studio", icon: PenSquare },
       { label: "Lịch", href: "/calendar", icon: CalendarDays },
     ],
+  },
+  {
+    label: "Chiến dịch",
+    href: "/campaigns",
+    icon: Megaphone,
   },
   {
     label: "Hiệu suất",
