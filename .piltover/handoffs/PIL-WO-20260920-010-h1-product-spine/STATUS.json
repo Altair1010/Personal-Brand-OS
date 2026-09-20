@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "1.0",
+  "workOrderId": "PIL-WO-20260920-010-h1-product-spine",
+  "status": "DONE",
+  "phase": "H1",
+  "gate": "H1.1",
+  "schemaMutation": "ADDITIVE_H1_MARKETING_SPINE",
+  "runtimeMutation": "INTERNAL_STATE_ONLY",
+  "dependencyMutation": "NONE",
+  "metaAdsLiveMutation": "NONE",
+  "prismaValidate": "PASS",
+  "h1ProductSpineTests": "PASS_2_OF_2",
+  "architectureTests": "PASS_6_OF_6",
+  "typescriptDelta": "NO_NEW_DIAGNOSTICS",
+  "productionBuild": "BLOCKED_ENV_RESOURCE_HEAP_OOM",
+  "localMigration": "PASS",
+  "nextGate": "H1.2"
+}

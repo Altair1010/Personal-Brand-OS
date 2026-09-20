@@ -91,3 +91,23 @@ Therefore H1.0 treats the historical P5 verification as historical evidence only
 
 ## H1.0 verdict
 The repository already contains most of the organic golden-path primitives. H1 should primarily be an integration/productization effort plus the missing Paid/Ads and performance seams, not a greenfield rewrite.
+
+## H1.0 addendum — Meta Ads seam freeze
+Meta Ads is now an H1 engine seam, not a later detached feature.
+
+H1 projection:
+```text
+MarketingCampaign
+  ├─ Organic → Post → ContentDelivery
+  └─ Paid → MetaAdsCampaign
+               ├─ targeting + budget = Ad Set projection
+               ├─ creativePostId = Creative/Ad projection
+               └─ MetaAdsMetricSnapshot = paid evidence
+```
+
+This is intentionally not a full mirror of Meta's provider object graph. H1 needs a stable internal campaign spine, explicit external-connection state, manual/provider-ready metrics, and evidence convergence. Full provider synchronization remains outside H1.
+
+Meta Ads H1 states:
+`DRAFT → READY → EXTERNAL_NOT_CONNECTED | SYNCED → PAUSED | COMPLETED`.
+
+No H1 code may represent `EXTERNAL_NOT_CONNECTED` as a successful live campaign.

@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1.0",
+  "workOrderId": "PIL-WO-20260920-010-h1-product-spine",
+  "phase": "H1",
+  "gate": "H1.1",
+  "branch": "work/H1-demonstrable-product-demo",
+  "baseCommit": "e8c5cdf6a42718cdb2f8fab4407ff235bd3c08f7",
+  "method": "AMH v0.3 Partial",
+  "deliveryPhilosophy": "vertical product outcome",
+  "primaryDelta": "marketing product spine with Meta Ads seam",
+  "liveExternalMutation": false
+}

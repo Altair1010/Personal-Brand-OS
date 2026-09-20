@@ -77,6 +77,10 @@ model Organization {
   auditEntries       AuditEntry[]
   agentDefinitions   AgentDefinition[]
   agentRoles         AgentRole[]
+  marketingCampaigns MarketingCampaign[]
+  contentDeliveries  ContentDelivery[]
+  metaAdsCampaigns   MetaAdsCampaign[]
+  metaAdsMetrics     MetaAdsMetricSnapshot[]
 }
 
 model Membership {
@@ -108,15 +112,18 @@ model Workspace {
   updatedAt      DateTime     @updatedAt
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 
-  brands            Brand[]
-  roleBindings      WorkspaceRoleBinding[]
-  agentRuns         AgentRun[]
-  jobs              Job[]
-  workerGrants      WorkerWorkspaceGrant[]
-  brandWorkerGrants WorkerBrandGrant[]
-  approvals         ApprovalRequest[]
-  agentDefinitions  AgentDefinition[]
-  agentRoles        AgentRole[]
+  brands             Brand[]
+  roleBindings       WorkspaceRoleBinding[]
+  agentRuns          AgentRun[]
+  jobs               Job[]
+  workerGrants       WorkerWorkspaceGrant[]
+  brandWorkerGrants  WorkerBrandGrant[]
+  approvals          ApprovalRequest[]
+  agentDefinitions   AgentDefinition[]
+  agentRoles         AgentRole[]
+  marketingCampaigns MarketingCampaign[]
+  contentDeliveries  ContentDelivery[]
+  metaAdsCampaigns   MetaAdsCampaign[]
 
   @@unique([id, organizationId])
   @@index([organizationId, status])
@@ -172,6 +179,10 @@ model Brand {
   approvals          ApprovalRequest[]
   agentDefinitions   AgentDefinition[]
   agentRoles         AgentRole[]
+  marketingCampaigns MarketingCampaign[]
+  contentDeliveries  ContentDelivery[]
+  metaAdsCampaigns   MetaAdsCampaign[]
+  metaAdsMetrics     MetaAdsMetricSnapshot[]
 
   @@unique([id, organizationId])
   @@unique([id, workspaceId, organizationId])
@@ -455,7 +466,7 @@ model Strategy {
 }
 
 model StrategyVersion {
-  id                   String       @id @default(cuid())
+  id                   String              @id @default(cuid())
   strategyId           String
   version              Int
   reason               String // BẮT BUỘC: lý do đổi hướng
@@ -470,11 +481,12 @@ model StrategyVersion {
   doNotList            Json?
   aiPromptRunId        String?
   editedAt             DateTime? // EM2c: đánh dấu version bị chỉnh sửa tay
-  createdAt            DateTime     @default(now())
-  strategy             Strategy     @relation(fields: [strategyId], references: [id], onDelete: Cascade)
-  promptRun            PromptRun?   @relation(fields: [aiPromptRunId], references: [id], onDelete: SetNull)
+  createdAt            DateTime            @default(now())
+  strategy             Strategy            @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+  promptRun            PromptRun?          @relation(fields: [aiPromptRunId], references: [id], onDelete: SetNull)
   weeklyPlans          WeeklyPlan[]
   posts                Post[]
+  marketingCampaigns   MarketingCampaign[]
 
   @@unique([strategyId, version])
   @@index([strategyId, version])
@@ -615,6 +627,8 @@ model Post {
   facebookAccount    FacebookAccount?    @relation(fields: [facebookAccountId], references: [id])
   metrics            MetricSnapshot[]
   metricObservations MetricObservation[]
+  delivery           ContentDelivery?
+  metaAdsCreatives   MetaAdsCampaign[]   @relation("MetaAdsCreativePost")
 
   @@index([userId])
   @@index([strategyVersionId])
@@ -684,6 +698,110 @@ model PerformanceInsight {
 
   @@index([userId, scope])
   @@index([organizationId, brandId])
+}
+
+model MarketingCampaign {
+  id                String            @id @default(cuid())
+  organizationId    String
+  workspaceId       String
+  brandId           String
+  strategyVersionId String?
+  name              String
+  objective         String
+  channelMode       String            @default("MIXED")
+  status            String            @default("DRAFT")
+  startsAt          DateTime?
+  endsAt            DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  organization      Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  workspace         Workspace         @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  brand             Brand             @relation(fields: [brandId, workspaceId, organizationId], references: [id, workspaceId, organizationId], onDelete: Restrict)
+  strategyVersion   StrategyVersion?  @relation(fields: [strategyVersionId], references: [id], onDelete: SetNull)
+  deliveries        ContentDelivery[]
+  metaAdsCampaigns  MetaAdsCampaign[]
+
+  @@index([organizationId, workspaceId, brandId, status])
+  @@index([strategyVersionId])
+}
+
+model ContentDelivery {
+  id             String             @id @default(cuid())
+  organizationId String
+  workspaceId    String
+  brandId        String
+  campaignId     String?
+  postId         String             @unique
+  channel        String             @default("ORGANIC")
+  provider       String             @default("facebook")
+  state          String             @default("APPROVED")
+  scheduledAt    DateTime?
+  publishedAt    DateTime?
+  externalRef    String?
+  lastError      String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  workspace      Workspace          @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  brand          Brand              @relation(fields: [brandId, workspaceId, organizationId], references: [id, workspaceId, organizationId], onDelete: Restrict)
+  campaign       MarketingCampaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  post           Post               @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, workspaceId, brandId, state])
+  @@index([campaignId])
+}
+
+model MetaAdsCampaign {
+  id                  String                  @id @default(cuid())
+  organizationId      String
+  workspaceId         String
+  brandId             String
+  marketingCampaignId String
+  creativePostId      String?
+  name                String
+  objective           String
+  state               String                  @default("DRAFT")
+  externalCampaignId  String?
+  budgetMinor         Int?
+  currency            String                  @default("VND")
+  targeting           Json?
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+  organization        Organization            @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  workspace           Workspace               @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  brand               Brand                   @relation(fields: [brandId, workspaceId, organizationId], references: [id, workspaceId, organizationId], onDelete: Restrict)
+  marketingCampaign   MarketingCampaign       @relation(fields: [marketingCampaignId], references: [id], onDelete: Cascade)
+  creativePost        Post?                   @relation("MetaAdsCreativePost", fields: [creativePostId], references: [id], onDelete: SetNull)
+  metrics             MetaAdsMetricSnapshot[]
+
+  @@index([organizationId, workspaceId, brandId, state])
+  @@index([marketingCampaignId])
+  @@index([externalCampaignId])
+}
+
+model MetaAdsMetricSnapshot {
+  id                   String          @id @default(cuid())
+  organizationId       String
+  brandId              String
+  metaAdsCampaignId    String
+  capturedAt           DateTime        @default(now())
+  spendMinor           Int?
+  impressions          Int?
+  reach                Int?
+  clicks               Int?
+  linkClicks           Int?
+  conversions          Float?
+  conversionValueMinor Int?
+  source               String          @default("MANUAL")
+  evidence             Json?
+  createdAt            DateTime        @default(now())
+  organization         Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  brand                Brand           @relation(fields: [brandId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  metaAdsCampaign      MetaAdsCampaign @relation(fields: [metaAdsCampaignId], references: [id], onDelete: Cascade)
+
+  @@unique([metaAdsCampaignId, capturedAt, source])
+  @@index([organizationId, brandId, capturedAt])
+  @@index([metaAdsCampaignId, capturedAt])
 }
 
 model PromptTemplate {

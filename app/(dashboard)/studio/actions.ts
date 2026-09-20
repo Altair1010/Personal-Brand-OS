@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { bumpDraftVersion } from "@/lib/content-engine/draftVersioning";
 import { approveDraft } from "@/lib/content-engine/approveDraft";
+import { resolveLocalTenant } from "@/lib/piltover/modules/marketing/infrastructure/local-tenant";
 import {
   OBJECTIVES,
   HOOK_STYLES,
@@ -308,6 +309,8 @@ export async function createDraftFromIdea(
     data: {
       contentIdeaId: idea.id,
       userId: USER_ID,
+      organizationId: idea.organizationId,
+      brandId: idea.brandId,
       version: 1,
       status: "draft",
       objectiveKey: idea.objectiveKey,
@@ -327,9 +330,12 @@ export async function createBlankDraft(): Promise<
   ActionResult<{ draftId: string }>
 > {
   try {
+    const tenant = await resolveLocalTenant(db);
     const draft = await db.contentDraft.create({
       data: {
         userId: USER_ID,
+        organizationId: tenant.organizationId,
+        brandId: tenant.brandId,
         version: 1,
         status: "draft",
         topic: "Bản nháp mới",

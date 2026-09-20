@@ -21,7 +21,10 @@ export async function approveDraft(draftId: string): Promise<ApproveDraftResult>
     // 1. Load draft kèm contentIdea để lấy dailyPlanId.
     const draft = await tx.contentDraft.findUnique({
       where: { id: draftId },
-      include: { contentIdea: { select: { dailyPlanId: true } } },
+      include: {
+        contentIdea: { select: { dailyPlanId: true } },
+        brand: { select: { workspaceId: true, status: true } },
+      },
     });
     if (!draft) {
       throw new Error(`ContentDraft không tồn tại: ${draftId}`);
@@ -36,6 +39,13 @@ export async function approveDraft(draftId: string): Promise<ApproveDraftResult>
       throw new Error(
         `Draft "${draftId}" đã được approve (Post: ${existingPost.id}). Không thể approve lại.`,
       );
+    }
+
+    if (!draft.organizationId || !draft.brandId || !draft.brand) {
+      throw new Error("H1_TENANT_SCOPE_REQUIRED");
+    }
+    if (draft.brand.status !== "ACTIVE") {
+      throw new Error("H1_BRAND_NOT_ACTIVE");
     }
 
     // 2. dailyPlanId từ contentIdea (có thể null).
@@ -78,11 +88,13 @@ export async function approveDraft(draftId: string): Promise<ApproveDraftResult>
       data: {
         contentDraftId: draftId,
         userId: USER_ID,
+        organizationId: draft.organizationId,
+        brandId: draft.brandId,
         strategyVersionId,
         dailyPlanId,
         finalText,
         platform: "facebook",
-        status: "posted",
+        status: "approved",
         // mirror analytic dims
         objectiveKey: draft.objectiveKey,
         pillarId: draft.pillarId,
@@ -90,7 +102,19 @@ export async function approveDraft(draftId: string): Promise<ApproveDraftResult>
         ctaIntensity: draft.ctaIntensity,
         format: draft.format,
         topic: draft.topic,
-        publishedAt: new Date(),
+        publishedAt: null,
+      },
+    });
+
+    await tx.contentDelivery.create({
+      data: {
+        organizationId: draft.organizationId,
+        workspaceId: draft.brand.workspaceId,
+        brandId: draft.brandId,
+        postId: post.id,
+        channel: "ORGANIC",
+        provider: "facebook",
+        state: "APPROVED",
       },
     });
 

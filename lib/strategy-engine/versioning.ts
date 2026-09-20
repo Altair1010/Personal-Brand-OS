@@ -39,6 +39,14 @@ export async function createStrategyVersion(
   }
 
   return db.$transaction(async (tx) => {
+    const goal = await tx.goal.findUnique({
+      where: { id: args.goalId },
+      select: { organizationId: true, brandId: true },
+    });
+    if (!goal?.organizationId || !goal.brandId) {
+      throw new Error("H1_TENANT_SCOPE_REQUIRED");
+    }
+
     // 1. Tìm/tạo Strategy cho (userId, goalId).
     let strategy = await tx.strategy.findFirst({
       where: { userId: USER_ID, goalId: args.goalId },
@@ -47,6 +55,8 @@ export async function createStrategyVersion(
       strategy = await tx.strategy.create({
         data: {
           userId: USER_ID,
+          organizationId: goal.organizationId,
+          brandId: goal.brandId,
           goalId: args.goalId,
           name: args.name,
           timeframeDays: 30,
@@ -54,6 +64,11 @@ export async function createStrategyVersion(
           status: "active",
         },
       });
+    } else if (
+      strategy.organizationId !== goal.organizationId ||
+      strategy.brandId !== goal.brandId
+    ) {
+      throw new Error("TENANT_ANCESTRY_MISMATCH");
     }
 
     // 2. version tiếp theo = max(version)+1 (v1 nếu chưa có). KHÔNG xóa version cũ.

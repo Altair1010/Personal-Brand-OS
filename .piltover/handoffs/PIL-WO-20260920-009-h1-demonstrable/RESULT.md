@@ -27,3 +27,5 @@ P5 completion is not an H1 prerequisite unless a specific golden-path seam requi
 - No PASS was inferred from either stalled run.
 
 Historical P5-G2 evidence records 276 tests passed, one live test skipped, production build PASS, and Prisma validation PASS. It remains historical evidence, not a substitute for future fresh H1 verification.
+## Owner-directed H1.0 addendum
+Before H1.1 implementation, the Meta Ads seam was frozen more precisely: Paid Media is part of the H1 marketing engine; H1 uses an internal MarketingCampaign → MetaAdsCampaign → paid evidence projection with explicit `EXTERNAL_NOT_CONNECTED` state. Full Meta provider hierarchy/synchronization is not required for H1.
