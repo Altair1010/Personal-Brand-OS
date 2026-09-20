@@ -10,6 +10,7 @@ import { WeeklyAdjustmentCard } from "@/components/WeeklyAdjustmentCard";
 import { RevisionDiff } from "@/components/RevisionDiff";
 import {
   generateRevision,
+  syncRevisionAgentResult,
   applyRevisionAction,
   type RevisionBundle,
   type VersionPerf,
@@ -25,6 +26,7 @@ export function ReviewPanel({ versionPerf, weekNumber }: ReviewPanelProps) {
   const [bundle, setBundle] = useState<RevisionBundle | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [applied, setApplied] = useState<{ version: number } | null>(null);
+  const [agentNotice, setAgentNotice] = useState<string | null>(null);
   const [genPending, startGen] = useTransition();
   const [applyPending, startApply] = useTransition();
 
@@ -38,7 +40,22 @@ export function ReviewPanel({ versionPerf, weekNumber }: ReviewPanelProps) {
         setBundle(null);
         return;
       }
+      setAgentNotice(`Đã giao Revision Agent: ${res.data.runId} · ${res.data.status}`);
+      setBundle(null);
+    });
+  }
+
+  function onSync() {
+    setError(null);
+    startGen(async () => {
+      const res = await syncRevisionAgentResult();
+      if (!res.ok) {
+        setError(res.error);
+        setBundle(null);
+        return;
+      }
       setBundle(res.data);
+      setAgentNotice("Đã đồng bộ đề xuất từ Revision Agent.");
     });
   }
 
@@ -64,12 +81,19 @@ export function ReviewPanel({ versionPerf, weekNumber }: ReviewPanelProps) {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
-          Tuần {weekNumber} — sinh đề xuất điều chỉnh dựa trên insight & attribution.
+          Tuần {weekNumber} — giao Agent đề xuất điều chỉnh dựa trên insight & attribution.
         </p>
         <Button type="button" disabled={genPending} onClick={onGenerate}>
           <Sparkles className="size-4" />
-          Sinh đề xuất điều chỉnh
+          Giao Revision Agent
         </Button>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Button type="button" variant="outline" disabled={genPending} onClick={onSync}>
+          Đồng bộ kết quả Agent
+        </Button>
+        {agentNotice && <span className="text-xs text-muted-foreground">{agentNotice}</span>}
       </div>
 
       {error && <ErrorState message={error} />}
@@ -82,7 +106,7 @@ export function ReviewPanel({ versionPerf, weekNumber }: ReviewPanelProps) {
       )}
 
       {genPending ? (
-        <AiLoading status="AI đang đề xuất điều chỉnh chiến lược..." />
+        <AiLoading status="Đang giao việc / đồng bộ Revision Agent..." />
       ) : (
         bundle && (
           <div className="space-y-6">

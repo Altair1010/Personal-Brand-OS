@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1.0",
+  "workOrderId": "PIL-WO-20260920-013-h1-runtime-proof-closure",
+  "phase": "H1",
+  "gate": "H1.4",
+  "branch": "work/H1-demonstrable-product-demo",
+  "baseCommit": "98c0cdde944bfc0eeedf6b861a282207e4a2cb65",
+  "method": "AMH v0.3 Partial",
+  "deliveryPhilosophy": "vertical product outcome",
+  "canonicalAgentExecution": ["OAUTH", "OPENCLAW"],
+  "openClawSupport": ["TERMIUS", "9ROUTER"],
+  "directModelApiCanonical": false
+}

@@ -4,11 +4,10 @@ import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { runModule } from "@/lib/ai/run";
 import { OBJECTIVES } from "@/lib/constants";
 import { normalizeRecordTo100 } from "@/lib/strategy-engine/normalizeRatio";
-import { strategyModule } from "@/lib/prompts/strategy";
-import { weeklyPlanModule } from "@/lib/prompts/weekly-plan";
+import { strategyOutputSchema } from "@/lib/prompts/strategy";
+import { weeklyPlanOutputSchema } from "@/lib/prompts/weekly-plan";
 import {
   assembleStrategy,
   DAYS_PER_WEEK,
@@ -16,6 +15,11 @@ import {
 import { createStrategyVersion } from "@/lib/strategy-engine/versioning";
 import { strategyVersionToMarkdown } from "@/lib/import-export/markdown";
 import type { WeeklyPlanOutput } from "@/lib/prompts/weekly-plan";
+import { AgentExecutionGateway } from "@/lib/piltover/modules/agents/application/agent-execution-gateway";
+import { PrismaJobQueue } from "@/lib/piltover/modules/agents/infrastructure/prisma-job-queue";
+import { stableHash } from "@/lib/piltover/shared/contracts/stable-json";
+import { RunResultSchema } from "@/lib/piltover/shared/contracts/control-plane";
+import { resolveLocalTenant } from "@/lib/piltover/modules/marketing/infrastructure/local-tenant";
 
 // Single-user local app: fixed ids match the seed (prisma/seed.ts).
 const USER_ID = "local";
@@ -312,18 +316,17 @@ export async function getStrategyData(): Promise<StrategyData> {
 // --- Generate a 30-day strategy: tier-1 month frame → 5 weekly plans → assemble → persist ---
 export async function generateStrategy(args: {
   frameworkSlug?: string;
-}): Promise<ActionResult<{ strategyId: string; versionId: string }>> {
+}): Promise<ActionResult<{ runId: string; status: string }>> {
+  const tenant = await resolveLocalTenant(db);
   const appState = await db.appState.findUnique({ where: { id: APPSTATE_ID } });
   if (!appState?.audienceApprovedAt) {
     return {
       ok: false,
-      error: "Chưa duyệt Khán giả & Trụ cột. Hãy duyệt trước khi sinh chiến lược.",
+      error: "Chưa duyệt Khán giả & Trụ cột. Hãy duyệt trước khi giao Strategy Agent.",
     };
   }
   const goalId = appState.activeGoalId;
-  if (!goalId) {
-    return { ok: false, error: "Chưa có mục tiêu đang hoạt động." };
-  }
+  if (!goalId) return { ok: false, error: "Chưa có mục tiêu đang hoạt động." };
 
   const [brandDna, goal, personas, pillars] = await Promise.all([
     db.brandDNA.findUnique({ where: { userId: USER_ID } }),
@@ -337,102 +340,166 @@ export async function generateStrategy(args: {
       orderBy: { createdAt: "asc" },
     }),
   ]);
-
   if (!goal) return { ok: false, error: "Không tìm thấy mục tiêu." };
-  if (personas.length < 1)
-    return { ok: false, error: "Cần ít nhất 1 persona đã lưu." };
-  if (pillars.length < 1)
-    return { ok: false, error: "Cần ít nhất 1 trụ cột đã lưu." };
+  if (personas.length < 1) return { ok: false, error: "Cần ít nhất 1 persona đã lưu." };
+  if (pillars.length < 1) return { ok: false, error: "Cần ít nhất 1 trụ cột đã lưu." };
 
-  // Resolve framework (optional). Invalid slug → treat as no framework.
   let frameworkSlug: string | undefined;
   let frameworkName: string | undefined;
   if (args.frameworkSlug) {
-    const fw = await db.framework.findUnique({
-      where: { slug: args.frameworkSlug },
-    });
+    const fw = await db.framework.findUnique({ where: { slug: args.frameworkSlug } });
     if (fw) {
       frameworkSlug = fw.slug;
       frameworkName = fw.name;
     }
   }
 
-  const brandDnaInput = {
-    whoAmI: brandDna?.whoAmI ?? undefined,
-    field: brandDna?.field ?? undefined,
-    positioning: brandDna?.aiPositioning ?? undefined,
-    threeWords: Array.isArray(brandDna?.threeWords)
-      ? (brandDna?.threeWords as unknown[]).filter(
-          (w): w is string => typeof w === "string",
-        )
-      : undefined,
-    differentiationSharpened: brandDna?.differentiation ?? undefined,
-    summary: brandDna?.usp ?? undefined,
+  const context = {
+    goalId,
+    frameworkSlug: frameworkSlug ?? null,
+    frameworkName: frameworkName ?? null,
+    brandDna: {
+      whoAmI: brandDna?.whoAmI ?? undefined,
+      field: brandDna?.field ?? undefined,
+      positioning: brandDna?.aiPositioning ?? undefined,
+      threeWords: Array.isArray(brandDna?.threeWords)
+        ? (brandDna?.threeWords as unknown[]).filter((w): w is string => typeof w === "string")
+        : undefined,
+      differentiationSharpened: brandDna?.differentiation ?? undefined,
+      summary: brandDna?.usp ?? undefined,
+    },
+    goal: {
+      name: goal.name,
+      goalType: goal.goalType,
+      targetAudience: goal.targetAudience ?? undefined,
+      mainOffer: goal.mainOffer ?? undefined,
+    },
+    personas: personas.map((p) => ({ name: p.name })),
+    pillars: pillars.map((p) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description ?? undefined,
+    })),
+    daysPerWeek: [...DAYS_PER_WEEK],
   };
 
-  const goalInput = {
-    name: goal.name,
-    goalType: goal.goalType,
-    targetAudience: goal.targetAudience ?? undefined,
-    mainOffer: goal.mainOffer ?? undefined,
-  };
-
-  const personaInput = personas.map((p) => ({ name: p.name }));
-  const pillarInput = pillars.map((p) => ({
-    name: p.name,
-    description: p.description ?? undefined,
-  }));
-
-  // Tier 1: month frame (weeklyThemes[5], contentRatio, ...).
-  const tier1Res = await runModule(strategyModule, {
-    brandDna: brandDnaInput,
-    goal: goalInput,
-    personas: personaInput,
-    pillars: pillarInput,
-    framework: frameworkName,
+  const freshAfter = new Date(Date.now() - 60_000);
+  const workers = await db.worker.findMany({
+    where: { status: "ACTIVE", lastSeenAt: { gt: freshAfter } },
+    include: { capabilities: true },
+    orderBy: { lastSeenAt: "desc" },
   });
-  if (!tier1Res.ok) {
-    return {
-      ok: false,
-      error: `Dựng khung tháng thất bại: ${tier1Res.error}`,
-    };
-  }
-  const tier1 = tier1Res.data;
+  const openClawWorker = workers.find((worker) =>
+    worker.capabilities.some(({ capability }) => capability === "agent.execute.openclaw"),
+  );
+  const oauthWorker = workers.find((worker) =>
+    worker.capabilities.some(({ capability }) => capability === "agent.execute.oauth"),
+  );
+  const route = openClawWorker
+    ? {
+        kind: "OPENCLAW" as const,
+        controller: "openclaw" as const,
+        support: {
+          termius: openClawWorker.capabilities.some(({ capability }) => capability === "openclaw.support.termius"),
+          router9: openClawWorker.capabilities.some(({ capability }) => capability === "openclaw.support.9router"),
+        },
+      }
+    : oauthWorker
+      ? { kind: "OAUTH" as const, connector: oauthWorker.runtimeAdapter }
+      : {
+          kind: "OPENCLAW" as const,
+          controller: "openclaw" as const,
+          support: { termius: false, router9: false },
+        };
 
-  // Tier 2: 5 weekly plans. One week failing must not corrupt the others — collect,
-  // and if any week fails, report which week and DO NOT persist a partial version.
-  const weeklyOutputs: WeeklyPlanOutput[] = [];
-  for (let i = 0; i < DAYS_PER_WEEK.length; i++) {
-    const weekIndex = i + 1;
-    const theme = tier1.weeklyThemes[i];
-    const weeklyRes = await runModule(weeklyPlanModule, {
-      weekIndex,
-      theme: theme.theme,
-      focusPillar: theme.focusPillar,
-      pillars: pillarInput,
-      goal: goalInput,
-      daysInWeek: DAYS_PER_WEEK[i],
-    });
-    if (!weeklyRes.ok) {
-      return {
-        ok: false,
-        error: `Lập kế hoạch tuần ${weekIndex} thất bại: ${weeklyRes.error}`,
-      };
+  const contextHash = stableHash(context);
+  const dispatched = await new AgentExecutionGateway(new PrismaJobQueue(db)).dispatch({
+    organizationId: tenant.organizationId,
+    workspaceId: tenant.workspaceId,
+    brandId: tenant.brandId,
+    roleRef: "role:strategy-planner@h1",
+    taskType: "STRATEGY_PLAN_30D",
+    instruction:
+      "Create a 30-day strategy from the supplied Brand, Goal, Persona and Pillar context. Return one strategy-plan-result artifact containing tier1 plus exactly five weeklyOutputs. Do not mutate Piltover state directly.",
+    contextRef: { id: `strategy-plan:${tenant.brandId}:${contextHash}`, hash: contextHash },
+    permissionManifestRef: "permission:h1-strategy-planner",
+    route,
+    taskPayload: {
+      context,
+      resultContract: "StrategyPlanResult/v1",
+    },
+    idempotencyKey: `h1-strategy:${tenant.brandId}:${contextHash}`,
+    requiredCapabilities: ["strategy.plan"],
+    priority: 60,
+  });
+
+  revalidatePath("/strategy");
+  return { ok: true, data: { runId: dispatched.runId, status: dispatched.status } };
+}
+
+export async function syncStrategyAgentResult(): Promise<
+  ActionResult<{ strategyId: string; versionId: string; runId: string }>
+> {
+  const tenant = await resolveLocalTenant(db);
+  const run = await db.agentRun.findFirst({
+    where: {
+      organizationId: tenant.organizationId,
+      workspaceId: tenant.workspaceId,
+      brandId: tenant.brandId,
+      roleRef: "role:strategy-planner@h1",
+      status: "COMPLETED",
+    },
+    orderBy: { completedAt: "desc" },
+  });
+  if (!run?.terminalResult) {
+    return { ok: false, error: "Chưa có Strategy Agent run hoàn tất." };
+  }
+
+  const terminal = RunResultSchema.parse(run.terminalResult);
+  const artifact = terminal.artifacts?.find((item) => item.kind === "strategy-plan-result");
+  if (!artifact?.payload || typeof artifact.payload !== "object" || artifact.payload === null) {
+    return { ok: false, error: "Strategy Agent chưa trả artifact strategy-plan-result." };
+  }
+  const raw = artifact.payload as Record<string, unknown>;
+  const tier1Raw = strategyOutputSchema.parse(raw.tier1);
+  const tier1 = {
+    ...tier1Raw,
+    contentRatio: normalizeRecordTo100(tier1Raw.contentRatio),
+    weeklyThemes: tier1Raw.weeklyThemes.map((w) => ({
+      ...w,
+      objectivesMix: normalizeRecordTo100(w.objectivesMix),
+    })),
+  };
+  const weeklyOutputsRaw = z.array(weeklyPlanOutputSchema).length(5).parse(raw.weeklyOutputs);
+  const weeklyOutputs: WeeklyPlanOutput[] = weeklyOutputsRaw.map((week, index) => {
+    const expectedDays = DAYS_PER_WEEK[index];
+    if (week.weekIndex !== index + 1 || week.dailyPlans.length !== expectedDays) {
+      throw new Error("STRATEGY_AGENT_WEEKLY_PLAN_INVALID");
     }
-    weeklyOutputs.push(weeklyRes.data);
-  }
-
-  // Assemble: map pillar name → id, flatten to 30 daily plans.
-  const pillarNameToId: Record<string, string> = {};
-  for (const p of pillars) pillarNameToId[p.name] = p.id;
-  const assembledWeeks = assembleStrategy(tier1, weeklyOutputs, pillarNameToId);
-
-  // Best-effort attribution: link the most recent tier-1 PromptRun.
-  const lastRun = await db.promptRun.findFirst({
-    where: { moduleKey: strategyModule.key, status: "ok" },
-    orderBy: { createdAt: "desc" },
-    select: { id: true },
+    return week;
   });
+
+  const task =
+    run.task && typeof run.task === "object" && !Array.isArray(run.task)
+      ? (run.task as Record<string, unknown>)
+      : {};
+  const payload =
+    task.context && typeof task.context === "object" && !Array.isArray(task.context)
+      ? (task.context as Record<string, unknown>)
+      : null;
+  const goalId = typeof payload?.goalId === "string" ? payload.goalId : null;
+  const frameworkSlug = typeof payload?.frameworkSlug === "string" ? payload.frameworkSlug : undefined;
+  if (!goalId) return { ok: false, error: "Strategy Agent run thiếu goalId nguồn." };
+
+  const pillars = await db.contentPillar.findMany({
+    where: { userId: USER_ID, goalId, status: "active" },
+    select: { id: true, name: true },
+  });
+  const pillarNameToId: Record<string, string> = {};
+  for (const pillar of pillars) pillarNameToId[pillar.name] = pillar.id;
+  const assembledWeeks = assembleStrategy(tier1, weeklyOutputs, pillarNameToId);
+  const goal = await db.goal.findUnique({ where: { id: goalId }, select: { name: true } });
+  if (!goal) return { ok: false, error: "Không tìm thấy goal của Strategy Agent run." };
 
   try {
     const result = await createStrategyVersion({
@@ -441,21 +508,18 @@ export async function generateStrategy(args: {
       frameworkSlug,
       tier1,
       assembledWeeks,
-      aiPromptRunId: lastRun?.id,
-      reason:
-        "Khởi tạo chiến lược 30 ngày từ Brand DNA, persona và trụ cột đã duyệt",
+      reason: `Strategy Agent H1 run ${run.id}: tạo kế hoạch 30 ngày từ context đã duyệt`,
     });
     revalidatePath("/strategy");
+    revalidatePath("/");
     return {
       ok: true,
-      data: { strategyId: result.strategyId, versionId: result.versionId },
+      data: { strategyId: result.strategyId, versionId: result.versionId, runId: run.id },
     };
-  } catch (e) {
+  } catch (error) {
     return {
       ok: false,
-      error: `Lưu phiên bản chiến lược thất bại: ${
-        e instanceof Error ? e.message : String(e)
-      }`,
+      error: error instanceof Error ? error.message : "Không thể lưu Strategy Agent result.",
     };
   }
 }

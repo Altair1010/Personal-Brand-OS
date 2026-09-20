@@ -186,3 +186,41 @@ Current local evidence:
 The repository still contains legacy PBOS direct-model routes. They are compatibility debt, not Piltover architecture.
 
 H1 final closure requires a golden-journey audit proving that every AI/bot action used by the canonical demo is routed through AgentExecutionGateway → OAuth/OpenClaw. A legacy direct-model path may remain in the repository only if the H1 demo does not depend on it.
+
+## H1.4 — Agent Boundary Audit + Runtime Proof
+
+Agent-boundary audit completed.
+
+Canonical H1 execution now follows:
+
+```text
+Brand / Goal ------------------------- deterministic
+Audience / Pillars ------------------- deterministic
+Strategy ----------------------------- Strategy Agent
+Content draft / approval ------------- deterministic + human
+Campaign / Organic / Paid evidence --- deterministic
+Performance aggregation -------------- deterministic
+Marketing Intelligence --------------- Marketing Intelligence Agent
+Review / Revision -------------------- Revision Agent
+Apply revision ----------------------- human
+```
+
+All AI/bot actions used by the canonical H1 demo are required to route through:
+`AgentExecutionGateway -> Agent Control Plane -> OAuth/OpenClaw`.
+
+Optional PBOS direct-model helpers remain legacy and are excluded from H1 acceptance.
+
+Fresh runtime proof:
+- H1 targeted tests: 31/31 PASS.
+- Prisma validate: PASS.
+- 8/8 canonical H1 web routes: HTTP 200.
+- Canonical Strategy/Performance/Review direct-model grep: zero matches.
+
+External Agent proof is still blocked:
+- OpenClaw Tray is installed/running.
+- configured gateway: `ws://127.0.0.1:18789`.
+- TCP connection to 127.0.0.1:18789 currently fails.
+- OpenClaw diagnostics show repeated connection errors.
+- Piltover has zero registered workers.
+
+Therefore H1.4 is implemented, but H1 closure remains `BLOCKED_BY_LIVE_AGENT_GATEWAY`. No H1 DONE claim is made.

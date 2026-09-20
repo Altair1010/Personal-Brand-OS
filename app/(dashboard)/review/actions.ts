@@ -3,10 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { type PerfPost } from "@/lib/performance-engine/aggregate";
-import { runModule } from "@/lib/ai/run";
-import { revisionModule, type RevisionOutput } from "@/lib/prompts/revision";
+import { revisionOutputSchema, type RevisionOutput } from "@/lib/prompts/revision";
 import { ruleWarnings } from "@/lib/strategy-engine/ruleWarnings";
 import { applyRevision } from "@/lib/strategy-engine/applyRevision";
+import { normalizeRecordTo100 } from "@/lib/strategy-engine/normalizeRatio";
+import { AgentExecutionGateway } from "@/lib/piltover/modules/agents/application/agent-execution-gateway";
+import { PrismaJobQueue } from "@/lib/piltover/modules/agents/infrastructure/prisma-job-queue";
+import { stableHash } from "@/lib/piltover/shared/contracts/stable-json";
+import { RunResultSchema } from "@/lib/piltover/shared/contracts/control-plane";
+import { resolveLocalTenant } from "@/lib/piltover/modules/marketing/infrastructure/local-tenant";
 
 // Single-user local app: fixed ids match the seed (prisma/seed.ts).
 const USER_ID = "local";
@@ -245,14 +250,16 @@ export async function getReviewData(): Promise<ReviewData> {
 // AI: generate revision (KHÔNG ghi DB)
 // ============================================================
 
-export async function generateRevision(): Promise<ActionResult<RevisionBundle>> {
+export async function generateRevision(): Promise<
+  ActionResult<{ runId: string; status: string }>
+> {
+  const tenant = await resolveLocalTenant(db);
   const appState = await db.appState.findUnique({
     where: { id: APP_STATE_ID },
     select: { activeStrategyId: true, activeGoalId: true },
   });
   const activeStrategyId = appState?.activeStrategyId ?? null;
 
-  // 1. Active version (version + contentRatio + weeklyThemes).
   const version = activeStrategyId
     ? await db.strategyVersion.findFirst({
         where: { strategyId: activeStrategyId },
@@ -260,28 +267,24 @@ export async function generateRevision(): Promise<ActionResult<RevisionBundle>> 
         select: { version: true, contentRatio: true, weeklyThemes: true },
       })
     : null;
-
   if (!version) {
     return {
       ok: false,
-      error:
-        "Chưa có chiến lược để đánh giá. Hãy tạo chiến lược ở tab Chiến lược trước.",
+      error: "Chưa có chiến lược để đánh giá. Hãy tạo chiến lược trước.",
     };
   }
 
   const currentContentRatio = toRatio(version.contentRatio);
-  const weeklyThemes = Array.isArray(version.weeklyThemes)
-    ? version.weeklyThemes
-    : [];
-
-  // 2. posts + rule warnings.
+  const weeklyThemes = Array.isArray(version.weeklyThemes) ? version.weeklyThemes : [];
   const posts = await loadPerfPosts();
   const ruleW = ruleWarnings(posts);
-
-  // 3. insights + versionPerf + goal + weekNumber.
   const [insights, versionPerf, goal, totalVersions] = await Promise.all([
     db.performanceInsight.findMany({
-      where: { userId: USER_ID },
+      where: {
+        userId: USER_ID,
+        organizationId: tenant.organizationId,
+        brandId: tenant.brandId,
+      },
       orderBy: { createdAt: "desc" },
       take: 20,
     }),
@@ -302,6 +305,7 @@ export async function generateRevision(): Promise<ActionResult<RevisionBundle>> 
       weeklyThemes,
     },
     insights: insights.map((ins) => ({
+      refId: ins.id,
       scope: ins.scope,
       finding: ins.finding,
       evidence: evidenceToText(ins.evidence) ?? "",
@@ -314,24 +318,122 @@ export async function generateRevision(): Promise<ActionResult<RevisionBundle>> 
       description: goal?.mainMessage ?? undefined,
     },
     weekNumber: Math.max(totalVersions, 1),
+    deterministicRuleWarnings: ruleW,
   };
 
-  // 4. runModule (server-side, không HTTP).
-  const result = await runModule(revisionModule, input);
-  if (!result.ok) {
-    return { ok: false, error: result.error };
+  const workers = await db.worker.findMany({
+    where: {
+      status: "ACTIVE",
+      lastSeenAt: { gt: new Date(Date.now() - 60_000) },
+    },
+    include: { capabilities: true },
+    orderBy: { lastSeenAt: "desc" },
+  });
+  const openClawWorker = workers.find((worker) =>
+    worker.capabilities.some(({ capability }) => capability === "agent.execute.openclaw"),
+  );
+  const oauthWorker = workers.find((worker) =>
+    worker.capabilities.some(({ capability }) => capability === "agent.execute.oauth"),
+  );
+  const route = openClawWorker
+    ? {
+        kind: "OPENCLAW" as const,
+        controller: "openclaw" as const,
+        support: {
+          termius: openClawWorker.capabilities.some(({ capability }) => capability === "openclaw.support.termius"),
+          router9: openClawWorker.capabilities.some(({ capability }) => capability === "openclaw.support.9router"),
+        },
+      }
+    : oauthWorker
+      ? { kind: "OAUTH" as const, connector: oauthWorker.runtimeAdapter }
+      : {
+          kind: "OPENCLAW" as const,
+          controller: "openclaw" as const,
+          support: { termius: false, router9: false },
+        };
+
+  const contextHash = stableHash(input);
+  const dispatched = await new AgentExecutionGateway(new PrismaJobQueue(db)).dispatch({
+    organizationId: tenant.organizationId,
+    workspaceId: tenant.workspaceId,
+    brandId: tenant.brandId,
+    roleRef: "role:strategy-revision@h1",
+    taskType: "STRATEGY_REVISION",
+    instruction:
+      "Review the supplied evidence-backed insights and attribution. Return a strategy-revision-result artifact. Do not mutate strategy state; Piltover will validate and require human apply.",
+    contextRef: { id: `strategy-revision:${tenant.brandId}:${contextHash}`, hash: contextHash },
+    permissionManifestRef: "permission:h1-strategy-revision",
+    route,
+    taskPayload: {
+      context: input,
+      resultContract: "StrategyRevisionResult/v1",
+    },
+    idempotencyKey: `h1-strategy-revision:${tenant.brandId}:${contextHash}`,
+    requiredCapabilities: ["strategy.revise"],
+    priority: 55,
+  });
+
+  return { ok: true, data: { runId: dispatched.runId, status: dispatched.status } };
+}
+
+export async function syncRevisionAgentResult(): Promise<ActionResult<RevisionBundle>> {
+  const tenant = await resolveLocalTenant(db);
+  const run = await db.agentRun.findFirst({
+    where: {
+      organizationId: tenant.organizationId,
+      workspaceId: tenant.workspaceId,
+      brandId: tenant.brandId,
+      roleRef: "role:strategy-revision@h1",
+      status: "COMPLETED",
+    },
+    orderBy: { completedAt: "desc" },
+  });
+  if (!run?.terminalResult) {
+    return { ok: false, error: "Chưa có Strategy Revision Agent run hoàn tất." };
   }
 
-  const out = result.data;
+  const terminal = RunResultSchema.parse(run.terminalResult);
+  const artifact = terminal.artifacts?.find((item) => item.kind === "strategy-revision-result");
+  if (!artifact?.payload) {
+    return { ok: false, error: "Revision Agent chưa trả artifact strategy-revision-result." };
+  }
 
-  // 5. Bundle — gộp rule warnings + AI warnings, kèm ratio hiện tại để so diff.
+  const parsed = revisionOutputSchema.parse(artifact.payload);
+  const out: RevisionOutput = {
+    ...parsed,
+    revisedContentRatio: normalizeRecordTo100(parsed.revisedContentRatio),
+  };
+
+  const task =
+    run.task && typeof run.task === "object" && !Array.isArray(run.task)
+      ? (run.task as Record<string, unknown>)
+      : {};
+  const context =
+    task.context && typeof task.context === "object" && !Array.isArray(task.context)
+      ? (task.context as Record<string, unknown>)
+      : {};
+  const currentStrategyVersion =
+    context.currentStrategyVersion &&
+    typeof context.currentStrategyVersion === "object" &&
+    !Array.isArray(context.currentStrategyVersion)
+      ? (context.currentStrategyVersion as Record<string, unknown>)
+      : {};
+  const currentContentRatio = toRatio(currentStrategyVersion.contentRatio);
+  const currentVersion =
+    typeof currentStrategyVersion.version === "number"
+      ? currentStrategyVersion.version
+      : 0;
+  const deterministicWarnings = Array.isArray(context.deterministicRuleWarnings)
+    ? context.deterministicRuleWarnings.filter((x): x is string => typeof x === "string")
+    : [];
+
   return {
     ok: true,
     data: {
       ...out,
-      warnings: [...ruleW, ...out.warnings],
+      warnings: [...deterministicWarnings, ...out.warnings],
       currentContentRatio,
-      currentVersion: version.version,
+      currentVersion,
     },
   };
 }

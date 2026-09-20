@@ -43,11 +43,14 @@ describe("H1.3 agent-routed intelligence contract", () => {
     expect(actions).toContain("agentRunId: run.id");
   });
 
-  it("feeds persisted agent insight into existing Review/Revision", () => {
+  it("feeds persisted agent insight into Agent-routed Review/Revision", () => {
     const review = read("app/(dashboard)/review/actions.ts");
     expect(review).toContain("db.performanceInsight.findMany");
-    expect(review).toContain("runModule(revisionModule, input)");
+    expect(review).toContain('taskType: "STRATEGY_REVISION"');
+    expect(review).toContain("AgentExecutionGateway");
+    expect(review).toContain("syncRevisionAgentResult");
     expect(review).toContain("applyRevision");
+    expect(review).not.toContain("runModule(");
   });
 
   it("does not describe Termius or 9router as AI providers", () => {

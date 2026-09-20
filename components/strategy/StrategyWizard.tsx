@@ -13,6 +13,7 @@ import { FrameworkPicker } from "./FrameworkPicker";
 import { StrategyPreview } from "./StrategyPreview";
 import {
   generateStrategy,
+  syncStrategyAgentResult,
   exportStrategyMd,
   getStrategyData,
   type BrandContextDTO,
@@ -49,28 +50,39 @@ export function StrategyWizard({
     initialStrategy?.frameworkSlug ?? undefined,
   );
   const [genError, setGenError] = useState<string | null>(null);
+  const [agentNotice, setAgentNotice] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
 
   // The strategy page loads its own data server-side; after generating we refresh so the
   // freshly-persisted version (with pillar-name resolution) is reflected on next render.
   const genMutation = useMutation({
-    mutationFn: async () => {
-      const res = await generateStrategy({ frameworkSlug });
-      if (!res.ok) return res;
-      // Re-read the persisted version so the preview reflects pillar-name resolution.
-      const data = await getStrategyData();
-      return { ok: true as const, data: { strategy: data.strategy } };
-    },
+    mutationFn: () => generateStrategy({ frameworkSlug }),
     onSuccess: (res) => {
       if (!res.ok) {
         setGenError(res.error);
         return;
       }
       setGenError(null);
-      setStrategy(res.data.strategy);
+      setAgentNotice(`Đã giao Strategy Agent: ${res.data.runId} · ${res.data.status}`);
       router.refresh();
     },
-    onError: () => setGenError("Không kết nối được tới máy chủ."),
+    onError: () => setGenError("Không giao được Strategy Agent."),
+  });
+
+  const syncMutation = useMutation({
+    mutationFn: () => syncStrategyAgentResult(),
+    onSuccess: async (res) => {
+      if (!res.ok) {
+        setGenError(res.error);
+        return;
+      }
+      const data = await getStrategyData();
+      setStrategy(data.strategy);
+      setGenError(null);
+      setAgentNotice(`Đã đồng bộ Strategy Agent run ${res.data.runId}.`);
+      router.refresh();
+    },
+    onError: () => setGenError("Không đồng bộ được Strategy Agent result."),
   });
 
   const exportMutation = useMutation({
@@ -108,7 +120,7 @@ export function StrategyWizard({
     );
   }
 
-  const generating = genMutation.isPending;
+  const generating = genMutation.isPending || syncMutation.isPending;
 
   return (
     <div className="space-y-6">
@@ -133,8 +145,8 @@ export function StrategyWizard({
                 <Sparkles className="size-4" />
               )}
               {strategy
-                ? "Sinh lại chiến lược 30 ngày"
-                : "Sinh chiến lược 30 ngày"}
+                ? "Giao Agent lập lại chiến lược"
+                : "Giao Agent lập chiến lược"}
             </Button>
             {strategy && (
               <Button
@@ -169,6 +181,17 @@ export function StrategyWizard({
                 Xuất Excel
               </Button>
             )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => syncMutation.mutate()}
+              disabled={generating}
+            >
+              Đồng bộ kết quả Agent
+            </Button>
+            {agentNotice && <span className="text-xs text-muted-foreground">{agentNotice}</span>}
           </div>
           <p className="text-xs text-muted-foreground">
             Nguồn: {personas.length} persona · {pillars.length} trụ cột ·{" "}
