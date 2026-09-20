@@ -5,21 +5,19 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import {
   aggregate,
-  buildInsightInput,
   type PerfPost,
   type AggregateResult,
 } from "@/lib/performance-engine/aggregate";
 import { computeDaysSincePost } from "@/lib/performance-engine/computeDaysSincePost";
-import { runModule } from "@/lib/ai/run";
-import { resolveModelConfig } from "@/lib/ai/adapter";
+import { AgentExecutionGateway } from "@/lib/piltover/modules/agents/application/agent-execution-gateway";
+import { PrismaJobQueue } from "@/lib/piltover/modules/agents/infrastructure/prisma-job-queue";
+import { stableHash } from "@/lib/piltover/shared/contracts/stable-json";
 import {
-  performanceModule,
-  enforceLowConfidence,
-} from "@/lib/prompts/performance";
-import {
-  marketingIntelligenceModule,
+  MarketingIntelligenceEvidenceSchema,
+  MarketingIntelligenceResultSchema,
   validateMarketingIntelligenceEvidenceRefs,
-} from "@/lib/prompts/marketing-intelligence";
+} from "@/lib/piltover/modules/marketing/domain/marketing-intelligence";
+import { RunResultSchema } from "@/lib/piltover/shared/contracts/control-plane";
 import {
   verifyPageToken,
   resolvePostId,
@@ -297,11 +295,23 @@ export async function runInsight(): Promise<
     warnings: string[];
     topPosts: string[];
     weakPillars: string[];
+    runId?: string;
+    agentStatus?: string;
   }>
 > {
   const tenant = await resolveLocalTenant(db);
-  const [perfPosts, paidRows, appState] = await Promise.all([
-    loadPerfPosts(),
+  const [organicRows, paidRows, appState] = await Promise.all([
+    db.post.findMany({
+      where: {
+        userId: USER_ID,
+        organizationId: tenant.organizationId,
+        brandId: tenant.brandId,
+        metrics: { some: {} },
+      },
+      include: { metrics: true },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }),
     db.metaAdsMetricSnapshot.findMany({
       where: {
         organizationId: tenant.organizationId,
@@ -331,9 +341,8 @@ export async function runInsight(): Promise<
     }),
   ]);
 
-  const organicWithMetrics = perfPosts.filter((post) => post.metrics !== null);
-  if (organicWithMetrics.length < 1 && paidRows.length < 1) {
-    return { ok: false, error: "Chưa có đủ số liệu Organic hoặc Paid để phân tích" };
+  if (organicRows.length < 1 && paidRows.length < 1) {
+    return { ok: false, error: "Chưa có đủ Organic hoặc Paid evidence để giao cho agent." };
   }
 
   const latestStrategy = appState?.activeStrategyId
@@ -344,122 +353,167 @@ export async function runInsight(): Promise<
       })
     : null;
 
-  const period = "30 ngày gần nhất";
-
-  if (paidRows.length > 0) {
-    const organicRows = await db.post.findMany({
-      where: {
-        userId: USER_ID,
-        organizationId: tenant.organizationId,
-        brandId: tenant.brandId,
-        metrics: { some: {} },
-      },
-      include: { metrics: true },
-      orderBy: { createdAt: "desc" },
-      take: 20,
-    });
-
-    const input = {
-      period,
-      strategy: {
-        versionId: latestStrategy?.id ?? null,
-        name: latestStrategy?.strategy.name ?? null,
-        objective: paidRows[0]?.metaAdsCampaign.marketingCampaign.objective ?? null,
-      },
-      organic: organicRows.map((post) => {
-        const m = post.metrics[0] ?? null;
-        return {
-          refId: post.id,
-          title: post.topic ?? "Untitled post",
-          reach: m?.reach ?? null,
-          engagement: m?.engagement ?? null,
-          comments: m?.comments ?? null,
-          saves: m?.saves ?? null,
-          source: m?.source ?? "unknown",
-        };
-      }),
-      paid: paidRows.map((row) => ({
-        refId: row.metaAdsCampaignId,
-        campaignName: row.metaAdsCampaign.name,
-        state: row.metaAdsCampaign.state,
-        spendMinor: row.spendMinor,
-        impressions: row.impressions,
-        reach: row.reach,
-        clicks: row.clicks,
-        linkClicks: row.linkClicks,
-        conversions: row.conversions,
-        conversionValueMinor: row.conversionValueMinor,
-        source: row.source,
-      })),
-    };
-
-    const result = await runModule(marketingIntelligenceModule, input);
-    if (!result.ok) return { ok: false, error: result.error };
-
-    const refCheck = validateMarketingIntelligenceEvidenceRefs(input, result.data);
-    if (!refCheck.ok) {
+  const evidence = MarketingIntelligenceEvidenceSchema.parse({
+    period: "30 ngày gần nhất",
+    strategy: {
+      versionId: latestStrategy?.id ?? null,
+      name: latestStrategy?.strategy.name ?? null,
+      objective: paidRows[0]?.metaAdsCampaign.marketingCampaign.objective ?? null,
+    },
+    organic: organicRows.map((post) => {
+      const m = post.metrics[0] ?? null;
       return {
-        ok: false,
-        error: `AI evidence refs không hợp lệ: ${refCheck.invalidRefs.join(", ")}`,
+        refId: post.id,
+        title: post.topic ?? "Untitled post",
+        reach: m?.reach ?? null,
+        engagement: m?.engagement ?? null,
+        comments: m?.comments ?? null,
+        saves: m?.saves ?? null,
+        source: m?.source ?? "unknown",
       };
-    }
+    }),
+    paid: paidRows.map((row) => ({
+      refId: row.metaAdsCampaignId,
+      campaignName: row.metaAdsCampaign.name,
+      state: row.metaAdsCampaign.state,
+      spendMinor: row.spendMinor,
+      impressions: row.impressions,
+      reach: row.reach,
+      clicks: row.clicks,
+      linkClicks: row.linkClicks,
+      conversions: row.conversions,
+      conversionValueMinor: row.conversionValueMinor,
+      source: row.source,
+    })),
+  });
 
-    const latestRun = await db.promptRun.findFirst({
-      where: { moduleKey: marketingIntelligenceModule.key, status: "ok" },
-      orderBy: { createdAt: "desc" },
-      select: { id: true },
-    });
+  const workers = await db.worker.findMany({
+    where: {
+      status: "ACTIVE",
+      lastSeenAt: { gt: new Date(Date.now() - 60_000) },
+    },
+    include: { capabilities: true },
+    orderBy: { lastSeenAt: "desc" },
+  });
+  const openClawWorker = workers.find((worker) =>
+    worker.capabilities.some(({ capability }) => capability === "agent.execute.openclaw"),
+  );
+  const oauthWorker = workers.find((worker) =>
+    worker.capabilities.some(({ capability }) => capability === "agent.execute.oauth"),
+  );
 
-    await db.performanceInsight.deleteMany({
-      where: {
-        userId: USER_ID,
-        organizationId: tenant.organizationId,
-        brandId: tenant.brandId,
-      },
-    });
-
-    for (const ins of result.data.insights) {
-      await db.performanceInsight.create({
-        data: {
-          userId: USER_ID,
-          organizationId: tenant.organizationId,
-          brandId: tenant.brandId,
-          scope: ins.scope,
-          refId: ins.refId ?? null,
-          period,
-          finding: ins.finding,
-          evidence: {
-            text: ins.evidence,
-            refs: ins.evidenceRefs,
-            mode: "organic_paid",
-          },
-          recommendation: ins.recommendation,
-          confidence: ins.confidence,
-          aiPromptRunId: latestRun?.id ?? null,
+  const route = openClawWorker
+    ? {
+        kind: "OPENCLAW" as const,
+        controller: "openclaw" as const,
+        support: {
+          termius: openClawWorker.capabilities.some(
+            ({ capability }) => capability === "openclaw.support.termius",
+          ),
+          router9: openClawWorker.capabilities.some(
+            ({ capability }) => capability === "openclaw.support.9router",
+          ),
         },
-      });
-    }
+      }
+    : oauthWorker
+      ? {
+          kind: "OAUTH" as const,
+          connector: oauthWorker.runtimeAdapter,
+        }
+      : {
+          kind: "OPENCLAW" as const,
+          controller: "openclaw" as const,
+          support: { termius: false, router9: false },
+        };
 
-    revalidatePath("/performance");
-    revalidatePath("/review");
-    revalidatePath("/");
+  const evidenceHash = stableHash(evidence);
+  const gateway = new AgentExecutionGateway(new PrismaJobQueue(db));
+  const dispatched = await gateway.dispatch({
+    organizationId: tenant.organizationId,
+    workspaceId: tenant.workspaceId,
+    brandId: tenant.brandId,
+    roleRef: "role:marketing-intelligence@h1",
+    taskType: "MARKETING_INTELLIGENCE",
+    instruction:
+      "Analyze supplied Organic and Paid evidence. Return only evidence-backed findings, recommendations, confidence and exact evidence references. Do not claim Meta delivery when state is EXTERNAL_NOT_CONNECTED.",
+    contextRef: {
+      id: `marketing-intelligence:${tenant.brandId}:${evidenceHash}`,
+      hash: evidenceHash,
+    },
+    permissionManifestRef: "permission:h1-marketing-intelligence",
+    route,
+    taskPayload: {
+      evidence,
+      resultContract: "MarketingIntelligenceResult/v1",
+    },
+    idempotencyKey: `h1-marketing-intelligence:${tenant.brandId}:${evidenceHash}`,
+    requiredCapabilities: ["marketing.intelligence"],
+    priority: 60,
+  });
 
+  revalidatePath("/performance");
+  revalidatePath("/");
+
+  return {
+    ok: true,
+    data: {
+      count: 0,
+      warnings: [
+        dispatched.status === "QUEUED"
+          ? "Marketing Intelligence đã được giao cho Agent Control Plane."
+          : `Agent run status: ${dispatched.status}`,
+      ],
+      topPosts: [],
+      weakPillars: [],
+      runId: dispatched.runId,
+      agentStatus: dispatched.status,
+    },
+  };
+}
+
+export async function syncLatestMarketingIntelligence(): Promise<
+  ActionResult<{ count: number; runId: string }>
+> {
+  const tenant = await resolveLocalTenant(db);
+  const run = await db.agentRun.findFirst({
+    where: {
+      organizationId: tenant.organizationId,
+      workspaceId: tenant.workspaceId,
+      brandId: tenant.brandId,
+      status: "COMPLETED",
+      roleRef: "role:marketing-intelligence@h1",
+    },
+    orderBy: { completedAt: "desc" },
+  });
+  if (!run?.terminalResult) {
+    return { ok: false, error: "Chưa có Marketing Intelligence agent run hoàn tất." };
+  }
+
+  const terminal = RunResultSchema.parse(run.terminalResult);
+  const artifact = terminal.artifacts?.find(
+    (item) => item.kind === "marketing-intelligence-result",
+  );
+  if (!artifact?.payload) {
     return {
-      ok: true,
-      data: {
-        count: result.data.insights.length,
-        warnings: result.data.warnings,
-        topPosts: [],
-        weakPillars: [],
-      },
+      ok: false,
+      error: "Agent run chưa trả artifact marketing-intelligence-result.",
     };
   }
 
-  const inputData = buildInsightInput(organicWithMetrics, period);
-  const result = await runModule(performanceModule, inputData);
-  if (!result.ok) return { ok: false, error: result.error };
+  const task =
+    run.task && typeof run.task === "object" && !Array.isArray(run.task)
+      ? (run.task as Record<string, unknown>)
+      : {};
+  const evidence = MarketingIntelligenceEvidenceSchema.parse(task.evidence);
+  const output = MarketingIntelligenceResultSchema.parse(artifact.payload);
+  const refCheck = validateMarketingIntelligenceEvidenceRefs(evidence, output);
+  if (!refCheck.ok) {
+    return {
+      ok: false,
+      error: `Agent evidence refs không hợp lệ: ${refCheck.invalidRefs.join(", ")}`,
+    };
+  }
 
-  const out = enforceLowConfidence(result.data, organicWithMetrics.length);
   await db.performanceInsight.deleteMany({
     where: {
       userId: USER_ID,
@@ -467,7 +521,7 @@ export async function runInsight(): Promise<
       brandId: tenant.brandId,
     },
   });
-  for (const ins of out.insights) {
+  for (const ins of output.insights) {
     await db.performanceInsight.create({
       data: {
         userId: USER_ID,
@@ -475,9 +529,15 @@ export async function runInsight(): Promise<
         brandId: tenant.brandId,
         scope: ins.scope,
         refId: ins.refId ?? null,
-        period,
+        period: evidence.period,
         finding: ins.finding,
-        evidence: { text: ins.evidence, mode: "organic_only" },
+        evidence: {
+          text: ins.evidence,
+          refs: ins.evidenceRefs,
+          mode: "agent_control_plane",
+          agentRunId: run.id,
+          artifactRef: artifact.ref,
+        },
         recommendation: ins.recommendation,
         confidence: ins.confidence,
       },
@@ -487,15 +547,7 @@ export async function runInsight(): Promise<
   revalidatePath("/performance");
   revalidatePath("/review");
   revalidatePath("/");
-  return {
-    ok: true,
-    data: {
-      count: out.insights.length,
-      warnings: out.warnings,
-      topPosts: out.topPosts,
-      weakPillars: out.weakPillars,
-    },
-  };
+  return { ok: true, data: { count: output.insights.length, runId: run.id } };
 }
 
 // ============================================================
@@ -691,28 +743,65 @@ export async function getPaidPerformanceData(): Promise<PaidMetricDTO[]> {
   }));
 }
 
-export type AIRuntimeStatus = {
+export type AgentRuntimeStatus = {
   ready: boolean;
-  provider: string | null;
-  model: string | null;
+  route: "OPENCLAW" | "OAUTH" | null;
+  controller: string | null;
+  termius: boolean;
+  router9: boolean;
   reason: string | null;
 };
 
-export async function getAIRuntimeStatus(): Promise<AIRuntimeStatus> {
-  try {
-    const cfg = await resolveModelConfig();
+export async function getAgentRuntimeStatus(): Promise<AgentRuntimeStatus> {
+  const freshAfter = new Date(Date.now() - 60_000);
+  const workers = await db.worker.findMany({
+    where: {
+      status: "ACTIVE",
+      lastSeenAt: { gt: freshAfter },
+    },
+    include: { capabilities: true },
+    orderBy: { lastSeenAt: "desc" },
+  });
+
+  const openClaw = workers.find((worker) =>
+    worker.capabilities.some(({ capability }) => capability === "agent.execute.openclaw"),
+  );
+  if (openClaw) {
     return {
       ready: true,
-      provider: cfg.provider,
-      model: cfg.model,
+      route: "OPENCLAW",
+      controller: "openclaw",
+      termius: openClaw.capabilities.some(
+        ({ capability }) => capability === "openclaw.support.termius",
+      ),
+      router9: openClaw.capabilities.some(
+        ({ capability }) => capability === "openclaw.support.9router",
+      ),
       reason: null,
     };
-  } catch (error) {
+  }
+
+  const oauth = workers.find((worker) =>
+    worker.capabilities.some(({ capability }) => capability === "agent.execute.oauth"),
+  );
+  if (oauth) {
     return {
-      ready: false,
-      provider: null,
-      model: null,
-      reason: error instanceof Error ? error.message : "AI runtime chưa cấu hình.",
+      ready: true,
+      route: "OAUTH",
+      controller: oauth.runtimeAdapter,
+      termius: false,
+      router9: false,
+      reason: null,
     };
   }
+
+  return {
+    ready: false,
+    route: null,
+    controller: null,
+    termius: false,
+    router9: false,
+    reason:
+      "Chưa có Agent worker kết nối qua OpenClaw hoặc OAuth. Termius/9router chỉ là lớp hỗ trợ cho OpenClaw, không phải AI provider.",
+  };
 }

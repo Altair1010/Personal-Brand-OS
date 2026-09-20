@@ -44,7 +44,7 @@ H1 requires a demonstrable local product journey. Build PASS alone is not H1 PAS
 | Scheduling/publishing state | Calendar exists, but H1 needs explicit downstream delivery state | Minimal persisted schedule/publish state; no live provider required |
 | Paid / Ads domain | Current MVP is organic/manual-performance centric | Add campaign/paid state and manual paid metrics seam |
 | Organic + Paid performance convergence | Learning loop cannot compare both channels yet | Normalize H1 metrics into one evidence-backed performance view |
-| Evidence-backed H1 insight | Performance AI exists, but H1 needs provenance across the golden journey | Preserve metric/evidence pointers in generated insight |
+| Evidence-backed H1 insight | Legacy performance analysis exists, but Piltover H1 requires agent-routed execution plus provenance across the golden journey | Route analysis through Agent Control Plane and preserve metric/evidence pointers in returned insight |
 | Product-level navigation/state continuity | Existing screens were built as PBOS modules | Make the H1 journey explicit and traversable |
 | Minimal executable Agent seam | P5 has registries but no complete runtime binding | Add only if the H1 runtime needs agent execution; otherwise defer |
 
@@ -71,7 +71,7 @@ H1 does not require Meta Ads API, autonomous budget mutation, or real ad publish
 1. H1.0 — Baseline Cut & Golden Path Harness.
 2. H1.1 — Product Spine: state/data journey end-to-end.
 3. H1.2 — Demonstrable Experience: local UI journey.
-4. H1.3 — Runtime + Intelligence Loop: AI, organic + Ads performance, evidence.
+4. H1.3 — Agent Runtime + Intelligence Loop: Agent Control Plane, Organic + Ads evidence, learning.
 5. H1.4 — Runtime Proof & H1 closure.
 
 ## Explicit non-goals before H1
@@ -132,29 +132,57 @@ Dashboard
 
 Meta Ads remains truth-preserving: the UI shows `EXTERNAL_NOT_CONNECTED` until a real provider integration exists.
 
-## H1.3 implementation — Runtime + Intelligence Loop
+## H1.3 implementation — Agent Runtime + Intelligence Loop
 
-The H1 intelligence path is now:
+Piltover does not treat model APIs as the product AI runtime. Every AI/bot capability is an Agent capability and is dispatched through the Agent Control Plane.
 
 ```text
 Organic evidence ───────┐
-                        ├─→ Marketing Intelligence
-Paid / Meta evidence ───┘          │
-                                   ├─ evidence-ref validation
-                                   ├─ tenant-scoped persistence
-                                   └─ recommendation
-                                            │
-                                            ▼
-                                    PerformanceInsight
-                                            │
-                                            ▼
-                                      Review / Revision
-                                            │
-                                            ▼
-                                      Next Strategy
+                        ├─→ Marketing Intelligence Agent Intent
+Paid / Meta evidence ───┘                │
+                                         ▼
+                               Agent Execution Gateway
+                                  ┌──────┴──────┐
+                                  ▼             ▼
+                                OAuth        OpenClaw
+                                                │
+                                      ┌─────────┴─────────┐
+                                      ▼                   ▼
+                                   Termius             9router
+                                  (support)            (support)
+                                                │
+                                                ▼
+                                      controlled Agent runtime
+                                                │
+                                                ▼
+                                  structured result artifact
+                                                │
+                                     evidence-ref validation
+                                                │
+                                                ▼
+                                      PerformanceInsight
+                                                │
+                                                ▼
+                                          Review / Revision
+                                                │
+                                                ▼
+                                          Next Strategy
 ```
 
-Provider truth remains explicit:
-- structured AI runtime path is verified with an injected adapter;
-- real provider canary is currently blocked because no model/credential is configured;
-- H1.3 must not be promoted to fully verified until that canary passes or the Owner explicitly accepts the limitation.
+Execution invariants:
+- `AI capability != model provider`.
+- Product-domain code does not call OpenAI/Anthropic/model APIs for Piltover Agent execution.
+- OAuth and OpenClaw are the two Agent execution routes.
+- OpenClaw is the agent controller/runtime route; Termius and 9router are supporting connectivity/routing layers under OpenClaw, not peer AI providers.
+- Agent results enter Piltover through the control-plane result artifact contract and must pass evidence-reference validation before persistence.
+- Legacy PBOS direct-model code may remain for compatibility but is not canonical H1 execution architecture.
+
+Current local evidence:
+- Agent gateway and result-ingestion contracts are implemented and tested.
+- No Worker is currently registered in the local control plane, so live OpenClaw/OAuth execution remains unverified.
+- 9router is present locally; OpenClaw/Termius CLI presence was not established. This is not treated as proof that the OpenClaw runtime is connected.
+
+### H1 Agent-boundary closure rule
+The repository still contains legacy PBOS direct-model routes. They are compatibility debt, not Piltover architecture.
+
+H1 final closure requires a golden-journey audit proving that every AI/bot action used by the canonical demo is routed through AgentExecutionGateway → OAuth/OpenClaw. A legacy direct-model path may remain in the repository only if the H1 demo does not depend on it.

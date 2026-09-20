@@ -1,34 +1,48 @@
-# H1.3 Result
+# H1.3 Result — Corrected Agent Architecture
 
-Status: IMPLEMENTATION_COMPLETE / PROVIDER_VERIFICATION_BLOCKED
+Status: IMPLEMENTATION_COMPLETE / LIVE_AGENT_EXECUTION_UNVERIFIED
 
-## Product delta
-- Added `marketing-intelligence` prompt module for Organic + Paid evidence.
-- Added scopes: `organic`, `paid`, `cross_channel`, `strategy`.
-- Added explicit truth rule for `EXTERNAL_NOT_CONNECTED`: it cannot be treated as proof that a Meta campaign is live.
-- Added evidence-reference validation before persistence; fabricated refs fail closed.
-- Updated `runInsight` to select the cross-channel intelligence path whenever Paid evidence exists, while preserving the Organic-only fallback.
-- Persisted insight with tenant scope, evidence refs, mode and AI PromptRun pointer.
-- Reused the existing Review → Revision engine so performance insight feeds the next strategy decision.
-- Added AI runtime readiness to the Performance UI and disabled the intelligence action when no model is configured.
-- Made Marketing Intelligence visible even when only Paid evidence exists.
+## Correction
+The previous direct-model interpretation was removed from the H1.3 canonical path.
 
-## Runtime / evidence
-- Marketing intelligence schema + evidence contract tests: PASS 4/4.
-- H1.3 intelligence-loop contract: PASS 5/5.
-- H1.1 product spine regression: PASS 2/2.
+H1.3 now uses:
+`Performance evidence → Agent intent → AgentExecutionGateway → Agent Control Plane → OAuth/OpenClaw worker → structured result artifact → evidence validation → PerformanceInsight → Review/Revision`.
+
+## Implemented
+- Added generic `AgentExecutionGateway` over the existing P3 JobQueue.
+- Added explicit execution-route contract:
+  - `OAUTH`
+  - `OPENCLAW`
+- OpenClaw route owns nested support metadata for Termius and 9router.
+- Marketing Intelligence is now a domain evidence/result contract, not a direct provider prompt module.
+- `runInsight` now dispatches `MARKETING_INTELLIGENCE` to the Agent Control Plane.
+- H1 task payload carries Organic + Paid evidence and an explicit result-contract identifier.
+- Added control-plane result artifact payload support.
+- Added `syncLatestMarketingIntelligence` to ingest a completed agent result.
+- Result ingestion validates:
+  1. RunResult contract.
+  2. MarketingIntelligenceResult contract.
+  3. Every evidenceRef against the original run evidence.
+- Accepted insight persists the AgentRun ID and artifact ref as provenance.
+- Artifact payloads are also checked by the existing obvious-secret rejection boundary.
+- UI now reports Agent connector state, not model/API-key state.
+
+## Local runtime state
+- Local Worker registry: 0 workers.
+- Local WorkerCapability registry: 0 capabilities.
+- 9router command is present locally.
+- OpenClaw and Termius CLI commands were not established in PATH.
+These observations do not prove whether desktop/application-level OpenClaw or Termius is available; they only mean no Piltover worker is currently registered.
+
+## Verification
+- H1 agent execution gateway: PASS 3/3.
+- H1.3 architecture contract: PASS 6/6.
+- H1.1 product-spine regression: PASS 2/2.
 - H1.2 UI regression: PASS 5/5.
-- Architecture boundary regression: PASS 6/6.
-- TypeScript: no new diagnostics; only the two historical TS2352 diagnostics remain in `tests/ai/adapter-db-key.test.ts`.
-- Next dev compiled `/performance` and returned HTTP 200.
+- P3 control-plane contracts: PASS 17/17.
+- Architecture boundaries: PASS 6/6.
+- Combined targeted verification: PASS 39/39.
+- TypeScript: no new diagnostics; only the two historical TS2352 diagnostics in `tests/ai/adapter-db-key.test.ts`.
 
-## Real-provider canary
-A direct structured Anthropic canary was attempted using the existing repo model preset `claude-haiku-4-5` without changing persisted model configuration.
-
-Result: BLOCKED_CONFIGURATION.
-- `AI_DEFAULT_MODEL` is empty.
-- The default DB model row is empty.
-- Local `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` values are empty.
-- No live-provider PASS is claimed.
-
-The structured AI execution path itself is verified with an injected adapter and schema-valid evidence-backed output. Real-provider verification remains the single H1.3 closure blocker.
+## Verification gap
+No live OpenClaw/OAuth Worker is registered yet, so an actual Agent claim → execute → result-submit cycle is UNKNOWN and is not recorded as PASS.

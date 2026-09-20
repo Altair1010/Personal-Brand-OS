@@ -254,7 +254,12 @@ export class PrismaJobQueue implements JobQueuePort {
 
   async complete(jobId: string, workerId: string, leaseId: string, input: RunResult): Promise<void> {
     const result = RunResultSchema.parse(input);
-    if (containsObviousSecret(result.error?.details)) throw new Error("AGENT_RESULT_SECRET_REJECTED");
+    if (
+      containsObviousSecret(result.error?.details) ||
+      containsObviousSecret(result.artifacts?.map(({ payload }) => payload))
+    ) {
+      throw new Error("AGENT_RESULT_SECRET_REJECTED");
+    }
     const fingerprint = stableHash(result);
     await this.db.$transaction(async (tx) => {
       const job = await tx.job.findUnique({ where: { id: jobId }, include: { currentLease: true } });

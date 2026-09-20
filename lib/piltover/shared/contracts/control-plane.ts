@@ -60,6 +60,7 @@ export const RunResultSchema = z
             kind: nonEmptyString,
             ref: nonEmptyString,
             hash: nonEmptyString.nullable().optional(),
+            payload: z.unknown().optional(),
           })
           .strict(),
       )

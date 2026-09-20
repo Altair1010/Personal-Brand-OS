@@ -16,13 +16,14 @@ import { ErrorState } from "@/components/ErrorState";
 import { AiLoading } from "@/components/AiLoading";
 import {
   runInsight,
-  type AIRuntimeStatus,
+  syncLatestMarketingIntelligence,
+  type AgentRuntimeStatus,
   type InsightDTO,
 } from "@/app/(dashboard)/performance/actions";
 
 interface LatestInsightCardProps {
   insights: InsightDTO[];
-  aiRuntime: AIRuntimeStatus;
+  agentRuntime: AgentRuntimeStatus;
 }
 
 function confidenceBadge(confidence: string) {
@@ -40,7 +41,7 @@ function confidenceBadge(confidence: string) {
   );
 }
 
-export function LatestInsightCard({ insights, aiRuntime }: LatestInsightCardProps) {
+export function LatestInsightCard({ insights, agentRuntime }: LatestInsightCardProps) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
@@ -59,15 +60,28 @@ export function LatestInsightCard({ insights, aiRuntime }: LatestInsightCardProp
     });
   }
 
+  function onSync() {
+    setError(null);
+    startTransition(async () => {
+      const res = await syncLatestMarketingIntelligence();
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      setWarnings([`Đã đồng bộ ${res.data.count} insight từ agent run ${res.data.runId}.`]);
+      router.refresh();
+    });
+  }
+
   const generateButton = (
     <Button
       type="button"
       size="sm"
-      disabled={pending || !aiRuntime.ready}
+      disabled={pending}
       onClick={onGenerate}
     >
       <Sparkles className="size-4" />
-      Phân tích Organic + Paid
+      Giao cho Agent
     </Button>
   );
 
@@ -75,19 +89,27 @@ export function LatestInsightCard({ insights, aiRuntime }: LatestInsightCardProp
     <Card>
       <CardHeader className="flex-row items-center justify-between space-y-0">
         <CardTitle className="text-base">Marketing Intelligence</CardTitle>
-        {generateButton}
+        <div className="flex items-center gap-2">
+          <Button type="button" size="sm" variant="outline" disabled={pending} onClick={onSync}>
+            Đồng bộ kết quả Agent
+          </Button>
+          {generateButton}
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex flex-wrap items-center gap-2 text-xs">
-          <Badge variant={aiRuntime.ready ? "default" : "outline"}>
-            {aiRuntime.ready ? "AI READY" : "AI NOT CONFIGURED"}
+          <Badge variant={agentRuntime.ready ? "default" : "outline"}>
+            {agentRuntime.ready ? "AGENT READY" : "AGENT CONNECTOR OFFLINE"}
           </Badge>
-          {aiRuntime.ready ? (
+          {agentRuntime.ready ? (
             <span className="text-muted-foreground">
-              {aiRuntime.provider} · {aiRuntime.model}
+              {agentRuntime.route} · {agentRuntime.controller}
+              {agentRuntime.route === "OPENCLAW"
+                ? ` · Termius ${agentRuntime.termius ? "ON" : "OFF"} · 9router ${agentRuntime.router9 ? "ON" : "OFF"}`
+                : ""}
             </span>
           ) : (
-            <span className="text-muted-foreground">{aiRuntime.reason}</span>
+            <span className="text-muted-foreground">{agentRuntime.reason}</span>
           )}
         </div>
         {error && <ErrorState message={error} />}
@@ -100,12 +122,12 @@ export function LatestInsightCard({ insights, aiRuntime }: LatestInsightCardProp
         )}
 
         {pending ? (
-          <AiLoading status="AI đang phân tích số liệu..." />
+          <AiLoading status="Đang giao việc / đồng bộ Agent..." />
         ) : insights.length === 0 ? (
           <EmptyState
             icon={Lightbulb}
             title="Chưa có insight"
-            description="Nhập Organic/Paid evidence rồi chạy intelligence để AI phân tích hiệu suất và đề xuất vòng học tiếp theo."
+            description="Nhập Organic/Paid evidence, giao việc qua Agent Control Plane, rồi đồng bộ kết quả agent để tạo insight."
           />
         ) : (
           <div className="space-y-3">
