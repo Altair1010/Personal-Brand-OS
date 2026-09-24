@@ -14,6 +14,7 @@ const VALID_OBJECT = {
   suggestedEducationTopics: ["quản trị vốn"],
   gaps: [],
   assumptions: [],
+  profilePatch: {},
 };
 
 const INPUT = { whoAmI: "chuyên gia trading vàng", field: "giao dịch XAUUSD" };

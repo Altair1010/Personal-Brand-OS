@@ -9,6 +9,13 @@ const PRISMA_CLI = path.join(REPO_ROOT, "node_modules", "prisma", "build", "inde
 const SCHEMA = path.join(REPO_ROOT, "prisma", "schema.prisma");
 const MIGRATIONS = path.join(REPO_ROOT, "prisma", "migrations");
 
+function migrationAtOrAfter(source: string, cutoff: string): boolean {
+  const relative = path.relative(MIGRATIONS, source);
+  if (!relative || relative === ".") return false;
+  const [migrationName] = relative.split(path.sep);
+  return Boolean(migrationName && migrationName >= cutoff);
+}
+
 export type DisposableP2Database = {
   readonly client: PrismaClient;
   readonly root: string;
@@ -44,6 +51,33 @@ export function createMigrationWorkspace(includeP2 = true): {
   };
 }
 
+export function createPreMigrationWorkspace(
+  cutoffMigration: string,
+  prefix = "piltover-pre-migration-",
+): {
+  readonly root: string;
+  readonly schemaPath: string;
+  readonly url: string;
+  readonly migrationsPath: string;
+} {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  const prismaDir = path.join(root, "prisma");
+  const migrationsPath = path.join(prismaDir, "migrations");
+  fs.mkdirSync(prismaDir);
+  fs.copyFileSync(SCHEMA, path.join(prismaDir, "schema.prisma"));
+  fs.cpSync(MIGRATIONS, migrationsPath, {
+    recursive: true,
+    filter: (source) => !migrationAtOrAfter(source, cutoffMigration),
+  });
+  const dbPath = path.join(root, "pre-migration.db");
+  return {
+    root,
+    schemaPath: path.join(prismaDir, "schema.prisma"),
+    url: `file:${dbPath.replaceAll("\\", "/")}`,
+    migrationsPath,
+  };
+}
+
 export function createPreP3MigrationWorkspace(): {
   readonly root: string;
   readonly schemaPath: string;
@@ -57,7 +91,8 @@ export function createPreP3MigrationWorkspace(): {
   fs.copyFileSync(SCHEMA, path.join(prismaDir, "schema.prisma"));
   fs.cpSync(MIGRATIONS, migrationsPath, {
     recursive: true,
-    filter: (source) => !source.includes("20260906040000_add_piltover_control_plane"),
+    filter: (source) =>
+      !migrationAtOrAfter(source, "20260906040000_add_piltover_control_plane"),
   });
   const dbPath = path.join(root, "p2.db");
   return {
@@ -82,8 +117,7 @@ export function createPreP4MigrationWorkspace(): {
   fs.cpSync(MIGRATIONS, migrationsPath, {
     recursive: true,
     filter: (source) =>
-      !source.includes("20260906070000_add_piltover_worker_credentials") &&
-      !source.includes("20260908010000_add_worker_credential_family_expiry"),
+      !migrationAtOrAfter(source, "20260906070000_add_piltover_worker_credentials"),
   });
   const dbPath = path.join(root, "p3.db");
   return { root, schemaPath: path.join(prismaDir, "schema.prisma"), url: `file:${dbPath.replaceAll("\\", "/")}`, migrationsPath };
@@ -102,7 +136,8 @@ export function createPreG5MigrationWorkspace(): {
   fs.copyFileSync(SCHEMA, path.join(prismaDir, "schema.prisma"));
   fs.cpSync(MIGRATIONS, migrationsPath, {
     recursive: true,
-    filter: (source) => !source.includes("20260908010000_add_worker_credential_family_expiry"),
+    filter: (source) =>
+      !migrationAtOrAfter(source, "20260908010000_add_worker_credential_family_expiry"),
   });
   const dbPath = path.join(root, "p4.db");
   return { root, schemaPath: path.join(prismaDir, "schema.prisma"), url: `file:${dbPath.replaceAll("\\", "/")}`, migrationsPath };

@@ -12,6 +12,7 @@ const VALID_OUTPUT = JSON.stringify({
   suggestedEducationTopics: ["quản trị vốn"],
   gaps: [],
   assumptions: [],
+  profilePatch: {},
 });
 
 // Output missing "positioning" → fails outputSchema, triggers repair path.
@@ -22,6 +23,7 @@ const INVALID_OUTPUT = JSON.stringify({
   suggestedEducationTopics: [],
   gaps: [],
   assumptions: [],
+  profilePatch: {},
 });
 
 const INPUT = { whoAmI: "chuyên gia trading vàng", field: "giao dịch XAUUSD" };

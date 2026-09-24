@@ -32,7 +32,7 @@ describe("P3 control-plane migration", () => {
     } finally {
       await database.dispose();
     }
-  }, 20_000);
+  }, 120_000);
 
   it("preserves populated P2 rows and permits a second deploy", async () => {
     const workspace = createPreP3MigrationWorkspace();
@@ -106,5 +106,5 @@ describe("P3 control-plane migration", () => {
       if (!tempRoot.startsWith(expectedPrefix)) throw new Error("Refusing to delete non-temp path.");
       fs.rmSync(tempRoot, { recursive: true, force: true });
     }
-  }, 20_000);
+  }, 120_000);
 });

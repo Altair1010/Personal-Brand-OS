@@ -89,6 +89,28 @@ describe.each([
   });
 });
 
+describe("run usage telemetry", () => {
+  it("accepts bounded token, cost and effective model telemetry", () => {
+    const parsed = RunResultSchema.parse({
+      ...runResult,
+      usage: {
+        inputTokens: 1200,
+        outputTokens: 80,
+        cacheReadTokens: 10,
+        cacheWriteTokens: 0,
+        totalTokens: 1290,
+        costUsd: 0.0123,
+        provider: "vllm",
+        model: "COMBO_VIP",
+        responseModel: "gpt-5.6-sol",
+        durationMs: 4200,
+      },
+    });
+    expect(parsed.usage?.totalTokens).toBe(1290);
+    expect(parsed.usage?.responseModel).toBe("gpt-5.6-sol");
+  });
+});
+
 describe("canonical nullable fields", () => {
   it("accepts explicit null only where the package schema allows it", () => {
     expect(RunRequestSchema.parse(runRequest).workspaceId).toBeNull();

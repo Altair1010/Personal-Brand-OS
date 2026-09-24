@@ -1,6 +1,6 @@
 # H1 Demonstrable — Vertical Slice Map
 
-Status: H1.0 baseline artifact
+Status: H1 DONE — final live-agent closure freshly re-proven 2026-09-22
 Branch: `work/H1-demonstrable-product-demo`
 Baseline: `f641c740e17f8920b556416731fcbc4f1973fef0`
 
@@ -211,16 +211,67 @@ All AI/bot actions used by the canonical H1 demo are required to route through:
 Optional PBOS direct-model helpers remain legacy and are excluded from H1 acceptance.
 
 Fresh runtime proof:
-- H1 targeted tests: 31/31 PASS.
+- Current H1 targeted acceptance suite: 26/26 PASS across 6 H1 test files.
+- TypeScript check: PASS.
 - Prisma validate: PASS.
+- Prisma migrations: 22 found, schema up to date.
+- Production build: PASS.
 - 8/8 canonical H1 web routes: HTTP 200.
 - Canonical Strategy/Performance/Review direct-model grep: zero matches.
 
-External Agent proof is still blocked:
-- OpenClaw Tray is installed/running.
-- configured gateway: `ws://127.0.0.1:18789`.
-- TCP connection to 127.0.0.1:18789 currently fails.
-- OpenClaw diagnostics show repeated connection errors.
-- Piltover has zero registered workers.
+### Final live Agent closure proof — refreshed 2026-09-22
 
-Therefore H1.4 is implemented, but H1 closure remains `BLOCKED_BY_LIVE_AGENT_GATEWAY`. No H1 DONE claim is made.
+The previous `BLOCKED_BY_LIVE_AGENT_GATEWAY` condition is resolved.
+
+Fresh connected runtime evidence from 2026-09-22:
+
+- Control-plane health returned `OK`; 1 worker registered/enabled/fresh.
+- Piltover has an ACTIVE worker: `worker-openclaw-local`.
+- The worker has the required capabilities including `agent.execute.openclaw` and `strategy.plan`.
+- The worker has an ACTIVE brand grant for the current organization/workspace/brand.
+- Canonical Strategy Agent run:
+  - Run: `agent-run-a81114a5ba9762f2e8910da7fb8e2d69`
+  - Job: `agent-job-a81114a5ba9762f2e8910da7fb8e2d69`
+  - Route: `AgentExecutionGateway -> Agent Control Plane -> OpenClaw`
+  - Worker: `worker-openclaw-local`
+  - State sequence observed: `WAITING_FOR_WORKER -> RUNNING -> COMPLETED`
+  - Returned artifact: `strategy-plan-result`
+  - Canonical weekly day counts validated: `7,7,7,7,2`
+  - Runtime model reference: `vllm:COMBO_VIP`
+  - Response model reported by runtime: `gpt-5.6-sol`
+  - Token usage reported by runtime: 27,860 total tokens.
+  - Agent version pinned: `builtin:strategy-planner:v1`.
+  - Prompt version pinned: `b3d493c8-1123-490b-a581-7b5fdafe0510`.
+  - Skill version pinned: `c816aaf4-3e69-479a-b90a-0df3913811ad`.
+- Piltover validated the canonical StrategyPlanResult/v2 payload and committed it into domain state:
+  - StrategyVersion: `cmuceikae00017kmsswp8dsve`
+  - Strategy version ordinal: `6`
+  - `sourceAgentRunId = agent-run-a81114a5ba9762f2e8910da7fb8e2d69`
+  - structured `piltover.marketing-strategy/v1` persisted.
+  - IMC projection persisted: `146ec814-d3a6-4e29-b6ea-42fb50e45b24`.
+- Audit evidence:
+  - `AGENT_RUN_TERMINAL`
+  - audit id: `26b3efa6-d588-487d-a47c-a2ebed1a7699`.
+- Fresh H1 verification after the live run:
+  - 26/26 targeted H1 tests PASS across 6 files.
+  - TypeScript check PASS.
+  - Prisma validate PASS.
+  - 22 migrations found; schema up to date.
+  - 8/8 canonical routes returned HTTP 200.
+  - Production build PASS.
+
+This satisfies the previously missing live execution gate:
+
+```text
+Piltover
+-> AgentExecutionGateway
+-> Agent Control Plane
+-> connected OpenClaw worker
+-> structured result artifact
+-> Piltover validation
+-> persisted domain result
+```
+
+Therefore Horizon 1 is `DONE`.
+
+H1 DONE does not authorize H2/H3 claims. Connected-provider beta operations and operational-product hardening remain separate horizon gates.

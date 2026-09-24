@@ -10,16 +10,19 @@ describe("H1.2 demonstrable UI contract", () => {
   it("exposes the campaign route in primary navigation", () => {
     const sidebar = read("components/layout/Sidebar.tsx");
     expect(sidebar).toContain('href: "/campaigns"');
-    expect(sidebar).toContain('label: "Chiến dịch"');
+    expect(sidebar).toContain('label: "Campaigns"');
   });
 
-  it("keeps the dashboard organized around the H1 golden journey", () => {
+  it("keeps the H1 golden journey traversable through navigation and Command Center", () => {
+    const sidebar = read("components/layout/Sidebar.tsx");
     const page = read("app/(dashboard)/page.tsx");
-    expect(page).toContain("Brand DNA");
-    expect(page).toContain("Strategy");
-    expect(page).toContain("Campaign");
-    expect(page).toContain("Paid evidence");
-    expect(page).toContain("Insight");
+    for (const route of ["/onboarding", "/strategy", "/studio", "/campaigns", "/performance", "/review"]) {
+      expect(sidebar).toContain(`href: "${route}"`);
+    }
+    expect(page).toContain('title="Command Center"');
+    expect(page).toContain("Pending approvals");
+    expect(page).toContain("Campaign pulse");
+    expect(page).toContain("Recent intelligence");
   });
   it("makes organic scheduling and Meta Ads explicit UI actions", () => {
     const workspace = read("components/marketing/CampaignWorkspace.tsx");

@@ -34,6 +34,19 @@ describe("H1 Agent boundary audit", () => {
     expect(actions).not.toContain("resolveModelConfig");
   });
 
+  it("pins canonical H1 runs to Agent/Prompt/Skill registry versions", () => {
+    const strategy = read("app/(dashboard)/strategy/actions.ts");
+    const performance = read("app/(dashboard)/performance/actions.ts");
+    const review = read("app/(dashboard)/review/actions.ts");
+    expect(strategy).toContain('resolveCanonicalAgentBinding(db, "strategy-planner")');
+    expect(performance).toContain('resolveCanonicalAgentBinding(db, "marketing-intelligence")');
+    expect(review).toContain('resolveCanonicalAgentBinding(db, "strategy-revision")');
+    for (const source of [strategy, performance, review]) {
+      expect(source).toContain("...agentBinding");
+      expect(source).toContain("bindingHash");
+    }
+  });
+
   it("does not route canonical H1 Agent UIs through legacy /api/ai endpoints", () => {
     const files = [
       "components/strategy/StrategyWizard.tsx",

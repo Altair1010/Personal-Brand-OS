@@ -7,19 +7,21 @@ const read = (relative: string) =>
   fs.readFileSync(path.join(root, relative), "utf8");
 
 describe("H1.4 runtime closure contract", () => {
-  it("defines the full H1 golden journey on the dashboard", () => {
+  it("defines the full H1 golden journey across navigation and the operational home", () => {
+    const sidebar = read("components/layout/Sidebar.tsx");
     const page = read("app/(dashboard)/page.tsx");
-    for (const step of [
-      "Brand DNA",
-      "Strategy",
-      "Content",
-      "Approval",
-      "Campaign",
-      "Paid evidence",
-      "Performance",
-      "Insight",
+    for (const route of [
+      "/onboarding",
+      "/strategy",
+      "/studio",
+      "/campaigns",
+      "/performance",
+      "/review",
     ]) {
-      expect(page).toContain(step);
+      expect(sidebar).toContain(`href: "${route}"`);
+    }
+    for (const section of ["Command Center", "Pending approvals", "Campaign pulse", "Recent intelligence"]) {
+      expect(page).toContain(section);
     }
   });
 

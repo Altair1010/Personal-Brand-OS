@@ -39,6 +39,7 @@ describe("H1.3 agent-routed intelligence contract", () => {
     const actions = read("app/(dashboard)/performance/actions.ts");
     expect(actions).toContain("syncLatestMarketingIntelligence");
     expect(actions).toContain("MarketingIntelligenceResultSchema");
+    expect(actions).toContain("MarketingIntelligenceEvidenceSchema.safeParse");
     expect(actions).toContain("validateMarketingIntelligenceEvidenceRefs");
     expect(actions).toContain("agentRunId: run.id");
   });

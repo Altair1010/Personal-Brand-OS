@@ -2,15 +2,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { PrismaClient } from "@prisma/client";
 import { afterEach, describe, expect, it } from "vitest";
-import { createMigrationWorkspace, deployMigrations } from "./p2-test-db";
+import { createMigrationWorkspace, createPreMigrationWorkspace, deployMigrations } from "./p2-test-db";
 
 const MIGRATION_NAME = "20260908090000_add_p5_agent_registries";
 const roots: string[] = [];
 
 function createPreP5Workspace() {
-  const workspace = createMigrationWorkspace();
-  fs.rmSync(path.join(workspace.root, "prisma", "migrations", MIGRATION_NAME), { recursive: true, force: true });
-  return workspace;
+  return createPreMigrationWorkspace(MIGRATION_NAME, "piltover-pre-p5-");
 }
 
 afterEach(() => {
@@ -79,12 +77,17 @@ describe("P5 Agent registry forward migration", () => {
     await db.membership.create({ data: {
       id: "membership-a", userIdentityId: "identity-a", organizationId: "org-a", organizationRole: "OWNER",
     } });
-    await db.agentRun.create({ data: {
-      id: "run-a", organizationId: "org-a", workspaceId: "workspace-a", brandId: "brand-a",
-      roleRef: "opaque-role", task: { type: "test" }, contextRef: { id: "opaque-context" },
-      permissionManifestRef: "opaque-manifest", requiredCapabilities: [], requestFingerprint: "run-fingerprint",
-      correlationId: "corr-run",
-    } });
+    await db.$executeRawUnsafe(
+      `INSERT INTO AgentRun (
+        id, organizationId, workspaceId, brandId, roleRef, task, contextRef,
+        permissionManifestRef, requiredCapabilities, requestFingerprint, correlationId,
+        createdAt, updatedAt
+      ) VALUES (
+        'run-a','org-a','workspace-a','brand-a','opaque-role',
+        '{"type":"test"}','{"id":"opaque-context"}','opaque-manifest','[]',
+        'run-fingerprint','corr-run',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP
+      )`,
+    );
     await db.worker.create({ data: {
       id: "worker-a", deviceName: "Worker A", runtimeAdapter: "codex-app-server", runtimeVersion: "0.153.4",
     } });
@@ -105,12 +108,18 @@ describe("P5 Agent registry forward migration", () => {
       id: "lease-a", jobId: "job-a", workerId: "worker-a", generation: 1, attemptNumber: 1,
       issuedAt: new Date("2026-09-08T00:00:00.000Z"), expiresAt: new Date("2026-09-08T00:10:00.000Z"),
     } });
-    await db.approvalRequest.create({ data: {
-      id: "approval-a", organizationId: "org-a", runId: "run-a", actionType: "TEST", targetRef: "target-a",
-      targetType: "BRAND", workspaceId: "workspace-a", brandId: "brand-a", requiredCapability: "agent.manage",
-      payloadHash: "payload-hash", requestedByUserIdentityId: "identity-a", expiresAt: new Date("2026-09-09T00:00:00.000Z"),
-      oneTimeNonce: "nonce-a",
-    } });
+    // Historical pre-P5 databases do not include later ApprovalRequest columns
+    // (payloadSnapshot/decision/comment). Insert using the schema that existed at this cutoff
+    // instead of the current generated Prisma model.
+    await db.$executeRawUnsafe(
+      `INSERT INTO ApprovalRequest (
+        id, organizationId, runId, actionType, targetRef, targetType, workspaceId, brandId,
+        requiredCapability, payloadHash, requestedByUserIdentityId, expiresAt, oneTimeNonce, updatedAt
+      ) VALUES (
+        'approval-a','org-a','run-a','TEST','target-a','BRAND','workspace-a','brand-a',
+        'agent.manage','payload-hash','identity-a','2026-09-09T00:00:00.000Z','nonce-a',CURRENT_TIMESTAMP
+      )`,
+    );
     await db.auditEntry.create({ data: {
       id: "audit-a", organizationId: "org-a", actorType: "HUMAN", actorId: "identity-a",
       action: "BASELINE", targetType: "ORGANIZATION", targetId: "org-a", correlationId: "corr-audit",

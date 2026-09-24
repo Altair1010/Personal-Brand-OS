@@ -1,6 +1,6 @@
 # H1 Agent Boundary Audit
 
-Status: CURRENT H1.4 AUDIT
+Status: CLOSED — H1 live Agent runtime proof freshly re-passed 2026-09-22
 Branch: `work/H1-demonstrable-product-demo`
 Canonical rule: every AI/bot capability used by the H1 demo executes through `AgentExecutionGateway -> Agent Control Plane -> OAuth/OpenClaw`.
 
@@ -62,14 +62,24 @@ For H1:
 - Strategy Revision is Agent-routed, then explicitly applied by the human.
 - Optional legacy AI helper buttons are outside the H1 acceptance path.
 
-## Remaining execution evidence
+## Final execution evidence
 
-Code/contract boundary is compliant for Strategy, Marketing Intelligence, and Revision.
+Code/contract boundary remains compliant for Strategy, Marketing Intelligence, and Revision.
 
-Full runtime proof still requires at least one real connected OAuth/OpenClaw worker to:
-1. claim a Piltover Agent job,
-2. execute through the declared route,
-3. submit a structured result artifact,
-4. have Piltover validate and persist that result.
+The previously missing live runtime proof has now been completed with a real connected OpenClaw worker.
 
-Until that occurs, H1 Agent architecture is IMPLEMENTED but external Agent execution remains UNKNOWN, not PASS.
+Observed canonical proof, refreshed 2026-09-22:
+
+1. Control-plane health returned OK with one registered/enabled/fresh worker.
+2. Piltover dispatched `agent-run-a81114a5ba9762f2e8910da7fb8e2d69` / `agent-job-a81114a5ba9762f2e8910da7fb8e2d69` as `role:strategy-planner@h1`, pinned to `builtin:strategy-planner:v1`, PromptVersion `b3d493c8-1123-490b-a581-7b5fdafe0510`, and SkillVersion `c816aaf4-3e69-479a-b90a-0df3913811ad`.
+3. `worker-openclaw-local` claimed the exact Piltover job under the current brand grant and the run reached `RUNNING -> COMPLETED`.
+4. OpenClaw returned the required `strategy-plan-result` structured artifact; Piltover validated weekly day counts `7,7,7,7,2`.
+5. Runtime metadata persisted on AgentRun: `vllm:COMBO_VIP`, response model `gpt-5.6-sol`, 27,860 total tokens.
+6. Piltover validated the StrategyPlanResult/v2 contract and persisted StrategyVersion `cmuceikae00017kmsswp8dsve` with exact `sourceAgentRunId`.
+7. Structured `piltover.marketing-strategy/v1` and IMC projection `146ec814-d3a6-4e29-b6ea-42fb50e45b24` were persisted.
+8. Terminal audit entry `26b3efa6-d588-487d-a47c-a2ebed1a7699` records `AGENT_RUN_TERMINAL`.
+9. Fresh closure verification: 26/26 H1 targeted tests PASS, TypeScript PASS, Prisma validate PASS, 22 migrations up to date, 8/8 canonical routes HTTP 200, production build PASS.
+
+The live external Agent execution boundary is therefore PASS for H1.
+
+Optional legacy PBOS direct-model helpers remain compatibility debt and remain outside the canonical H1 acceptance path.

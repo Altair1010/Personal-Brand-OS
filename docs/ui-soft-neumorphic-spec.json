@@ -1,0 +1,85 @@
+{
+  "source": {
+    "type": "user-provided-reference-image",
+    "sourceLookup": "No authoritative matching Pinterest/original source found from distinctive labels; image remains canonical visual reference.",
+    "contentReuse": false,
+    "visualReuseOnly": true
+  },
+  "palette": {
+    "base": "#ECE4D6",
+    "raised": "#EFE7D9",
+    "inset": "#E9DFCF",
+    "pressed": "#E4DAC9",
+    "ink": "#252923",
+    "mutedInk": "#6E6A61",
+    "accent": "#0C4F54",
+    "accentHover": "#0A4549",
+    "accentSoft": "#D7E1DC",
+    "danger": "#A24D45",
+    "warning": "#B58D55",
+    "border": "rgba(154,139,115,0.24)",
+    "highlight": "rgba(255,252,244,0.92)"
+  },
+  "elevation": {
+    "level1_flat": "none",
+    "level2_hover": "-3px -3px 7px rgba(255,252,244,.92), 3px 3px 7px rgba(163,147,121,.34)",
+    "level3_raised": "-7px -7px 15px rgba(255,252,244,.92), 7px 7px 15px rgba(163,147,121,.34)",
+    "level4_modal": "-10px -10px 24px rgba(255,252,244,.84), 12px 12px 28px rgba(124,108,87,.30)",
+    "level5_popover": "-10px -10px 24px rgba(255,252,244,.84), 12px 12px 28px rgba(124,108,87,.30)",
+    "inset": "inset -5px -5px 10px rgba(255,252,244,.75), inset 5px 5px 10px rgba(163,147,121,.26)",
+    "pressed": "inset -3px -3px 7px rgba(255,252,244,.68), inset 3px 3px 7px rgba(142,126,103,.30)"
+  },
+  "radiusPx": [
+    4,
+    8,
+    12,
+    16,
+    24
+  ],
+  "borderPx": [
+    1,
+    2,
+    4
+  ],
+  "spacingPx": [
+    8,
+    16,
+    24
+  ],
+  "iconography": {
+    "sizesPx": [
+      16,
+      20,
+      24
+    ],
+    "strokePx": 2,
+    "style": "outline",
+    "primaryColor": "#0C4F54"
+  },
+  "states": {
+    "default": "raised/base",
+    "hover": "shallower raised shadow and teal-tinted surface",
+    "active": "pressed inset shadow",
+    "focus": "2px teal focus ring plus inset/raised state",
+    "disabled": "reduced opacity, no hover lift",
+    "error": "warm muted red border/text; no neon",
+    "success": "teal/green family; preserve semantic text"
+  },
+  "components": {
+    "buttons": "teal primary, raised shadow, pressed inset active",
+    "inputs": "inset wells with subtle 1px border",
+    "cards": "raised cream surfaces with 16px radius",
+    "tabs": "raised group with pressed active tab",
+    "dropdowns": "raised popover, soft shadow, 12px radius",
+    "tables": "soft inset/flat surface with teal-tinted header",
+    "sidebar": "raised cream rail, teal pressed active item",
+    "topbar": "raised cream bar, soft lower shadow",
+    "agentSidebar": "raised right panel, same typography and control states",
+    "feedback": "semantic hue retained but desaturated into warm palette"
+  },
+  "accessibility": {
+    "textContrastTarget": "WCAG AA 4.5:1 for normal text",
+    "uiContrastTarget": "3:1 where required",
+    "note": "Neumorphic shadows are decorative; state/meaning cannot rely on shadow alone."
+  }
+}

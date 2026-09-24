@@ -1,96 +1,70 @@
-// EM2b T7 — setDefaultModelConfig. Proves, on a real throwaway SQLite DB, that setting a
-// config as default unsets every other default (exactly one isDefault=true) and creates NO
-// new row. lib/db is mocked to the temp client; next/cache is stubbed (no request context).
-//
-// Temp-DB approach mirrors tests/cloud-backup/cloud-backup.test.ts.
-
-import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
-import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { PrismaClient } from "@prisma/client";
+import { describe, expect, it } from "vitest";
 
-const holder = vi.hoisted(() => ({
-  client: null as unknown as PrismaClient,
-}));
+const root = path.resolve(__dirname, "..", "..");
+const read = (relative: string) =>
+  fs.readFileSync(path.join(root, relative), "utf8");
 
-vi.mock("@/lib/db", () => ({
-  get db() {
-    return holder.client;
-  },
-}));
-vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
+describe("settings AI routing and control plane", () => {
+  it("removes API-key model configuration from the active Settings UI", () => {
+    const page = read("app/(dashboard)/settings/page.tsx");
+    const actions = read("app/(dashboard)/settings/actions.ts");
 
-import { setDefaultModelConfig } from "@/app/(dashboard)/settings/actions";
+    expect(page).not.toContain("AiModelConfigForm");
+    expect(page).toContain("AgentRoutingPanel");
+    expect(page).toContain("ControlPlanePanel");
+    expect(actions).not.toContain("saveModelConfig");
+    expect(actions).not.toContain("setDefaultModelConfig");
+    expect(actions).not.toContain("encryptString");
+    expect(actions).not.toContain("resolveModelConfig");
 
-const TEMP_DB_NAME = "test-set-default.db";
-const TEMP_DB_URL = `file:./${TEMP_DB_NAME}`;
-const PRISMA_DIR = path.resolve(__dirname, "..", "..", "prisma");
-const TEMP_DB_FILE = path.join(PRISMA_DIR, TEMP_DB_NAME);
-const PRISMA_CLI = path.resolve(
-  __dirname,
-  "..",
-  "..",
-  "node_modules",
-  "prisma",
-  "build",
-  "index.js",
-);
-
-function removeTempDb() {
-  for (const suffix of ["", "-journal", "-wal", "-shm"]) {
-    fs.rmSync(TEMP_DB_FILE + suffix, { force: true });
-  }
-}
-
-beforeAll(async () => {
-  removeTempDb();
-  execSync(`node "${PRISMA_CLI}" db push --skip-generate`, {
-    env: { ...process.env, DATABASE_URL: TEMP_DB_URL },
-    stdio: "pipe",
-  });
-  holder.client = new PrismaClient({
-    datasources: { db: { url: TEMP_DB_URL } },
-  });
-}, 120_000);
-
-afterAll(async () => {
-  if (holder.client) await holder.client.$disconnect();
-  removeTempDb();
-});
-
-describe("setDefaultModelConfig (real temp SQLite)", () => {
-  it("moves the default to the target, leaving exactly one default and no new row", async () => {
-    const db = holder.client;
-    const a = await db.aIModelConfig.create({
-      data: { provider: "anthropic", model: "m-a", isDefault: true },
-    });
-    const b = await db.aIModelConfig.create({
-      data: { provider: "openai", model: "m-b", isDefault: false },
-    });
-
-    const res = await setDefaultModelConfig(b.id);
-    expect(res.ok).toBe(true);
-
-    const rows = await db.aIModelConfig.findMany();
-    expect(rows.length).toBe(2); // no new row created
-    const defaults = rows.filter((r) => r.isDefault);
-    expect(defaults.length).toBe(1);
-    expect(defaults[0].id).toBe(b.id);
-    // old default flipped off
-    expect(rows.find((r) => r.id === a.id)!.isDefault).toBe(false);
+    const legacyRunner = read("lib/ai/run.ts");
+    expect(legacyRunner).toContain("DIRECT_MODEL_EXECUTION_DISABLED");
+    expect(legacyRunner).not.toContain("resolveModelConfig");
+    expect(legacyRunner).not.toContain("getAdapter(");
   });
 
-  it("returns an error for an unknown id and leaves defaults unchanged", async () => {
-    const db = holder.client;
-    const before = await db.aIModelConfig.findMany();
-    const beforeDefault = before.find((r) => r.isDefault)?.id;
+  it("exposes agent-first routing and control-plane operational surfaces", () => {
+    const actions = read("app/(dashboard)/settings/actions.ts");
+    expect(actions).toContain('policy: "AGENT_FIRST"');
+    expect(actions).toContain("Worker HTTP Bridge");
+    expect(actions).toContain("OpenClaw Gateway");
+    expect(actions).toContain("AI execution boundary");
+    expect(actions).toContain("Brand DNA file intake");
+    expect(actions).toContain("Working tree");
+    expect(actions).toContain("Failed agent runs");
+    expect(actions).toContain("workerDtos.map");
+    expect(actions).toContain("futureSlots");
+  });
 
-    const res = await setDefaultModelConfig("does-not-exist");
-    expect(res.ok).toBe(false);
+  it("does not use direct model execution in active AI API routes", () => {
+    const routes = [
+      "audience",
+      "brand-dna",
+      "cta",
+      "hook",
+      "performance",
+      "pillars",
+      "post-writer",
+      "revision",
+      "strategy",
+      "tone",
+      "weekly-plan",
+    ];
+    for (const route of routes) {
+      const source = read(`app/api/ai/${route}/route.ts`);
+      expect(source).toContain("dispatchPromptModule");
+      expect(source).not.toContain("runModule(");
+      expect(source).not.toContain("resolveModelConfig");
+    }
+  });
 
-    const after = await db.aIModelConfig.findMany();
-    expect(after.filter((r) => r.isDefault).length).toBe(1);
-    expect(after.find((r) => r.isDefault)?.id).toBe(beforeDefault);
+  it("accepts Markdown uploads for Brand DNA source material", () => {
+    const upload = read("app/api/upload/route.ts");
+    const dropzone = read("components/brand/FileDropzone.tsx");
+    expect(upload).toContain('name.endsWith(".md")');
+    expect(upload).toContain('name.endsWith(".markdown")');
+    expect(dropzone).toContain(".md,.markdown,.docx,.pdf");
   });
 });

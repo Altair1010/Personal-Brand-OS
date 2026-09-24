@@ -37,6 +37,7 @@ describe("H1 agent execution gateway", () => {
       organizationId: "org-h1-agent",
       workspaceId: "wsp-h1-agent",
       brandId: "brand-h1-agent",
+      repositoryAlias: "personal-brand-os",
       roleRef: "role:marketing-intelligence@h1",
       taskType: "MARKETING_INTELLIGENCE",
       instruction: "Analyze evidence.",
@@ -62,6 +63,7 @@ describe("H1 agent execution gateway", () => {
     expect(run.status).toBe("WAITING_FOR_WORKER");
     expect(run.task).toMatchObject({
       type: "MARKETING_INTELLIGENCE",
+      repositoryAlias: "personal-brand-os",
       executionRoute: {
         kind: "OPENCLAW",
         controller: "openclaw",
@@ -79,6 +81,7 @@ describe("H1 agent execution gateway", () => {
       organizationId: "org-h1-agent",
       workspaceId: "wsp-h1-agent",
       brandId: "brand-h1-agent",
+      repositoryAlias: "personal-brand-os",
       roleRef: "role:marketing-intelligence@h1",
       taskType: "MARKETING_INTELLIGENCE",
       instruction: "Analyze evidence.",
@@ -103,6 +106,7 @@ describe("H1 agent execution gateway", () => {
       organizationId: "org-h1-agent",
       workspaceId: "wsp-h1-agent",
       brandId: "brand-h1-agent",
+      repositoryAlias: "personal-brand-os",
       roleRef: "role:marketing-intelligence@h1",
       taskType: "MARKETING_INTELLIGENCE",
       instruction: "Analyze evidence.",

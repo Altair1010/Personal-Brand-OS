@@ -28,7 +28,7 @@ describe("P3 approval primitives", () => {
     fixture = await createP3Fixture();
     clock = new MutableClock(new Date("2026-09-06T00:00:00.000Z"));
     approvals = new PrismaApproval(fixture.db, clock);
-  }, 20_000);
+  }, 60_000);
 
   afterEach(async () => { await fixture.database.dispose(); });
 

@@ -102,7 +102,7 @@ describe("adapter runs on DB-stored key with env unset", () => {
     await adapter.call({ system: "s", user: "u", temperature: 0.2 });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     const headers = init.headers as Record<string, string>;
     expect(headers["x-api-key"]).toBe(fakeKey);
     // Env was unset, so only the DB key could have produced this.
@@ -137,7 +137,7 @@ describe("adapter runs on DB-stored key with env unset", () => {
     const adapter = getAdapter(cfg);
     await adapter.call({ system: "s", user: "u", temperature: 0.2 });
 
-    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     const headers = init.headers as Record<string, string>;
     expect(headers["Authorization"]).toBe(`Bearer ${fakeKey}`);
     expect(process.env.OPENAI_API_KEY).toBeUndefined();
