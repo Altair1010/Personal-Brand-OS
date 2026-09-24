@@ -1,16 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Cpu, Plus, LogOut, CalendarRange, Users, Moon, Sun } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { Cpu, LogOut, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
 import { getSupabaseClient } from "@/lib/supabase";
 import { useTheme } from "@/components/Providers";
 import { AccountSwitcher } from "./AccountSwitcher";
@@ -40,13 +34,7 @@ function getBreadcrumb(pathname: string): string {
 
 export function Topbar() {
   const pathname = usePathname();
-  const router = useRouter();
-  const searchParams = useSearchParams();
   const label = getBreadcrumb(pathname);
-  const withScope = (href: string) => {
-    const fb = searchParams.get("fb");
-    return fb ? `${href}?fb=${encodeURIComponent(fb)}` : href;
-  };
   const [email, setEmail] = useState<string | null>(null);
   const { theme, toggleTheme } = useTheme();
   const dark = theme === "dark";
@@ -76,8 +64,22 @@ export function Topbar() {
 
   return (
     <header className="relative grid h-14 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 border-b border-white/20 bg-[var(--neu-raised)] px-3 [box-shadow:0_5px_14px_rgba(124,108,87,.12)] sm:gap-3 sm:px-5">
-      {/* Left edge: theme is the stable primary control. Secondary actions collapse first. */}
-      <div className="flex min-w-0 items-center justify-self-start gap-1.5">
+      {/* Left: current Piltover surface. */}
+      <nav aria-label="breadcrumb" className="min-w-0 max-w-full justify-self-start overflow-hidden">
+        <ol className="flex min-w-0 items-center gap-1.5 overflow-hidden text-sm">
+          <li className="hidden text-muted-foreground sm:list-item">Piltover</li>
+          <li className="hidden text-muted-foreground sm:list-item">/</li>
+          <li className="truncate font-medium text-foreground">{label}</li>
+        </ol>
+      </nav>
+
+      {/* Center: Page Switcher stays between breadcrumb and the right-side controls. */}
+      <div className="pointer-events-auto min-w-0 justify-self-center">
+        <AccountSwitcher />
+      </div>
+
+      {/* Right: theme -> model -> account -> logout. */}
+      <div className="flex min-w-0 items-center justify-self-end gap-1.5">
         <Button
           type="button"
           size="sm"
@@ -89,64 +91,32 @@ export function Topbar() {
           {dark ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
         </Button>
 
-        <div className="hidden items-center gap-1.5 lg:flex">
-          <Badge variant="outline" className="flex items-center gap-1.5 text-xs text-[var(--neu-teal)]">
-            <Cpu className="h-3 w-3" />
-            <span className="hidden 2xl:inline">Model AI</span>
-          </Badge>
+        <Badge variant="outline" className="flex items-center gap-1.5 text-xs text-[var(--neu-teal)]">
+          <Cpu className="h-3 w-3" />
+          <span className="hidden xl:inline">Model AI</span>
+        </Badge>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="sm" className="gap-1.5">
-                <Plus className="h-3.5 w-3.5" />
-                <span className="hidden xl:inline">Tạo mới</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuItem onSelect={() => router.push(withScope("/strategy"))}>
-                <CalendarRange className="h-3.5 w-3.5" />
-                Chiến lược mới
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => router.push(withScope("/audience-pillars"))}>
-                <Users className="h-3.5 w-3.5" />
-                Thêm persona
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {email && (
-            <div className="flex items-center gap-2 border-l border-white/20 pl-2">
-              <span className="hidden max-w-[140px] truncate text-xs text-muted-foreground 2xl:inline">
-                {email}
-              </span>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="gap-1.5"
-                onClick={onLogout}
-                title="Đăng xuất"
-              >
-                <LogOut className="h-3.5 w-3.5" />
-                <span className="hidden 2xl:inline">Đăng xuất</span>
-              </Button>
-            </div>
-          )}
-        </div>
+        {email && (
+          <div className="flex min-w-0 items-center gap-1.5 border-l border-white/20 pl-2">
+            <span
+              className="hidden max-w-[180px] truncate text-xs text-muted-foreground lg:inline"
+              title={email}
+            >
+              {email}
+            </span>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="gap-1.5"
+              onClick={onLogout}
+              title="Đăng xuất"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              <span className="hidden xl:inline">Đăng xuất</span>
+            </Button>
+          </div>
+        )}
       </div>
-
-      {/* True center: independent from unequal edge-group widths. */}
-      <div className="pointer-events-auto min-w-0 justify-self-center">
-        <AccountSwitcher />
-      </div>
-
-      {/* Right edge: current Piltover surface. */}
-      <nav aria-label="breadcrumb" className="min-w-0 max-w-full justify-self-end overflow-hidden text-right">
-        <ol className="flex min-w-0 items-center justify-end gap-1.5 overflow-hidden text-sm">
-          <li className="hidden text-muted-foreground sm:list-item">Piltover</li>
-          <li className="hidden text-muted-foreground sm:list-item">/</li>
-          <li className="truncate font-medium text-foreground">{label}</li>
-        </ol>
-      </nav>
     </header>
   );
 }

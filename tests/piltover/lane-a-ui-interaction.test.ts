@@ -31,7 +31,10 @@ describe("Lane A UI and interaction contracts", () => {
     expect(source).toContain("HANDOFF_STORAGE_KEY");
     expect(source).toContain("LEGACY_HANDOFF_STORAGE_KEY");
     expect(source).toContain("analyzeHandoff");
-    expect(source).toContain("return AGENT_COMMANDS.filter(({ command }) => command.startsWith(query.toLowerCase()));");
+    expect(source).toContain("AGENT_COMMANDS.some(({ command }) => command === query)");
+    expect(source).toContain("return AGENT_COMMANDS.filter(({ command }) => command.startsWith(query));");
+    expect(source).toContain('event.key === "ArrowDown"');
+    expect(source).toContain('event.key === "ArrowUp"');
   });
 
   it("keeps Review and Create Post as independent actions", () => {

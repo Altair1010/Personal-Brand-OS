@@ -49,6 +49,7 @@ type ChatMessageAttachment = {
   id: string;
   fileName: string;
   mimeType?: string | null;
+  previewUrl?: string;
 };
 
 type ChatMessage = {
@@ -255,6 +256,7 @@ export function AgentSidebar() {
   const [showTrace, setShowTrace] = useState(false);
   const [facebookPageName, setFacebookPageName] = useState<string | null>(null);
   const [sendQueued, setSendQueued] = useState(false);
+  const [commandSelection, setCommandSelection] = useState(0);
   const sessionHydrated = useRef(false);
   const attachmentRef = useRef<ChatAttachment[]>([]);
   const activeFacebookAccountIdRef = useRef<string | null>(facebookAccountId);
@@ -267,10 +269,15 @@ export function AgentSidebar() {
 
   const contextLabel = useMemo(() => pageLabel(pathname), [pathname]);
   const commandMatches = useMemo(() => {
-    const query = input.trim();
+    const query = input.trim().toLowerCase();
     if (!query.startsWith("/") || query.includes(" ")) return [];
-    return AGENT_COMMANDS.filter(({ command }) => command.startsWith(query.toLowerCase()));
+    if (AGENT_COMMANDS.some(({ command }) => command === query)) return [];
+    return AGENT_COMMANDS.filter(({ command }) => command.startsWith(query));
   }, [input]);
+
+  useEffect(() => {
+    setCommandSelection(0);
+  }, [input, commandMatches.length]);
 
   useEffect(() => {
     attachmentRef.current = attachments;
@@ -1258,17 +1265,19 @@ export function AgentSidebar() {
       source: item.source,
     }));
     const displayMessage = message || `Đã gửi ${sendAttachments.length} tệp đính kèm.`;
+    const optimisticMessageId = clientId();
     setSending(true);
     setMessages((items) => [
       ...items,
       {
-        id: clientId(),
+        id: optimisticMessageId,
         role: "user",
         text: displayMessage,
         attachments: sendAttachments.map((item) => ({
           id: item.id,
           fileName: item.fileName,
           mimeType: item.mimeType,
+          previewUrl: item.previewUrl,
         })),
       },
     ]);
@@ -1286,12 +1295,35 @@ export function AgentSidebar() {
       });
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error ?? "Không giao được việc cho Agent.");
-      await waitForReply(String(data.data.runId));
+
+      const canonicalAttachments: ChatMessageAttachment[] = Array.isArray(data.data?.attachments)
+        ? data.data.attachments.map((item: Record<string, unknown>) => ({
+            id: String(item.id),
+            fileName: typeof item.fileName === "string" ? item.fileName : "attachment",
+            mimeType: typeof item.mimeType === "string" ? item.mimeType : null,
+          }))
+        : sendAttachments.map((item) => ({
+            id: item.id,
+            fileName: item.fileName,
+            mimeType: item.mimeType,
+          }));
+      setMessages((items) =>
+        items.map((item) =>
+          item.id === optimisticMessageId
+            ? { ...item, attachments: canonicalAttachments }
+            : item,
+        ),
+      );
+
+      // The server has persisted the user message and attachments. Clear the composer now;
+      // do not wait for the Agent model run to finish before giving the user a fresh input box.
       const sentIds = new Set(sendAttachments.map((item) => item.id));
-      for (const item of sendAttachments) revokeAttachment(item);
-      setAttachments((items) => items.filter((item) => !sentIds.has(item.id)));
       setInput((current) => current.trim() === message ? "" : current);
+      setAttachments((items) => items.filter((item) => !sentIds.has(item.id)));
       setPreviewAttachment(null);
+      for (const item of sendAttachments) revokeAttachment(item);
+
+      await waitForReply(String(data.data.runId));
     } catch (error) {
       setMessages((items) => [
         ...items,
@@ -1338,6 +1370,10 @@ export function AgentSidebar() {
               <h2 className="font-semibold">Piltover Agent</h2>
             </div>
             <div className="mt-1 space-y-0.5 text-[11px] text-muted-foreground" data-testid="agent-info-allowlist">
+              <div>
+                <span className="font-medium text-foreground">Context of Tab:</span>{" "}
+                <span>{contextLabel}</span>
+              </div>
               <div>
                 <span className="font-medium text-foreground">Facebook Page:</span>{" "}
                 <span>{facebookPageName ?? (facebookAccountId ? "Đang tải…" : "Chưa chọn")}</span>
@@ -1461,14 +1497,22 @@ export function AgentSidebar() {
               {message.attachments?.length ? (
                 <div className="mt-2 flex flex-wrap gap-2">
                   {message.attachments.map((attachment) => {
-                    const href = `/api/agent/attachment?id=${encodeURIComponent(attachment.id)}`;
+                    const persistedHref = `/api/agent/attachment?id=${encodeURIComponent(attachment.id)}`;
+                    const href = attachment.previewUrl ?? persistedHref;
                     const image = attachment.mimeType?.startsWith("image/");
                     return image ? (
-                      <a key={attachment.id} href={href} target="_blank" rel="noreferrer" className="block">
+                      <a
+                        key={attachment.id}
+                        href={href}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block size-20 overflow-hidden rounded-xl border border-white/25 bg-[var(--neu-inset)] [box-shadow:var(--shadow-inset)]"
+                        title={attachment.fileName}
+                      >
                         <img
                           src={href}
                           alt={attachment.fileName}
-                          className="max-h-40 max-w-[220px] rounded-lg border border-white/20 object-contain"
+                          className="size-full object-cover"
                         />
                       </a>
                     ) : (
@@ -1639,11 +1683,18 @@ export function AgentSidebar() {
                   <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
                     Agent Commands
                   </div>
-                  {commandMatches.map(({ command, description }) => (
+                  {commandMatches.map(({ command, description }, index) => (
                     <button
                       key={command}
                       type="button"
-                      className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left hover:bg-[var(--neu-teal-soft)]"
+                      aria-selected={index === commandSelection}
+                      className={[
+                        "flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left",
+                        index === commandSelection
+                          ? "bg-[var(--neu-teal-soft)]"
+                          : "hover:bg-[var(--neu-teal-soft)]",
+                      ].join(" ")}
+                      onMouseEnter={() => setCommandSelection(index)}
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => {
                         setInput(command);
@@ -1676,11 +1727,31 @@ export function AgentSidebar() {
                   }
                 }}
                 onKeyDown={(event) => {
-                  if (
-                    event.key === "Enter" &&
-                    !event.shiftKey &&
-                    !event.nativeEvent.isComposing
-                  ) {
+                  if (event.nativeEvent.isComposing) return;
+
+                  if (commandMatches.length > 0) {
+                    if (event.key === "ArrowDown") {
+                      event.preventDefault();
+                      setCommandSelection((current) => (current + 1) % commandMatches.length);
+                      return;
+                    }
+                    if (event.key === "ArrowUp") {
+                      event.preventDefault();
+                      setCommandSelection((current) => (current - 1 + commandMatches.length) % commandMatches.length);
+                      return;
+                    }
+                    if (event.key === "Enter" || event.key === "Tab") {
+                      event.preventDefault();
+                      const selected = commandMatches[Math.min(commandSelection, commandMatches.length - 1)];
+                      if (selected) {
+                        setInput(selected.command);
+                        requestAnimationFrame(() => composerRef.current?.focus());
+                      }
+                      return;
+                    }
+                  }
+
+                  if (event.key === "Enter" && !event.shiftKey) {
                     event.preventDefault();
                     void sendMessage();
                   }

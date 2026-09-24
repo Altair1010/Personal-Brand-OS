@@ -73,6 +73,19 @@ function combineUsage(a?: OpenClawUsage, b?: OpenClawUsage): OpenClawUsage | und
   };
 }
 
+function isRetryableOpenClawFailure(message: string): boolean {
+  return [
+    /opening handshake has timed out/i,
+    /handshake.*timeout/i,
+    /\bETIMEDOUT\b/i,
+    /\bECONNRESET\b/i,
+    /\bECONNREFUSED\b/i,
+    /socket hang up/i,
+    /network.*(?:error|failure)/i,
+    /temporary.*unavailable/i,
+  ].some((pattern) => pattern.test(message));
+}
+
 function credentialPath(): string {
   const local = process.env.LOCALAPPDATA;
   if (!local) throw new Error("LOCALAPPDATA is unavailable.");
@@ -562,8 +575,16 @@ async function handleClaim(
       console.log(`[worker] CANCELLED ${job.id}`);
       return;
     }
-    await emitEvent("ERROR", { code: "AGENT_EXECUTION_FAILED", message });
-    await emitEvent("RUN_FINISHED", { status: "FAILED" });
+    const retryable = isRetryableOpenClawFailure(message);
+    await emitEvent("ERROR", { code: "AGENT_EXECUTION_FAILED", message, retryable });
+    if (retryable) {
+      await emitEvent("ACTIVITY", {
+        label: "Transient OpenClaw failure",
+        detail: "The Control Plane will retry this Agent job within its retry budget.",
+      });
+    } else {
+      await emitEvent("RUN_FINISHED", { status: "FAILED" });
+    }
     try {
       await post("result", credential, {
         schemaVersion: "1.0",
@@ -574,11 +595,13 @@ async function handleClaim(
           runId: job.runId,
           status: "FAILED",
           completedAt: new Date().toISOString(),
-          summary: "OpenClaw Agent execution failed.",
+          summary: retryable
+            ? "OpenClaw Agent execution hit a transient transport failure and is eligible for retry."
+            : "OpenClaw Agent execution failed.",
           error: {
             code: "AGENT_EXECUTION_FAILED",
             message,
-            retryable: false,
+            retryable,
             correlationId: envelope.correlationId,
           },
         },

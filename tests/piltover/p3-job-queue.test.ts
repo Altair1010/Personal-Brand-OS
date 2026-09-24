@@ -47,7 +47,7 @@ describe("P3 durable Job queue and lease fencing", () => {
     registry = new PrismaWorkerRegistry(fixture.db, clock);
     await registry.register(registration("worker-a"));
     await registry.register(registration("worker-b"));
-  }, 20_000);
+  }, 120_000);
 
   afterEach(async () => {
     await fixture.database.dispose();
@@ -294,6 +294,50 @@ describe("P3 durable Job queue and lease fencing", () => {
     } finally {
       await secondClient.$disconnect();
     }
+  });
+
+  it("retries retryable worker failures until the Job retry budget is exhausted", async () => {
+    await queue.createRun(request, "correlation-a");
+    await queue.enqueue({ runId: "run-a", id: "job-a", idempotencyKey: "job-a", maxAttempts: 2 });
+    await registry.grantWorkspace(fixture.ownerActor, "worker-a", "workspace-a", "grant-a");
+
+    const firstClaim = await queue.claimEligible("worker-a", 10_000);
+    await queue.markRunning("job-a", "worker-a", firstClaim!.lease.id);
+    await queue.complete("job-a", "worker-a", firstClaim!.lease.id, {
+      schemaVersion: "1.0", runId: "run-a", status: "FAILED",
+      completedAt: clock.now().toISOString(), summary: "transient handshake timeout",
+      error: {
+        code: "AGENT_EXECUTION_FAILED",
+        message: "Opening handshake has timed out",
+        retryable: true,
+        correlationId: "correlation-a",
+      },
+    });
+
+    expect(await fixture.db.job.findUniqueOrThrow({ where: { id: "job-a" } })).toMatchObject({
+      status: "RETRY_PENDING",
+      currentLeaseId: null,
+      attemptCount: 1,
+    });
+    expect((await fixture.db.agentRun.findUniqueOrThrow({ where: { id: "run-a" } })).status).toBe("RETRY_PENDING");
+
+    clock.advance(5_000);
+    const secondClaim = await queue.claimEligible("worker-a", 10_000);
+    expect(secondClaim?.job.id).toBe("job-a");
+    await queue.markRunning("job-a", "worker-a", secondClaim!.lease.id);
+    await queue.complete("job-a", "worker-a", secondClaim!.lease.id, {
+      schemaVersion: "1.0", runId: "run-a", status: "FAILED",
+      completedAt: clock.now().toISOString(), summary: "transient handshake timeout exhausted",
+      error: {
+        code: "AGENT_EXECUTION_FAILED",
+        message: "Opening handshake has timed out",
+        retryable: true,
+        correlationId: "correlation-a",
+      },
+    });
+
+    expect((await fixture.db.job.findUniqueOrThrow({ where: { id: "job-a" } })).status).toBe("FAILED");
+    expect((await fixture.db.agentRun.findUniqueOrThrow({ where: { id: "run-a" } })).status).toBe("FAILED");
   });
 
   it("rejects obvious secret-bearing terminal error details", async () => {

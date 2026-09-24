@@ -318,10 +318,55 @@ export class PrismaJobQueue implements JobQueuePort {
         throw new Error("AGENT_TERMINAL_RESULT_CONFLICT");
       }
       await this.requireLeaseAuthority(tx, jobId, workerId, leaseId);
-      assertJobTransition(job.status as JobStatus, result.status as JobStatus);
       const run = await tx.agentRun.findUniqueOrThrow({ where: { id: job.runId } });
-      assertAgentRunTransition(run.status as AgentRunStatus, result.status as AgentRunStatus);
       const now = this.clock.now();
+      const retryableFailure =
+        result.status === "FAILED" &&
+        result.error?.retryable === true &&
+        job.attemptCount < job.maxAttempts;
+
+      if (retryableFailure) {
+        assertJobTransition(job.status as JobStatus, "RETRY_PENDING");
+        assertAgentRunTransition(run.status as AgentRunStatus, "RETRY_PENDING");
+        const retryDelayMs = Math.min(60_000, 5_000 * 2 ** Math.max(0, job.attemptCount - 1));
+        await tx.workerLease.update({
+          where: { id: leaseId },
+          data: { endedAt: now, endReason: "RETRY_PENDING" },
+        });
+        await tx.job.update({
+          where: { id: job.id },
+          data: {
+            status: "RETRY_PENDING",
+            currentLeaseId: null,
+            terminalFingerprint: null,
+            nextAttemptAt: new Date(now.getTime() + retryDelayMs),
+          },
+        });
+        await tx.agentRun.update({
+          where: { id: run.id },
+          data: {
+            status: "RETRY_PENDING",
+            terminalResult: json(result),
+            terminalFingerprint: null,
+            completedAt: null,
+          },
+        });
+        await this.audit(
+          tx,
+          job.organizationId,
+          "WORKER",
+          workerId,
+          "AGENT_RUN_RETRY_SCHEDULED",
+          "AGENT_RUN",
+          run.id,
+          run.correlationId,
+          now,
+        );
+        return;
+      }
+
+      assertJobTransition(job.status as JobStatus, result.status as JobStatus);
+      assertAgentRunTransition(run.status as AgentRunStatus, result.status as AgentRunStatus);
       await tx.workerLease.update({ where: { id: leaseId }, data: { endedAt: now, endReason: result.status } });
       await tx.job.update({ where: { id: job.id }, data: { status: result.status, terminalFingerprint: fingerprint } });
       await tx.agentRun.update({

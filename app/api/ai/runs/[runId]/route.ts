@@ -43,8 +43,28 @@ export async function GET(
   };
 
   if (run.status === "FAILED" || run.status === "CANCELLED") {
+    const terminal =
+      run.terminalResult && typeof run.terminalResult === "object" && !Array.isArray(run.terminalResult)
+        ? run.terminalResult as Record<string, unknown>
+        : null;
+    const terminalError =
+      terminal?.error && typeof terminal.error === "object" && !Array.isArray(terminal.error)
+        ? terminal.error as Record<string, unknown>
+        : null;
+    const errorMessage =
+      typeof terminalError?.message === "string" && terminalError.message.trim()
+        ? terminalError.message.trim()
+        : run.status === "CANCELLED"
+          ? "Agent run was cancelled."
+          : "Agent run ended without a usable result.";
     return NextResponse.json(
-      { ok: false, status: run.status, progress, error: "Agent run ended without a usable result." },
+      {
+        ok: false,
+        status: run.status,
+        progress,
+        error: errorMessage,
+        errorCode: typeof terminalError?.code === "string" ? terminalError.code : null,
+      },
       { status: 409 },
     );
   }
