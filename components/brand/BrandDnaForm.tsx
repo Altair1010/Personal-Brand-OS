@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { LabelWithHelp } from "@/components/ui/field-help";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { X } from "lucide-react";
 import { FileDropzone } from "./FileDropzone";
 import { AiSuggestionPanel } from "./AiSuggestionPanel";
 import { HELP_TEXT } from "@/lib/help-text";
@@ -16,6 +17,7 @@ import type { BrandDnaInput } from "@/lib/validators/brandDna";
 type TextKey = Exclude<keyof BrandDnaInput, "threeWords" | "offers" | "sourceFiles">;
 
 const CORE_FIELDS: { key: TextKey; label: string; long?: boolean }[] = [
+  { key: "aiPositioning", label: "Định vị", long: true },
   { key: "whoAmI", label: "Tôi là ai" },
   { key: "field", label: "Lĩnh vực" },
   { key: "coreBeliefs", label: "Niềm tin cốt lõi", long: true },
@@ -37,6 +39,9 @@ const COMPANY_FIELDS: { key: TextKey; label: string; long?: boolean }[] = [
 export function BrandDnaForm() {
   const brand = useOnboardingStore((s) => s.brand);
   const patchBrand = useOnboardingStore((s) => s.patchBrand);
+  const sourceDocuments = useOnboardingStore((s) => s.sourceDocuments);
+  const addSourceDocument = useOnboardingStore((s) => s.addSourceDocument);
+  const removeSourceDocument = useOnboardingStore((s) => s.removeSourceDocument);
 
   const threeWords = brand.threeWords ?? [];
   const offersText = (brand.offers ?? []).join("\n");
@@ -47,16 +52,31 @@ export function BrandDnaForm() {
 
       <FileDropzone
         onExtracted={(text, fileName) => {
-          patchBrand({
-            personalStory: [brand.personalStory, text].filter(Boolean).join("\n\n"),
-            sourceFiles: [...(brand.sourceFiles ?? []), fileName],
-          });
+          addSourceDocument({ text, fileName });
         }}
       />
-      {brand.sourceFiles && brand.sourceFiles.length > 0 && (
-        <p className="text-xs text-muted-foreground">
-          File đã nạp: {brand.sourceFiles.join(", ")}
-        </p>
+      {(brand.sourceFiles?.length ?? 0) > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {(brand.sourceFiles ?? []).map((fileName) => (
+            <span
+              key={fileName}
+              className="inline-flex items-center gap-2 rounded-md border bg-muted/40 px-2.5 py-1 text-xs"
+            >
+              <span>{fileName}</span>
+              <button
+                type="button"
+                aria-label={`Gỡ ${fileName}`}
+                title={sourceDocuments.some((doc) => doc.fileName === fileName)
+                  ? "Gỡ file khỏi phiên phân tích"
+                  : "Gỡ tên file đã lưu"}
+                onClick={() => removeSourceDocument(fileName)}
+                className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <X className="size-3.5" />
+              </button>
+            </span>
+          ))}
+        </div>
       )}
 
       <div className="space-y-1">

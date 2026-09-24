@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { AiLoading } from "@/components/AiLoading";
 import { ErrorState } from "@/components/ErrorState";
 import { CTA_INTENSITY } from "@/lib/constants";
+import { invokeAgentAi } from "@/lib/ai/agent-client";
 
 interface CtaItem {
   text: string;
@@ -50,32 +51,13 @@ export function CtaGeneratorPanel({
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/ai/cta", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          objectiveKey,
-          goal,
-          offer: offer ?? undefined,
-          intensity: safeIntensity,
-        }),
+      const data = await invokeAgentAi<{ ctas: unknown[] }>("/api/ai/cta", {
+        objectiveKey,
+        goal,
+        offer: offer ?? undefined,
+        intensity: safeIntensity,
       });
-      const json: unknown = await res.json();
-      if (!res.ok) {
-        const msg =
-          typeof json === "object" && json !== null && "error" in json
-            ? String((json as { error: unknown }).error)
-            : "Sinh CTA thất bại";
-        throw new Error(msg);
-      }
-      const data =
-        typeof json === "object" && json !== null && "data" in json
-          ? (json as { data: unknown }).data
-          : null;
-      const list =
-        typeof data === "object" && data !== null && "ctas" in data
-          ? (data as { ctas: unknown }).ctas
-          : null;
+      const list = data.ctas;
       return Array.isArray(list) ? list.filter(isCtaItem) : [];
     },
     onSuccess: (items) => {

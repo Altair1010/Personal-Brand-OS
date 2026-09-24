@@ -1,148 +1,65 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { Check, Loader2, Pencil, X } from "lucide-react";
-import { OBJECTIVE_COLORS, OBJECTIVES, type Objective } from "@/lib/constants";
+import { CalendarDays, Image as ImageIcon, Link2, Pencil } from "lucide-react";
+import { OBJECTIVE_COLORS, type Objective } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
-import { PostChip } from "./PostChip";
-import { updateDailyPlan } from "@/app/(dashboard)/strategy/actions";
 import type { CalendarDayDTO } from "@/app/(dashboard)/studio/actions";
 
-interface DayCellProps {
-  day: CalendarDayDTO;
-}
-
 function objectiveClass(objective: string | null): string {
-  if (objective && objective in OBJECTIVE_COLORS) {
-    return OBJECTIVE_COLORS[objective as Objective];
-  }
-  return "bg-muted text-muted-foreground";
+  return objective && objective in OBJECTIVE_COLORS
+    ? OBJECTIVE_COLORS[objective as Objective]
+    : "bg-muted text-muted-foreground";
 }
 
-const selectClass =
-  "h-8 w-full rounded-md border border-input bg-transparent px-1 text-[11px] shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
-
-// One calendar day: read view (dayIndex + objective badge + pillar/topic + post chip) with an
-// inline edit toggle to update objective/topic/cta in place (EM2c T9). Pillar edit lives on the
-// Strategy screen; here we keep the cell compact.
-export function DayCell({ day }: DayCellProps) {
-  const router = useRouter();
-  const [editing, setEditing] = useState(false);
-  const [objective, setObjective] = useState(
-    day.plannedObjective || OBJECTIVES[0],
-  );
-  const [topic, setTopic] = useState(day.suggestedTopic ?? "");
-  const [cta, setCta] = useState(day.suggestedCta ?? "");
-  const [error, setError] = useState<string | null>(null);
-  const [pending, start] = useTransition();
-
-  function save() {
-    setError(null);
-    start(async () => {
-      const res = await updateDailyPlan(day.dailyPlanId, {
-        plannedObjective: objective as Objective,
-        suggestedTopic: topic,
-        suggestedCta: cta,
-      });
-      if (!res.ok) {
-        setError(res.error);
-        return;
-      }
-      setEditing(false);
-      router.refresh();
-    });
-  }
-
+export function DayCell({ day, onOpen }: { day: CalendarDayDTO; onOpen: () => void }) {
+  const date = day.date ? new Date(day.date) : null;
+  const scheduledAt = day.post?.scheduledAt ? new Date(day.post.scheduledAt) : null;
+  const assetCount = day.assets.length;
   return (
-    <div className="flex min-h-[110px] flex-col gap-1.5 rounded-md border bg-card p-2">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-muted-foreground">
-          Ngày {day.dayIndex}
-        </span>
-        <button
-          type="button"
-          className="text-muted-foreground hover:text-foreground"
-          aria-label={editing ? "Đóng" : "Sửa"}
-          onClick={() => setEditing((v) => !v)}
-        >
-          {editing ? (
-            <X className="size-3.5" />
-          ) : (
-            <Pencil className="size-3.5" />
-          )}
-        </button>
+    <button
+      type="button"
+      onClick={onOpen}
+      className="group flex min-h-[170px] flex-col gap-2 rounded-xl border border-white/20 bg-card p-3 text-left transition hover:-translate-y-0.5 hover:border-[var(--neu-teal)]/35 hover:[box-shadow:var(--shadow-raised-sm)]"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <div className="text-sm font-bold text-foreground">
+            {date ? date.toLocaleDateString("vi-VN", { day: "2-digit", month: "short" }) : `Day ${day.dayIndex}`}
+          </div>
+          <div className="text-[10px] text-muted-foreground">
+            {date ? date.toLocaleDateString("vi-VN", { weekday: "short", year: "numeric" }) : `Strategy day ${day.dayIndex}`}
+          </div>
+        </div>
+        <Pencil className="size-3.5 text-muted-foreground transition group-hover:text-[var(--neu-teal)]" />
       </div>
 
-      {editing ? (
-        <div className="flex flex-col gap-1.5">
-          <select
-            className={selectClass}
-            value={objective}
-            onChange={(e) => setObjective(e.target.value)}
-          >
-            {OBJECTIVES.map((o) => (
-              <option key={o} value={o}>
-                {o}
-              </option>
-            ))}
-          </select>
-          <Input
-            className="h-8 text-[11px]"
-            value={topic}
-            placeholder="Chủ đề"
-            onChange={(e) => setTopic(e.target.value)}
-          />
-          <Input
-            className="h-8 text-[11px]"
-            value={cta}
-            placeholder="CTA"
-            onChange={(e) => setCta(e.target.value)}
-          />
-          {error && <p className="text-[10px] text-destructive">{error}</p>}
-          <button
-            type="button"
-            onClick={save}
-            disabled={pending}
-            className="inline-flex items-center justify-center gap-1 rounded-md bg-primary px-2 py-1 text-[11px] font-medium text-primary-foreground disabled:opacity-50"
-          >
-            {pending ? (
-              <Loader2 className="size-3 animate-spin" />
-            ) : (
-              <Check className="size-3" />
-            )}
-            Lưu
-          </button>
-        </div>
-      ) : (
-        <>
-          {day.plannedObjective && (
-            <span
-              className={cn(
-                "w-fit rounded-full px-2 py-0.5 text-[10px] font-medium",
-                objectiveClass(day.plannedObjective),
-              )}
-            >
-              {day.plannedObjective}
-            </span>
-          )}
-          {day.pillarName && (
-            <p className="truncate text-[11px] font-medium text-foreground">
-              {day.pillarName}
-            </p>
-          )}
-          {day.suggestedTopic && (
-            <p className="line-clamp-2 text-[11px] text-muted-foreground">
-              {day.suggestedTopic}
-            </p>
-          )}
-        </>
+      {day.plannedObjective && (
+        <span className={cn("w-fit rounded-full px-2 py-0.5 text-[9px] font-bold uppercase", objectiveClass(day.plannedObjective))}>
+          {day.plannedObjective}
+        </span>
       )}
 
-      <div className="mt-auto">
-        <PostChip post={day.post} />
+      <div className="min-h-0 flex-1">
+        <p className="line-clamp-2 text-xs font-semibold leading-5 text-foreground">{day.suggestedTopic ?? "Untitled post"}</p>
+        <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-muted-foreground">
+          {day.content ?? day.suggestedCta ?? "Click để soạn nội dung Facebook."}
+        </p>
       </div>
-    </div>
+
+      <div className="flex items-center justify-between gap-2 border-t border-white/15 pt-2 text-[10px] text-muted-foreground">
+        <span className="inline-flex min-w-0 items-center gap-1">
+          <CalendarDays className="size-3 shrink-0" />
+          <span className="truncate">
+            {scheduledAt
+              ? `${scheduledAt.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" })} · ${scheduledAt.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`
+              : day.post?.deliveryState ?? day.draftStatus ?? "planned"}
+          </span>
+        </span>
+        <span className="flex items-center gap-2">
+          {assetCount > 0 && <span className="inline-flex items-center gap-1"><ImageIcon className="size-3"/>{assetCount}</span>}
+          {day.assets.some((a) => a.sourceType === "GOOGLE_DRIVE") && <Link2 className="size-3"/>}
+        </span>
+      </div>
+    </button>
   );
 }

@@ -4,14 +4,16 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
-import { Loader2, PenSquare, Lightbulb, PlusCircle } from "lucide-react";
+import { Loader2, PenSquare, Lightbulb, PlusCircle, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import {
+  createBlankDraft,
   createDraftFromIdea,
+  deleteDraftAction,
   type StudioDraftDTO,
   type StudioIdeaDTO,
 } from "@/app/(dashboard)/studio/actions";
@@ -34,6 +36,26 @@ export function StudioList({ drafts, ideasWithoutDraft }: StudioListProps) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
+  const blankMutation = useMutation({
+    mutationFn: () => createBlankDraft(),
+    onSuccess: (res) => {
+      if (!res.ok) return setError(res.error);
+      setError(null);
+      router.push(`/studio/${res.data.draftId}`);
+    },
+    onError: () => setError("Không kết nối được tới máy chủ."),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (draftId: string) => deleteDraftAction(draftId),
+    onSuccess: (res) => {
+      if (!res.ok) return setError(res.error);
+      setError(null);
+      router.refresh();
+    },
+    onError: () => setError("Không kết nối được tới máy chủ."),
+  });
+
   const createMutation = useMutation({
     mutationFn: (ideaId: string) => createDraftFromIdea(ideaId),
     onSuccess: (res) => {
@@ -49,11 +71,16 @@ export function StudioList({ drafts, ideasWithoutDraft }: StudioListProps) {
 
   if (drafts.length === 0 && ideasWithoutDraft.length === 0) {
     return (
-      <EmptyState
-        icon={PenSquare}
-        title="Chưa có bản nháp nào"
-        description="Sinh ý tưởng từ chiến lược rồi tạo bản nháp, hoặc phê duyệt bản nháp có sẵn."
-      />
+      <div className="space-y-4">
+        <div className="flex justify-end">
+          <Button type="button" disabled={blankMutation.isPending} onClick={() => blankMutation.mutate()}>
+            {blankMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <PlusCircle className="size-4" />}
+            Tạo bản nháp
+          </Button>
+        </div>
+        {error && <ErrorState message={error} />}
+        <EmptyState icon={PenSquare} title="Chưa có bản nháp nào" description="Tạo bản nháp ngay trong Studio hoặc bắt đầu từ một ý tưởng trong chiến lược." />
+      </div>
     );
   }
 
@@ -62,31 +89,52 @@ export function StudioList({ drafts, ideasWithoutDraft }: StudioListProps) {
       {error && <ErrorState message={error} />}
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-muted-foreground">
-          Bản nháp ({drafts.length})
-        </h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-muted-foreground">
+            Bản nháp ({drafts.length})
+          </h2>
+          <Button type="button" size="sm" disabled={blankMutation.isPending} onClick={() => blankMutation.mutate()}>
+            {blankMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <PlusCircle className="size-4" />}
+            Tạo bản nháp
+          </Button>
+        </div>
         {drafts.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             Chưa có bản nháp. Tạo từ ý tưởng bên dưới.
           </p>
         ) : (
           <div className="grid gap-3">
-            {drafts.map((d) => (
-              <Link key={d.id} href={`/studio/${d.id}`}>
-                <Card className="transition-colors hover:border-primary">
-                  <CardContent className="flex items-center justify-between gap-4 py-4">
-                    <div className="min-w-0">
-                      <p className="truncate font-medium text-foreground">
-                        {d.title}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {d.objectiveKey ?? "—"} · v{d.version}
-                      </p>
-                    </div>
-                    <Badge variant={statusVariant(d.status)}>{d.status}</Badge>
-                  </CardContent>
-                </Card>
-              </Link>
+            {drafts.map((draft) => (
+              <Card key={draft.id} className="transition-colors hover:border-primary/50">
+                <CardContent className="flex items-center gap-3 py-4">
+                  <Link href={`/studio/${draft.id}`} className="min-w-0 flex-1">
+                    <p className="truncate font-semibold text-foreground">{draft.title}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {draft.objectiveKey ?? "—"} · v{draft.version}
+                    </p>
+                  </Link>
+                  <Badge variant={statusVariant(draft.status)}>{draft.status}</Badge>
+                  {!draft.approved && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="shrink-0 text-muted-foreground hover:text-destructive"
+                      disabled={deleteMutation.isPending && deleteMutation.variables === draft.id}
+                      onClick={() => {
+                        if (window.confirm("Xóa bản nháp này? Hành động này không thể hoàn tác.")) {
+                          deleteMutation.mutate(draft.id);
+                        }
+                      }}
+                      aria-label={`Xóa ${draft.title}`}
+                    >
+                      {deleteMutation.isPending && deleteMutation.variables === draft.id
+                        ? <Loader2 className="size-4 animate-spin" />
+                        : <Trash2 className="size-4" />}
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
             ))}
           </div>
         )}

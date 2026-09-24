@@ -16,7 +16,7 @@ function isObjective(k: string): k is Objective {
 export function WeeklyThemeTimeline({ weeks }: WeeklyThemeTimelineProps) {
   return (
     <div className="space-y-3">
-      <h3 className="text-sm font-semibold text-foreground">Khung 5 tuần</h3>
+      <h3 className="text-lg font-bold tracking-tight text-foreground">5-Week Framework</h3>
       <ol className="grid gap-3 md:grid-cols-5">
         {weeks.map((w) => {
           const mix = w.objectivesMix
@@ -27,31 +27,29 @@ export function WeeklyThemeTimeline({ weeks }: WeeklyThemeTimelineProps) {
           return (
             <li
               key={w.weekIndex}
-              className="rounded-lg border bg-card p-3 text-card-foreground"
+              className="flex min-h-[190px] flex-col rounded-2xl border border-white/20 bg-card p-4 text-card-foreground"
             >
-              <div className="text-xs font-medium text-muted-foreground">
-                Tuần {w.weekIndex}
+              <div className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-[var(--neu-teal)]">
+                Week {w.weekIndex}
               </div>
-              <div className="mt-1 text-sm font-semibold">
-                {w.theme ?? "—"}
-              </div>
+              <div className="mt-2 text-base font-bold leading-5 text-foreground">{w.theme ?? "—"}</div>
               {w.focusPillarName && (
-                <div className="mt-1 text-xs text-muted-foreground">
+                <div className="mt-2 text-justify text-xs leading-5 text-muted-foreground">
                   Trọng tâm: {w.focusPillarName}
                 </div>
               )}
               {mix.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
+                <div className="mt-auto grid grid-cols-2 gap-1.5 pt-4">
                   {mix.map(([k, v]) => (
                     <span
                       key={k}
-                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                      className={`inline-flex items-center justify-center rounded-lg px-2 py-1 text-[9px] font-extrabold uppercase tracking-[0.04em] ${
                         isObjective(k)
                           ? OBJECTIVE_COLORS[k]
                           : "bg-muted text-muted-foreground"
                       }`}
                     >
-                      {k} {v}%
+                      {k.toUpperCase()} {v}%
                     </span>
                   ))}
                 </div>

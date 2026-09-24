@@ -4,13 +4,15 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
-import { Loader2, Save, CheckCircle2, Sparkles } from "lucide-react";
+import { Loader2, Save, CheckCircle2, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { LabelWithHelp } from "@/components/ui/field-help";
 import { Input } from "@/components/ui/input";
+import { SoftSelect } from "@/components/ui/soft-select";
 import { AiLoading } from "@/components/AiLoading";
+import { invokeAgentAi } from "@/lib/ai/agent-client";
 import { ErrorState } from "@/components/ErrorState";
 import {
   HOOK_STYLES,
@@ -23,12 +25,16 @@ import { PostPreview } from "./PostPreview";
 import { ObjectiveSelect } from "./ObjectiveSelect";
 import { FrameworkSelect } from "./FrameworkSelect";
 import { StatusStepper } from "./StatusStepper";
+import { MobileWorkspace, ResizableWorkspace } from "@/components/layout/ResizableWorkspace";
 import { HookGeneratorPanel } from "./HookGeneratorPanel";
 import { CtaGeneratorPanel } from "./CtaGeneratorPanel";
 import { ToneRewriter } from "./ToneRewriter";
 import {
   saveDraft,
   approveDraftAction,
+  createPostAction,
+  deleteDraftAction,
+  prepareContentBriefForDraft,
   type DraftDTO,
   type FrameworkDTO,
   type DraftContextDTO,
@@ -59,20 +65,17 @@ function EnumSelect({
   return (
     <div className="space-y-1.5">
       <Label htmlFor={id}>{label}</Label>
-      <select
-        id={id}
+      <SoftSelect
         value={value ?? ""}
         disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
-        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        <option value="">— chọn —</option>
-        {options.map((o) => (
-          <option key={o} value={o}>
-            {o}
-          </option>
-        ))}
-      </select>
+        onChange={onChange}
+        placeholder="— chọn —"
+        ariaLabel={label}
+        options={[
+          { value: "", label: "— chọn —" },
+          ...options.map((option) => ({ value: option, label: option })),
+        ]}
+      />
     </div>
   );
 }
@@ -85,6 +88,9 @@ export function DraftEditor({
   const router = useRouter();
 
   // Content
+  const [draftName, setDraftName] = useState(draft.topic ?? draft.title ?? "");
+  const [description, setDescription] = useState(draft.description ?? "");
+  const [notes, setNotes] = useState(draft.notes ?? "");
   const [hook, setHook] = useState(draft.hook ?? "");
   const [body, setBody] = useState(draft.body ?? "");
   const [ending, setEnding] = useState(draft.ending ?? "");
@@ -115,6 +121,7 @@ export function DraftEditor({
   const [writeError, setWriteError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [approveError, setApproveError] = useState<string | null>(null);
+  const [createPostError, setCreatePostError] = useState<string | null>(null);
 
   const persona: Record<string, unknown> = {
     name: context.personas.map((p) => p.name).join(", "),
@@ -127,41 +134,48 @@ export function DraftEditor({
     positioning: context.brandDnaSummary ?? "",
   };
 
-  const hashtagsArray = () =>
-    hashtags
-      .split(",")
-      .map((t) => t.trim())
-      .filter((t) => t.length > 0);
+  const normalizeHashtag = (value: string) => value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d").replace(/Đ/g, "D")
+    .replace(/^#+/, "")
+    .replace(/\s+/g, "")
+    .replace(/[^a-zA-Z0-9_]/g, "");
+
+  const hashtagsArray = () => hashtags.split(",").map((t) => normalizeHashtag(t.trim())).filter(Boolean);
 
   // "Viết bằng AI": full post-writer, fills all fields + dims.
   const writeMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/ai/post-writer", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          idea: draft.topic ?? draft.title,
-          objectiveKey,
-          framework: framework ?? undefined,
-          tone,
-          length,
-          persona,
-          brandDna,
-          cta: context.mainOffer ?? undefined,
-        }),
+      if (!objectiveKey) throw new Error("Chọn objective trước khi viết bài.");
+      const briefResult = await prepareContentBriefForDraft(draft.id, {
+        objective: objectiveKey,
+        audienceRef: context.personas[0]?.name,
+        format: format ?? "text",
+        channel: "facebook",
+        tone,
+        intensity: ctaIntensity ?? undefined,
+        hookDirection: hookStyle ?? undefined,
+        length,
+        cta: context.mainOffer ?? undefined,
+        keyMessage: description.trim() || draftName.trim() || undefined,
+        offer: context.mainOffer ?? undefined,
       });
-      const json: unknown = await res.json();
-      if (!res.ok) {
-        const msg =
-          typeof json === "object" && json !== null && "error" in json
-            ? String((json as { error: unknown }).error)
-            : "Viết bài thất bại";
-        throw new Error(msg);
-      }
-      const data =
-        typeof json === "object" && json !== null && "data" in json
-          ? (json as { data: Record<string, unknown> }).data
-          : {};
+      if (!briefResult.ok) throw new Error(briefResult.error);
+      const data = await invokeAgentAi<Record<string, unknown>>("/api/ai/post-writer", {
+        contentBriefId: briefResult.data.briefId,
+        idea: [draftName.trim() || context.goalName || "Nội dung theo chiến lược", description.trim(), notes.trim()].filter(Boolean).join(" | "),
+        objectiveKey,
+        framework: framework ?? undefined,
+        hookStyle: hookStyle ?? undefined,
+        ctaIntensity: ctaIntensity ?? undefined,
+        format: format ?? undefined,
+        tone,
+        length,
+        persona,
+        brandDna,
+        cta: context.mainOffer ?? undefined,
+      });
       return data;
     },
     onSuccess: (data) => {
@@ -175,6 +189,8 @@ export function DraftEditor({
         setHashtags(
           (data.hashtags as unknown[])
             .filter((t): t is string => typeof t === "string")
+            .map(normalizeHashtag)
+            .filter(Boolean)
             .join(", "),
         );
       if (str("imageSuggestion"))
@@ -183,12 +199,13 @@ export function DraftEditor({
       // otherwise the <select> could transiently show an out-of-enum value.
       const inEnum = (opts: readonly string[], v: string | null) =>
         v !== null && opts.includes(v) ? v : null;
+      // User-selected dimensions are authoritative. AI may suggest dimensions only when the form is empty.
       const hs = inEnum(HOOK_STYLES, str("hookStyle"));
       const ci = inEnum(CTA_INTENSITY, str("ctaIntensity"));
       const fmt = inEnum(FORMATS, str("format"));
-      if (hs) setHookStyle(hs);
-      if (ci) setCtaIntensity(ci);
-      if (fmt) setFormat(fmt);
+      if (!hookStyle && hs) setHookStyle(hs);
+      if (!ctaIntensity && ci) setCtaIntensity(ci);
+      if (!format && fmt) setFormat(fmt);
     },
     onError: (e) =>
       setWriteError(e instanceof Error ? e.message : "Viết bài thất bại."),
@@ -207,7 +224,9 @@ export function DraftEditor({
         hookStyle: hookStyle ?? undefined,
         ctaIntensity: ctaIntensity ?? undefined,
         format: format ?? undefined,
-        topic: draft.topic ?? undefined,
+        topic: draftName.trim() || undefined,
+        description,
+        notes,
         tone,
         length,
       }),
@@ -224,35 +243,75 @@ export function DraftEditor({
     onError: () => setSaveError("Không kết nối được tới máy chủ."),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteDraftAction(draft.id),
+    onSuccess: (res) => {
+      if (!res.ok) {
+        setSaveError(res.error);
+        return;
+      }
+      router.push("/studio");
+      router.refresh();
+    },
+    onError: () => setSaveError("Không kết nối được tới máy chủ."),
+  });
+
   const approveMutation = useMutation({
     mutationFn: () => approveDraftAction(draft.id),
     onSuccess: (res) => {
       if (!res.ok) {
-        // KHÔNG nuốt lỗi invariant — hiển thị message engine.
         setApproveError(res.error);
         return;
       }
       setApproveError(null);
       setStatus("approved");
-      setApprovedPostId(res.data.postId);
       router.refresh();
     },
     onError: () => setApproveError("Không kết nối được tới máy chủ."),
   });
 
+  const createPostMutation = useMutation({
+    mutationFn: () => createPostAction(draft.id),
+    onSuccess: (res) => {
+      if (!res.ok) {
+        setCreatePostError(res.error);
+        return;
+      }
+      setCreatePostError(null);
+      setApprovedPostId(res.data.postId);
+      router.refresh();
+    },
+    onError: () => setCreatePostError("Không kết nối được tới máy chủ."),
+  });
+
   const busy =
     writeMutation.isPending ||
     saveMutation.isPending ||
-    approveMutation.isPending;
-  const isApproved = status === "approved" || approvedPostId !== null;
+    approveMutation.isPending ||
+    createPostMutation.isPending ||
+    deleteMutation.isPending;
+  const hasPost = approvedPostId !== null;
+  const isApproved = status === "approved" || hasPost;
 
   return (
     <div className="space-y-6">
       <StatusStepper status={status} />
 
-      {/* Dims */}
+      {/* Draft metadata + generation dimensions */}
       <Card>
-        <CardContent className="grid gap-4 py-4 sm:grid-cols-2 lg:grid-cols-3">
+        <CardContent className="grid gap-5 px-6 py-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+            <Label htmlFor="fld-draft-name">Tên / chủ đề bản nháp</Label>
+            <Input id="fld-draft-name" value={draftName} disabled={busy || isApproved} placeholder="Nhập chủ đề thực tế để AI bám sát nội dung…" onChange={(e) => setDraftName(e.target.value)} />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor="fld-description">Mô tả</Label>
+            <Input id="fld-description" value={description} disabled={busy || isApproved} placeholder="Mô tả ngắn về mục đích hoặc nội dung bản nháp…" onChange={(e) => setDescription(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="fld-notes">Ghi chú</Label>
+            <Input id="fld-notes" value={notes} disabled={busy || isApproved} placeholder="Ghi chú nội bộ…" onChange={(e) => setNotes(e.target.value)} />
+          </div>
           <ObjectiveSelect
             value={objectiveKey}
             disabled={busy || isApproved}
@@ -299,15 +358,7 @@ export function DraftEditor({
               onChange={(e) => setTone(e.target.value)}
             />
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="fld-length">Độ dài</Label>
-            <Input
-              id="fld-length"
-              value={length}
-              disabled={busy || isApproved}
-              onChange={(e) => setLength(e.target.value)}
-            />
-          </div>
+          <EnumSelect id="sel-length" label="Độ dài" options={["ngắn", "trung bình", "dài"] as const} value={length} disabled={busy || isApproved} onChange={setLength} />
         </CardContent>
       </Card>
 
@@ -341,11 +392,34 @@ export function DraftEditor({
         </CardContent>
       </Card>
 
-      {/* Structured editor + live FB preview */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardContent className="py-4">
-            <StructuredEditor
+      {/* Resizable content workbench */}
+      <ResizableWorkspace
+        storageKey="piltover-studio-workbench-v1"
+        left={
+          <div className="space-y-3">
+            <div>
+              <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Brief</p>
+              <p className="mt-2 text-sm font-medium">{draftName || "Untitled draft"}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{description || "No description"}</p>
+            </div>
+            <div className="rounded-lg border bg-background p-3 text-xs">
+              <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+                <span className="text-muted-foreground">Objective</span><span>{objectiveKey ?? "—"}</span>
+                <span className="text-muted-foreground">Format</span><span>{format ?? "—"}</span>
+                <span className="text-muted-foreground">Intensity</span><span>{ctaIntensity ?? "—"}</span>
+                <span className="text-muted-foreground">Length</span><span>{length}</span>
+                <span className="text-muted-foreground">Audience</span><span className="truncate">{context.personas[0]?.name ?? "—"}</span>
+                <span className="text-muted-foreground">Offer</span><span className="truncate">{context.mainOffer ?? "—"}</span>
+              </div>
+            </div>
+            {notes && <div className="rounded-lg border p-3 text-xs text-muted-foreground">{notes}</div>}
+          </div>
+        }
+        center={
+          <Card className="border-0 shadow-none">
+            <CardContent className="p-5">
+              <StructuredEditor
+              format={format}
               hook={hook}
               body={body}
               ending={ending}
@@ -357,29 +431,53 @@ export function DraftEditor({
                 if (patch.body !== undefined) setBody(patch.body);
                 if (patch.ending !== undefined) setEnding(patch.ending);
                 if (patch.hashtags !== undefined) setHashtags(patch.hashtags);
-                if (patch.imageSuggestion !== undefined)
-                  setImageSuggestion(patch.imageSuggestion);
+                if (patch.imageSuggestion !== undefined) setImageSuggestion(patch.imageSuggestion);
               }}
             />
-          </CardContent>
-        </Card>
-        <div className="lg:sticky lg:top-4 lg:self-start">
-          <PostPreview
-            brandName={context.goalName ?? ""}
-            hook={hook}
-            body={body}
-            ending={ending}
-            hashtags={hashtags}
-            imageSuggestion={imageSuggestion}
-          />
-        </div>
-      </div>
+            </CardContent>
+          </Card>
+        }
+        right={<div className="space-y-3"><PostPreview
+              brandName={context.goalName ?? ""}
+              hook={hook}
+              body={body}
+              ending={ending}
+              hashtags={hashtags}
+              imageSuggestion={imageSuggestion}
+            /><div className="rounded-lg border bg-background p-3 text-xs text-muted-foreground">Inspector · live preview · quality and SEO checks will attach to the persisted ContentMaster/QualityGate chain.</div></div>}
+      />
+      <MobileWorkspace>
+        <Card><CardContent className="px-5 py-5"><StructuredEditor
+              format={format}
+              hook={hook}
+              body={body}
+              ending={ending}
+              hashtags={hashtags}
+              imageSuggestion={imageSuggestion}
+              disabled={busy || isApproved}
+              onChange={(patch) => {
+                if (patch.hook !== undefined) setHook(patch.hook);
+                if (patch.body !== undefined) setBody(patch.body);
+                if (patch.ending !== undefined) setEnding(patch.ending);
+                if (patch.hashtags !== undefined) setHashtags(patch.hashtags);
+                if (patch.imageSuggestion !== undefined) setImageSuggestion(patch.imageSuggestion);
+              }}
+            /></CardContent></Card>
+        <PostPreview
+              brandName={context.goalName ?? ""}
+              hook={hook}
+              body={body}
+              ending={ending}
+              hashtags={hashtags}
+              imageSuggestion={imageSuggestion}
+            />
+      </MobileWorkspace>
 
       {/* AI helper panels */}
       {!isApproved && (
         <div className="grid gap-4 lg:grid-cols-2">
           <HookGeneratorPanel
-            topic={draft.topic ?? draft.title}
+            topic={draftName.trim() || context.goalName || "Nội dung theo chiến lược"}
             objectiveKey={objectiveKey}
             persona={persona}
             onInsert={(text) =>
@@ -405,6 +503,25 @@ export function DraftEditor({
       <Card>
         <CardContent className="space-y-3 py-4">
           <div className="flex flex-wrap items-center gap-3">
+            {!isApproved && (
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={busy}
+                onClick={() => {
+                  if (window.confirm("Xóa bản nháp này? Hành động này không thể hoàn tác.")) {
+                    deleteMutation.mutate();
+                  }
+                }}
+              >
+                {deleteMutation.isPending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Trash2 className="size-4" />
+                )}
+                Delete draft
+              </Button>
+            )}
             <Button
               type="button"
               variant="outline"
@@ -428,7 +545,20 @@ export function DraftEditor({
               ) : (
                 <CheckCircle2 className="size-4" />
               )}
-              Duyệt &amp; tạo Post
+              Duyệt
+            </Button>
+            <Button
+              type="button"
+              variant={isApproved && !hasPost ? "default" : "outline"}
+              disabled={busy || !isApproved || hasPost}
+              onClick={() => createPostMutation.mutate()}
+            >
+              {createPostMutation.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="size-4" />
+              )}
+              Tạo Post
             </Button>
             <span className="text-xs text-muted-foreground">
               Phiên bản hiện tại: v{version}
@@ -437,13 +567,20 @@ export function DraftEditor({
 
           {saveError && <ErrorState message={saveError} />}
           {approveError && <ErrorState message={approveError} />}
+          {createPostError && <ErrorState message={createPostError} />}
 
-          {isApproved && approvedPostId && (
+          {isApproved && !hasPost && (
+            <div className="rounded-xl border border-[var(--neu-teal)]/20 bg-[var(--neu-teal-soft)] px-3 py-2 text-sm text-[var(--neu-teal)]">
+              Bản nháp đã được duyệt. Nhấn <strong>Tạo Post</strong> khi bạn muốn đưa nội dung vào Calendar/Campaign.
+            </div>
+          )}
+
+          {hasPost && (
             <div className="flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 p-3 text-sm text-primary">
               <CheckCircle2 className="size-4" />
-              Đã duyệt và tạo Post.
+              Post đã được tạo.
               <Link href="/calendar" className="underline">
-                Xem trên Lịch
+                Xem trên Calendar
               </Link>
             </div>
           )}

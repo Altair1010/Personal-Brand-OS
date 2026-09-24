@@ -8,8 +8,9 @@ interface PageContainerProps {
 export function PageContainer({ children, className }: PageContainerProps) {
   return (
     <main
+      data-piltover-page-context
       className={cn(
-        "flex-1 overflow-y-auto",
+        "flex-1 overflow-y-auto bg-transparent",
         className
       )}
     >

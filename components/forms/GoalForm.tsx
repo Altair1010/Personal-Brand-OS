@@ -1,22 +1,65 @@
-"use client";
+﻿"use client";
 
+import { useMemo, useState } from "react";
 import { useOnboardingStore } from "@/lib/stores/onboarding";
 import { Label } from "@/components/ui/label";
 import { LabelWithHelp } from "@/components/ui/field-help";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { SearchSelect, type SearchSelectOption } from "@/components/ui/SearchSelect";
 import { KpiEditor } from "./KpiEditor";
 import { ContentRatioSlider } from "./ContentRatioSlider";
 import { HELP_TEXT } from "@/lib/help-text";
+import {
+  FUNNEL_STAGE_LABELS,
+  MARKETING_OBJECTIVES,
+  objectiveByKey,
+} from "@/lib/onboarding/marketing-library";
 
-// Step 2 — Goal. name + goalType required; time range + narrative fields optional.
+const OTHER = "__other__";
 
 export function GoalForm() {
   const goal = useOnboardingStore((s) => s.goal);
   const patchGoal = useOnboardingStore((s) => s.patchGoal);
+  const initialKnown = Boolean(objectiveByKey(goal.goalType));
+  const [objectiveSelection, setObjectiveSelection] = useState(
+    initialKnown ? goal.goalType : goal.goalType ? OTHER : "",
+  );
+
+  const objectiveOptions = useMemo<SearchSelectOption[]>(
+    () => [
+      ...[...MARKETING_OBJECTIVES]
+        .sort((a, b) => {
+          const stageOrder = ["awareness", "engagement", "consideration", "conversion", "retention", "loyalty"];
+          return stageOrder.indexOf(a.stage) - stageOrder.indexOf(b.stage) || b.popularity - a.popularity;
+        })
+        .map((item) => ({
+          value: item.key,
+          label: item.label,
+          group: FUNNEL_STAGE_LABELS[item.stage],
+          description: item.description,
+        })),
+      {
+        value: OTHER,
+        label: "Khác",
+        group: "Tùy chỉnh",
+        description: "Nhập một Objective riêng nếu thư viện chưa có.",
+      },
+    ],
+    [],
+  );
+
+  function onObjectiveChange(value: string) {
+    setObjectiveSelection(value);
+    if (value === OTHER) {
+      if (objectiveByKey(goal.goalType)) patchGoal({ goalType: "" });
+      return;
+    }
+    patchGoal({ goalType: value });
+  }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1">
           <LabelWithHelp htmlFor="goal-name" help={HELP_TEXT.goalName}>
@@ -28,17 +71,32 @@ export function GoalForm() {
             onChange={(e) => patchGoal({ name: e.target.value })}
           />
         </div>
+
         <div className="space-y-1">
-          <LabelWithHelp htmlFor="goal-type" help={HELP_TEXT.goalType}>
-            Loại mục tiêu *
+          <LabelWithHelp help={HELP_TEXT.goalType}>
+            Loại mục tiêu (Objective) *
           </LabelWithHelp>
-          <Input
-            id="goal-type"
-            value={goal.goalType}
-            placeholder="vd: xây dựng thương hiệu / bán hàng"
-            onChange={(e) => patchGoal({ goalType: e.target.value })}
+          <SearchSelect
+            value={objectiveSelection}
+            options={objectiveOptions}
+            placeholder="Tìm và chọn Objective"
+            searchPlaceholder="Tìm mục tiêu marketing..."
+            onChange={onObjectiveChange}
           />
+          {objectiveSelection === OTHER && (
+            <Input
+              value={goal.goalType ?? ""}
+              placeholder="Nhập Objective tùy chỉnh"
+              onChange={(e) => patchGoal({ goalType: e.target.value })}
+            />
+          )}
+          {objectiveSelection && objectiveSelection !== OTHER && (
+            <p className="text-xs text-muted-foreground">
+              {objectiveByKey(objectiveSelection)?.description}
+            </p>
+          )}
         </div>
+
         <div className="space-y-1">
           <Label htmlFor="goal-start">Bắt đầu</Label>
           <Input

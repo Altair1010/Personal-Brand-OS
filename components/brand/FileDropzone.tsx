@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { Upload, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-// Upload a docx/pdf → POST /api/upload → return extracted text to the parent, which decides
+// Upload Markdown/docx/pdf → POST /api/upload → return extracted text to the parent, which decides
 // where to place it. Images/corrupt files surface the server error message (paste-text hint).
 
 export function FileDropzone({
@@ -52,7 +52,7 @@ export function FileDropzone({
         ) : (
           <Upload className="size-5" />
         )}
-        <p>Kéo thả .docx hoặc .pdf, hoặc</p>
+        <p>Kéo thả .md, .docx hoặc .pdf, hoặc</p>
         <Button
           type="button"
           variant="outline"
@@ -65,7 +65,7 @@ export function FileDropzone({
         <input
           ref={inputRef}
           type="file"
-          accept=".docx,.pdf"
+          accept=".md,.markdown,.docx,.pdf,text/markdown"
           className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0];

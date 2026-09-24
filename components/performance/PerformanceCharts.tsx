@@ -35,13 +35,13 @@ function DimChart({ title, groups }: { title: string; groups: Group[] }) {
       <CardContent>
         <ResponsiveContainer width="100%" height={240}>
           <BarChart data={groups}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#c9bda9" />
             <XAxis dataKey="label" fontSize={12} />
             <YAxis fontSize={12} />
             <Tooltip />
             <Legend />
-            <Bar dataKey="avgReach" name="Reach TB" fill="#2563eb" />
-            <Bar dataKey="avgEngagement" name="Tương tác TB" fill="#16a34a" />
+            <Bar dataKey="avgReach" name="Reach TB" fill="#0C4F54" radius={[4,4,0,0]} />
+            <Bar dataKey="avgEngagement" name="Tương tác TB" fill="#5A8581" radius={[4,4,0,0]} />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>

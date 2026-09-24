@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { AiLoading } from "@/components/AiLoading";
 import { ErrorState } from "@/components/ErrorState";
+import { invokeAgentAi } from "@/lib/ai/agent-client";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PersonaBoard } from "./PersonaBoard";
 import { PillarBoard } from "./PillarBoard";
@@ -110,21 +111,12 @@ export function AudiencePillarsBoard({
     setAiError(null);
     setGenPersonaLoading(true);
     try {
-      const res = await fetch("/api/ai/audience", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          brandDna: brand,
-          goal,
-          existingSegments: personas.map((p) => p.name).filter(Boolean),
-        }),
+      const data = await invokeAgentAi<{ personas: AiPersona[] }>("/api/ai/audience", {
+        brandDna: brand,
+        goal,
+        existingSegments: personas.map((p) => p.name).filter(Boolean),
       });
-      const json = await res.json();
-      if (!res.ok || !json.ok) {
-        setAiError(json.error ?? "Sinh personas thất bại. Vui lòng thử lại.");
-        return;
-      }
-      const list = (json.data.personas as AiPersona[]) ?? [];
+      const list = data.personas ?? [];
       setPersonas(
         list.map((p) => ({ _key: newKey(), source: "ai", ...p })),
       );
@@ -140,27 +132,14 @@ export function AudiencePillarsBoard({
     setAiError(null);
     setGenPillarLoading(true);
     try {
-      const res = await fetch("/api/ai/pillars", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          brandDna: brand,
-          goal,
-          personas: personas.map((p) => ({ name: p.name })),
-        }),
+      const data = await invokeAgentAi<{
+        pillars: { name: string; description: string; ratioPercent: number; objectiveMix: unknown }[];
+      }>("/api/ai/pillars", {
+        brandDna: brand,
+        goal,
+        personas: personas.map((p) => ({ name: p.name })),
       });
-      const json = await res.json();
-      if (!res.ok || !json.ok) {
-        setAiError(json.error ?? "Sinh trụ cột thất bại. Vui lòng thử lại.");
-        return;
-      }
-      const list =
-        (json.data.pillars as {
-          name: string;
-          description: string;
-          ratioPercent: number;
-          objectiveMix: unknown;
-        }[]) ?? [];
+      const list = data.pillars ?? [];
       setPillars(
         list.map((p) => ({
           _key: newKey(),

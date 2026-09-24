@@ -1,12 +1,18 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import path from "node:path";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { bumpDraftVersion } from "@/lib/content-engine/draftVersioning";
-import { approveDraft } from "@/lib/content-engine/approveDraft";
+import {
+  approveDraftOnly,
+  createPostFromApprovedDraft,
+} from "@/lib/content-engine/approveDraft";
 import { resolveLocalTenant } from "@/lib/piltover/modules/marketing/infrastructure/local-tenant";
+import { stableHash } from "@/lib/piltover/shared/contracts/stable-json";
+import { createContentBrief, createChannelVariant, saveContentMaster } from "@/lib/piltover/vnext/content-engine";
 import {
   OBJECTIVES,
   HOOK_STYLES,
@@ -33,6 +39,10 @@ function asStringArray(v: Prisma.JsonValue | null | undefined): string[] {
   return Array.isArray(v)
     ? v.filter((x): x is string => typeof x === "string")
     : [];
+}
+
+function normalizeHashtag(value: string): string {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").replace(/^#+/, "").replace(/\s+/g, "").replace(/[^a-zA-Z0-9_]/g, "");
 }
 
 // ============================================================
@@ -94,6 +104,8 @@ export type DraftDTO = {
   ctaIntensity: string | null;
   format: string | null;
   topic: string | null;
+  notes: string | null;
+  description: string | null;
   hook: string | null;
   body: string | null;
   ending: string | null;
@@ -109,18 +121,37 @@ export type DraftEditorData = {
 };
 
 // --- Calendar DTOs ---
+export type CalendarAssetDTO = {
+  id: string;
+  sourceType: string;
+  mediaType: string;
+  fileName: string | null;
+  mimeType: string | null;
+  sourceUrl: string | null;
+  sortOrder: number;
+  status: string;
+};
+
 export type CalendarPostDTO = {
   id: string;
   status: string;
+  finalText: string | null;
+  scheduledAt: string | null;
+  deliveryState: string | null;
 };
 
 export type CalendarDayDTO = {
   dailyPlanId: string;
   dayIndex: number;
+  date: string | null;
   plannedObjective: string | null;
   pillarName: string | null;
   suggestedTopic: string | null;
   suggestedCta: string | null;
+  draftId: string | null;
+  draftStatus: string | null;
+  content: string | null;
+  assets: CalendarAssetDTO[];
   post: CalendarPostDTO | null;
 };
 
@@ -229,6 +260,8 @@ export async function getDraft(draftId: string): Promise<DraftEditorData | null>
       ctaIntensity: draft.ctaIntensity,
       format: draft.format,
       topic: draft.topic,
+      notes: draft.notes,
+      description: draft.description,
       hook: draft.hook,
       body: draft.body,
       ending: draft.ending,
@@ -256,41 +289,186 @@ export async function getCalendarData(): Promise<CalendarData> {
   const activeStrategyId = appState?.activeStrategyId ?? null;
   if (!activeStrategyId) return { hasStrategy: false, days: [] };
 
-  const version = await db.strategyVersion.findFirst({
-    where: { strategyId: activeStrategyId },
-    orderBy: { version: "desc" },
-    include: {
-      weeklyPlans: {
-        include: {
-          dailyPlans: {
-            include: {
-              plannedPillar: { select: { name: true } },
-              posts: { select: { id: true, status: true } },
+  const [version, goal] = await Promise.all([
+    db.strategyVersion.findFirst({
+      where: { strategyId: activeStrategyId },
+      orderBy: { version: "desc" },
+      include: {
+        weeklyPlans: {
+          include: {
+            dailyPlans: {
+              include: {
+                plannedPillar: { select: { name: true } },
+                posts: {
+                  include: { delivery: true },
+                },
+                ideas: {
+                  include: {
+                    drafts: {
+                      include: {
+                        assets: { orderBy: { sortOrder: "asc" } },
+                        post: { include: { delivery: true } },
+                      },
+                    },
+                  },
+                },
+              },
             },
           },
         },
       },
-    },
-  });
+    }),
+    appState?.activeGoalId
+      ? db.goal.findUnique({
+          where: { id: appState.activeGoalId },
+          select: { timeRangeStart: true, timeRangeEnd: true },
+        })
+      : Promise.resolve(null),
+  ]);
   if (!version) return { hasStrategy: false, days: [] };
+
+  const fallbackStart = goal?.timeRangeStart ?? null;
+  const dateForIndex = (index: number) => {
+    if (!fallbackStart) return null;
+    return new Date(
+      fallbackStart.getFullYear(),
+      fallbackStart.getMonth(),
+      fallbackStart.getDate() + index - 1,
+      12,
+      0,
+      0,
+      0,
+    );
+  };
 
   const days: CalendarDayDTO[] = version.weeklyPlans
     .flatMap((w) => w.dailyPlans)
     .sort((a, b) => a.dayIndex - b.dayIndex)
     .map((d) => {
-      const post = d.posts[0] ?? null;
+      const drafts = d.ideas
+        .flatMap((idea) => idea.drafts)
+        .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+      const directPost = d.posts[0] ?? null;
+      const draft =
+        (directPost
+          ? drafts.find((candidate) => candidate.id === directPost.contentDraftId)
+          : null) ??
+        drafts[0] ??
+        null;
+      const post = directPost ?? draft?.post ?? null;
+      const date = post?.delivery?.scheduledAt ?? d.date ?? dateForIndex(d.dayIndex);
+      const structured = draft
+        ? [draft.hook, draft.body, draft.ending]
+            .filter((value): value is string => Boolean(value?.trim()))
+            .join("\n\n")
+        : "";
       return {
         dailyPlanId: d.id,
         dayIndex: d.dayIndex,
+        date: date?.toISOString() ?? null,
         plannedObjective: d.plannedObjective,
         pillarName: d.plannedPillar?.name ?? null,
         suggestedTopic: d.suggestedTopic,
         suggestedCta: d.suggestedCta,
-        post: post ? { id: post.id, status: post.status } : null,
+        draftId: draft?.id ?? null,
+        draftStatus: draft?.status ?? null,
+        content: (post?.finalText ?? draft?.contentMarkdown ?? structured) || null,
+        assets: (draft?.assets ?? []).map((asset) => ({
+          id: asset.id,
+          sourceType: asset.sourceType,
+          mediaType: asset.mediaType,
+          fileName: asset.fileName,
+          mimeType: asset.mimeType,
+          sourceUrl: asset.sourceUrl,
+          sortOrder: asset.sortOrder,
+          status: asset.status,
+        })),
+        post: post
+          ? {
+              id: post.id,
+              status: post.status,
+              finalText: post.finalText,
+              scheduledAt: post.delivery?.scheduledAt?.toISOString() ?? null,
+              deliveryState: post.delivery?.state ?? null,
+            }
+          : null,
       };
     });
 
+  days.sort((a, b) => {
+    const left = a.date ? new Date(a.date).getTime() : Number.MAX_SAFE_INTEGER;
+    const right = b.date ? new Date(b.date).getTime() : Number.MAX_SAFE_INTEGER;
+    return left - right || a.dayIndex - b.dayIndex;
+  });
+
   return { hasStrategy: true, days };
+}
+
+// ============================================================
+// Publishing sync for Calendar composer
+// ============================================================
+
+async function syncScheduledPublishingPayload(draftId: string): Promise<void> {
+  const draft = await db.contentDraft.findUnique({
+    where: { id: draftId },
+    include: {
+      assets: { orderBy: { sortOrder: "asc" } },
+      post: {
+        include: {
+          delivery: true,
+          facebookAccount: { select: { id: true } },
+        },
+      },
+    },
+  });
+  const post = draft?.post;
+  const scheduledAt = post?.delivery?.scheduledAt ?? null;
+  const accountId = post?.facebookAccount?.id ?? null;
+  if (!draft || !post || !scheduledAt || !accountId) return;
+
+  const media = draft.assets.map((asset) => ({
+    assetId: asset.id,
+    sourceType: asset.sourceType,
+    mediaType: asset.mediaType,
+    fileName: asset.fileName,
+    mimeType: asset.mimeType,
+    localPath: asset.localPath,
+    sourceUrl: asset.sourceUrl,
+    sortOrder: asset.sortOrder,
+  }));
+  const providerPayload = {
+    text: post.finalText ?? draft.contentMarkdown ?? "",
+    format:
+      media.length === 0
+        ? "text"
+        : media.length > 1
+          ? "carousel"
+          : media[0]?.mediaType === "VIDEO"
+            ? "video"
+            : "image",
+    media,
+  };
+  const payloadFingerprint = stableHash(providerPayload);
+  await db.publishingJob.updateMany({
+    where: {
+      contentVariantId: post.id,
+      status: { in: ["QUEUED", "RETRY_PENDING", "WAITING_APPROVAL", "BLOCKED"] },
+      providerPostId: null,
+    },
+    data: {
+      integrationId: `facebook:${accountId}`,
+      scheduledAt,
+      providerPayload: providerPayload as Prisma.InputJsonValue,
+      payloadFingerprint,
+      status: "QUEUED",
+      nextAttemptAt: scheduledAt,
+      blockedReason: null,
+      error: null,
+      errorCategory: null,
+      leaseOwner: null,
+      leaseExpiresAt: null,
+    },
+  });
 }
 
 // ============================================================
@@ -338,7 +516,7 @@ export async function createBlankDraft(): Promise<
         brandId: tenant.brandId,
         version: 1,
         status: "draft",
-        topic: "Bản nháp mới",
+        topic: "",
       },
       select: { id: true },
     });
@@ -349,6 +527,307 @@ export async function createBlankDraft(): Promise<
       ok: false,
       error: e instanceof Error ? e.message : "Tạo bản nháp thất bại.",
     };
+  }
+}
+
+export async function ensureCalendarDraft(
+  dailyPlanId: string,
+): Promise<ActionResult<{ draftId: string }>> {
+  try {
+    const tenant = await resolveLocalTenant(db);
+    const dailyPlan = await db.dailyPlan.findUnique({
+      where: { id: dailyPlanId },
+      include: {
+        weeklyPlan: {
+          include: { strategyVersion: { include: { strategy: true } } },
+        },
+        ideas: {
+          orderBy: { createdAt: "asc" },
+          include: { drafts: { orderBy: { updatedAt: "desc" } } },
+        },
+      },
+    });
+    if (!dailyPlan) return { ok: false, error: "Không tìm thấy ngày trong chiến lược." };
+    if (
+      dailyPlan.weeklyPlan.strategyVersion.strategy.organizationId !== tenant.organizationId ||
+      dailyPlan.weeklyPlan.strategyVersion.strategy.brandId !== tenant.brandId
+    ) {
+      return { ok: false, error: "Ngày này không thuộc brand hiện tại." };
+    }
+
+    const existing = dailyPlan.ideas.flatMap((idea) => idea.drafts)[0];
+    if (existing) return { ok: true, data: { draftId: existing.id } };
+
+    let idea = dailyPlan.ideas[0] ?? null;
+    if (!idea) {
+      idea = await db.contentIdea.create({
+        data: {
+          dailyPlanId: dailyPlan.id,
+          userId: USER_ID,
+          organizationId: tenant.organizationId,
+          brandId: tenant.brandId,
+          title: dailyPlan.suggestedTopic?.trim() || `Nội dung ngày ${dailyPlan.dayIndex}`,
+          objectiveKey: dailyPlan.plannedObjective,
+          pillarId: dailyPlan.plannedPillarId,
+          source: "calendar",
+        },
+        include: { drafts: true },
+      });
+    }
+
+    const initialText = [dailyPlan.suggestedTopic, dailyPlan.suggestedCta]
+      .filter((value): value is string => Boolean(value?.trim()))
+      .join("\n\n");
+    const draft = await db.contentDraft.create({
+      data: {
+        contentIdeaId: idea.id,
+        userId: USER_ID,
+        organizationId: tenant.organizationId,
+        brandId: tenant.brandId,
+        version: 1,
+        status: "draft",
+        objectiveKey: dailyPlan.plannedObjective,
+        pillarId: dailyPlan.plannedPillarId,
+        topic: dailyPlan.suggestedTopic,
+        body: initialText,
+        contentMarkdown: initialText,
+      },
+      select: { id: true },
+    });
+    revalidatePath("/calendar");
+    revalidatePath("/studio");
+    return { ok: true, data: { draftId: draft.id } };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Không tạo được composer cho ngày này.",
+    };
+  }
+}
+
+export async function saveCalendarComposer(
+  draftId: string,
+  text: string,
+): Promise<ActionResult<{ version: number }>> {
+  try {
+    const draft = await db.contentDraft.findUnique({
+      where: { id: draftId },
+      include: { post: { select: { id: true } } },
+    });
+    if (!draft || draft.userId !== USER_ID) return { ok: false, error: "Không tìm thấy bản nháp." };
+    const clean = text.trim();
+    const updated = await db.contentDraft.update({
+      where: { id: draftId },
+      data: {
+        hook: null,
+        body: clean,
+        ending: null,
+        contentMarkdown: clean,
+        version: { increment: 1 },
+        status: draft.post ? draft.status : "draft",
+      },
+      select: { version: true },
+    });
+    if (draft.post) {
+      await db.post.update({
+        where: { id: draft.post.id },
+        data: { finalText: clean },
+      });
+    }
+    await syncScheduledPublishingPayload(draftId);
+    revalidatePath("/calendar");
+    revalidatePath(`/studio/${draftId}`);
+    return { ok: true, data: { version: updated.version } };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Không lưu được nội dung.",
+    };
+  }
+}
+
+const calendarAssetSchema = z.object({
+  draftId: z.string().min(1),
+  sourceType: z.enum(["UPLOAD", "GOOGLE_DRIVE"]),
+  fileName: z.string().trim().max(255).optional(),
+  mimeType: z.string().trim().max(160).optional(),
+  localPath: z.string().trim().optional(),
+  sourceUrl: z.string().url().optional(),
+});
+
+export async function addCalendarAsset(
+  input: z.input<typeof calendarAssetSchema>,
+): Promise<ActionResult<{ id: string }>> {
+  const parsed = calendarAssetSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Attachment không hợp lệ." };
+  try {
+    const draft = await db.contentDraft.findUnique({
+      where: { id: parsed.data.draftId },
+      select: { id: true, userId: true },
+    });
+    if (!draft || draft.userId !== USER_ID) return { ok: false, error: "Không tìm thấy bản nháp." };
+
+    if (parsed.data.sourceType === "UPLOAD") {
+      if (!parsed.data.localPath) return { ok: false, error: "Upload chưa có localPath." };
+      const artifactRoot = process.env.LOCALAPPDATA
+        ? path.resolve(process.env.LOCALAPPDATA, "Piltover", "artifacts")
+        : path.resolve(process.cwd(), ".piltover", "artifacts");
+      const candidate = path.resolve(parsed.data.localPath);
+      if (!candidate.startsWith(artifactRoot + path.sep)) {
+        return { ok: false, error: "Đường dẫn upload không thuộc Piltover artifact store." };
+      }
+    } else {
+      if (!parsed.data.sourceUrl) return { ok: false, error: "Thiếu Google Drive link." };
+      const url = new URL(parsed.data.sourceUrl);
+      if (!["drive.google.com", "docs.google.com"].includes(url.hostname)) {
+        return { ok: false, error: "Chỉ hỗ trợ Google Drive link ở mục này." };
+      }
+    }
+
+    const mime = parsed.data.mimeType?.toLowerCase() ?? "";
+    const mediaType = mime.startsWith("image/")
+      ? "IMAGE"
+      : mime.startsWith("video/")
+        ? "VIDEO"
+        : "FILE";
+    const last = await db.contentAsset.findFirst({
+      where: { contentDraftId: draft.id },
+      orderBy: { sortOrder: "desc" },
+      select: { sortOrder: true },
+    });
+    const asset = await db.contentAsset.create({
+      data: {
+        contentDraftId: draft.id,
+        sourceType: parsed.data.sourceType,
+        mediaType,
+        fileName: parsed.data.fileName ?? (parsed.data.sourceType === "GOOGLE_DRIVE" ? "Google Drive media" : null),
+        mimeType: parsed.data.mimeType,
+        localPath: parsed.data.localPath,
+        sourceUrl: parsed.data.sourceUrl,
+        sortOrder: (last?.sortOrder ?? -1) + 1,
+        status: parsed.data.sourceType === "GOOGLE_DRIVE" ? "REMOTE" : "READY",
+      },
+      select: { id: true },
+    });
+    await syncScheduledPublishingPayload(draft.id);
+    revalidatePath("/calendar");
+    return { ok: true, data: asset };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Không thêm được attachment.",
+    };
+  }
+}
+
+export async function removeCalendarAsset(
+  assetId: string,
+): Promise<ActionResult<{ id: string }>> {
+  try {
+    const asset = await db.contentAsset.findUnique({
+      where: { id: assetId },
+      include: { contentDraft: { select: { userId: true } } },
+    });
+    if (!asset || asset.contentDraft.userId !== USER_ID) return { ok: false, error: "Không tìm thấy attachment." };
+    await db.contentAsset.delete({ where: { id: assetId } });
+    await syncScheduledPublishingPayload(asset.contentDraftId);
+    revalidatePath("/calendar");
+    return { ok: true, data: { id: assetId } };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Không xóa được attachment." };
+  }
+}
+
+export async function reorderCalendarAssets(
+  draftId: string,
+  assetIds: string[],
+): Promise<ActionResult> {
+  try {
+    const assets = await db.contentAsset.findMany({
+      where: { contentDraftId: draftId },
+      select: { id: true, contentDraft: { select: { userId: true } } },
+    });
+    if (assets.some((asset) => asset.contentDraft.userId !== USER_ID)) {
+      return { ok: false, error: "Không có quyền thay đổi attachment." };
+    }
+    const owned = new Set(assets.map((asset) => asset.id));
+    if (assetIds.length !== assets.length || assetIds.some((id) => !owned.has(id))) {
+      return { ok: false, error: "Thứ tự attachment không hợp lệ." };
+    }
+    await db.$transaction(
+      assetIds.map((id, index) =>
+        db.contentAsset.update({ where: { id }, data: { sortOrder: index } }),
+      ),
+    );
+    await syncScheduledPublishingPayload(draftId);
+    revalidatePath("/calendar");
+    return { ok: true, data: undefined };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Không đổi được thứ tự attachment." };
+  }
+}
+
+export async function deleteDraftAction(
+  draftId: string,
+): Promise<ActionResult<{ deletedId: string }>> {
+  try {
+    const draft = await db.contentDraft.findUnique({
+      where: { id: draftId },
+      select: { id: true, userId: true, status: true, post: { select: { id: true } } },
+    });
+    if (!draft || draft.userId !== USER_ID) {
+      return { ok: false, error: "Không tìm thấy bản nháp." };
+    }
+    if (draft.post || draft.status === "approved" || draft.status === "posted") {
+      return { ok: false, error: "Không thể xóa bản nháp đã duyệt hoặc đã xuất bản." };
+    }
+    await db.contentDraft.delete({ where: { id: draftId } });
+    revalidatePath("/studio");
+    return { ok: true, data: { deletedId: draftId } };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Xóa bản nháp thất bại.",
+    };
+  }
+}
+
+export async function prepareContentBriefForDraft(
+  draftId: string,
+  input: {
+    objective: string;
+    audienceRef?: string;
+    format: string;
+    channel: string;
+    tone?: string;
+    intensity?: string;
+    hookDirection?: string;
+    length?: string;
+    cta?: string;
+    keyMessage?: string;
+    offer?: string;
+  },
+): Promise<ActionResult<{ briefId: string }>> {
+  const draft = await db.contentDraft.findUnique({ where: { id: draftId } });
+  if (!draft || draft.userId !== USER_ID) return { ok: false, error: "Không tìm thấy bản nháp." };
+  try {
+    const brief = await createContentBrief(db, {
+      objective: input.objective,
+      audienceRef: input.audienceRef,
+      format: input.format,
+      channel: input.channel,
+      tone: input.tone,
+      intensity: input.intensity,
+      hookDirection: input.hookDirection,
+      length: input.length,
+      cta: input.cta,
+      keyMessage: input.keyMessage,
+      offer: input.offer,
+    });
+    await db.contentDraft.update({ where: { id: draftId }, data: { contentBriefId: brief.id } });
+    return { ok: true, data: { briefId: brief.id } };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Không tạo được ContentBrief." };
   }
 }
 
@@ -364,6 +843,8 @@ const saveDraftSchema = z.object({
   ctaIntensity: z.string().optional(),
   format: z.string().optional(),
   topic: z.string().optional(),
+  notes: z.string().optional(),
+  description: z.string().optional(),
   tone: z.string().optional(),
   length: z.string().optional(),
 });
@@ -406,6 +887,8 @@ export async function saveDraft(
   // framework/topic/tone/length are free text (not constants enums).
   if (v.framework !== undefined) dimUpdate.framework = v.framework;
   if (v.topic !== undefined) dimUpdate.topic = v.topic;
+  if (v.notes !== undefined) dimUpdate.notes = v.notes;
+  if (v.description !== undefined) dimUpdate.description = v.description;
   if (v.tone !== undefined) dimUpdate.tone = v.tone;
   if (v.length !== undefined) dimUpdate.length = v.length;
 
@@ -416,7 +899,7 @@ export async function saveDraft(
       hook,
       body,
       ending,
-      hashtags: v.hashtags ?? [],
+      hashtags: (v.hashtags ?? []).map(normalizeHashtag).filter(Boolean),
       imageSuggestion: v.imageSuggestion ?? "",
       contentMarkdown,
     });
@@ -426,6 +909,85 @@ export async function saveDraft(
         data: dimUpdate,
       });
     }
+
+    const persisted = await db.contentDraft.findUnique({
+      where: { id: draftId },
+      select: {
+        contentBriefId: true,
+        format: true,
+        hook: true,
+        body: true,
+        ending: true,
+        hashtags: true,
+        imageSuggestion: true,
+      },
+    });
+    if (persisted?.contentBriefId) {
+      const hashtags = asStringArray(persisted.hashtags).map(normalizeHashtag).filter(Boolean);
+      const format = persisted.format ?? "text";
+      const lines = (persisted.body ?? "").split(/\n+/).map((item) => item.trim()).filter(Boolean);
+      const payload =
+        format === "carousel"
+          ? {
+              schemaType: "CAROUSEL" as const,
+              data: {
+                cover: { headline: persisted.hook ?? "", visualDirection: persisted.imageSuggestion ?? undefined },
+                slides: (lines.length >= 2 ? lines : [persisted.body ?? "", persisted.ending ?? ""]).map((item, index) => ({
+                  headline: `Slide ${index + 1}`,
+                  body: item,
+                  visualDirection: persisted.imageSuggestion ?? undefined,
+                })),
+                finalSlide: { headline: "CTA", cta: persisted.ending ?? "" },
+                caption: [persisted.hook, persisted.body, persisted.ending].filter(Boolean).join("\n\n"),
+                hashtags,
+              },
+            }
+          : format === "video" || format === "reel"
+            ? {
+                schemaType: format === "video" ? "VIDEO" as const : "REEL" as const,
+                data: {
+                  hook: persisted.hook ?? "",
+                  scenes: (lines.length ? lines : [persisted.body ?? ""]).map((item, index) => ({
+                    duration: "auto",
+                    visual: persisted.imageSuggestion ?? `Scene ${index + 1}`,
+                    voiceover: item,
+                    overlay: index === 0 ? persisted.hook ?? undefined : undefined,
+                  })),
+                  cta: persisted.ending ?? "",
+                  caption: [persisted.hook, persisted.body, persisted.ending].filter(Boolean).join("\n\n"),
+                  hashtags,
+                },
+              }
+            : format === "image"
+              ? {
+                  schemaType: "IMAGE_POST" as const,
+                  data: {
+                    caption: [persisted.hook, persisted.body, persisted.ending].filter(Boolean).join("\n\n"),
+                    hook: persisted.hook ?? "",
+                    body: persisted.body ?? "",
+                    cta: persisted.ending ?? "",
+                    hashtags,
+                    visualBrief: persisted.imageSuggestion ?? "",
+                  },
+                }
+              : {
+                  schemaType: "TEXT_POST" as const,
+                  data: {
+                    hook: persisted.hook ?? "",
+                    body: persisted.body ?? "",
+                    cta: persisted.ending ?? "",
+                    hashtags,
+                  },
+                };
+      const { master } = await saveContentMaster(db, { briefId: persisted.contentBriefId, payload });
+      await createChannelVariant(db, {
+        contentMasterId: master.id,
+        channel: "facebook",
+        format,
+        content: payload.data,
+      });
+    }
+
     revalidatePath("/studio");
     revalidatePath(`/studio/${draftId}`);
     return { ok: true, data: { version: res.newVersion } };
@@ -439,17 +1001,53 @@ export async function saveDraft(
 
 export async function approveDraftAction(
   draftId: string,
-): Promise<ActionResult<{ postId: string }>> {
+): Promise<ActionResult<{ status: "approved" }>> {
   try {
-    const res = await approveDraft(draftId);
+    const draft = await db.contentDraft.findUnique({
+      where: { id: draftId },
+      select: { contentBriefId: true },
+    });
+    if (draft?.contentBriefId) {
+      const master = await db.contentMaster.findFirst({
+        where: { contentBriefId: draft.contentBriefId },
+        orderBy: { version: "desc" },
+      });
+      if (master) {
+        const gate = await db.qualityGate.findFirst({
+          where: { artifactType: "CONTENT_MASTER", artifactId: master.id },
+          orderBy: { createdAt: "desc" },
+        });
+        if (!gate || gate.status !== "PASS") {
+          return { ok: false, error: "Quality gate chưa PASS. Hãy sửa nội dung trước khi duyệt." };
+        }
+      }
+    }
+    await approveDraftOnly(draftId);
     revalidatePath("/studio");
     revalidatePath(`/studio/${draftId}`);
-    revalidatePath("/calendar");
-    return { ok: true, data: { postId: res.postId } };
+    return { ok: true, data: { status: "approved" } };
   } catch (e) {
     return {
       ok: false,
       error: e instanceof Error ? e.message : "Duyệt bản nháp thất bại.",
+    };
+  }
+}
+
+export async function createPostAction(
+  draftId: string,
+): Promise<ActionResult<{ postId: string }>> {
+  try {
+    const result = await createPostFromApprovedDraft(draftId);
+    revalidatePath("/studio");
+    revalidatePath(`/studio/${draftId}`);
+    revalidatePath("/calendar");
+    revalidatePath("/campaigns");
+    return { ok: true, data: { postId: result.postId } };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Tạo Post thất bại.",
     };
   }
 }

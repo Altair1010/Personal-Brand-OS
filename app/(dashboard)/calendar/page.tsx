@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { CalendarMonth } from "@/components/content/CalendarMonth";
 import { getCalendarData } from "../studio/actions";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 30;
 
 export default async function CalendarPage() {
   const data = await getCalendarData();
@@ -14,14 +14,14 @@ export default async function CalendarPage() {
   return (
     <>
       <PageHeader
-        title="Lịch đăng bài"
+        title="Content Calendar"
         description="Xem và quản lý lịch trình nội dung 30 ngày"
       />
       {!data.hasStrategy || data.days.length === 0 ? (
         <>
           <EmptyState
             icon={CalendarDays}
-            title="Lịch trống"
+            title="Empty Calendar"
             description="Tạo chiến lược 30 ngày để xem lịch đăng bài được lên kế hoạch theo từng ngày."
           />
           <div className="flex justify-center">

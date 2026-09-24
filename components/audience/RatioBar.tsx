@@ -6,11 +6,11 @@ import { normalizeWeightsTo100 } from "@/lib/strategy-engine/normalizeRatio";
 // preview always matches what the server will persist (never trust raw input sums).
 
 const COLORS = [
-  "bg-cyan-500",
-  "bg-blue-500",
-  "bg-violet-500",
-  "bg-amber-500",
-  "bg-rose-500",
+  "bg-[#0C4F54]",
+  "bg-[#2D6A6D]",
+  "bg-[#5A8581]",
+  "bg-[#B58D55]",
+  "bg-[#8C7A64]",
 ];
 
 interface RatioBarProps {

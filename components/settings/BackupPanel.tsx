@@ -60,7 +60,7 @@ export function BackupPanel() {
         setCloudError(res.error);
         return;
       }
-      setCloudMessage("Đã sao lưu lên cloud (không gồm API key/secret).");
+      setCloudMessage("Đã sao lưu lên cloud (không gồm OAuth/session secret).");
     });
   }
 
@@ -90,7 +90,7 @@ export function BackupPanel() {
         return;
       }
       setCloudMessage(
-        "Đã khôi phục từ cloud. Nhập lại API key/secret (không nằm trong backup).",
+        "Đã khôi phục từ cloud. Nhập lại OAuth/session secret (không nằm trong backup).",
       );
       router.refresh();
     });
@@ -232,7 +232,7 @@ export function BackupPanel() {
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Đẩy snapshot đã mã hoá lên tài khoản của bạn để khôi phục trên máy khác.
-            API key/secret KHÔNG được đưa lên cloud — máy mới nhập lại.
+            OAuth/session secret KHÔNG được đưa lên cloud — máy mới nhập lại.
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
             Cần trước một lần: vào Supabase → Storage, tạo bucket riêng tư tên{" "}

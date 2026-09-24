@@ -10,7 +10,7 @@ import type { BrandDnaContext, GoalContext } from "@/components/audience/types";
 // Server component: load persona/pillar state for the active goal, then hand the client
 // board plain-serializable props. No goal → EmptyState pointing at onboarding.
 
-export const dynamic = "force-dynamic";
+export const revalidate = 30;
 
 export default async function AudiencePillarsPage() {
   const { brandDna, goal, segments, pillars, approvedAt } =
@@ -20,12 +20,12 @@ export default async function AudiencePillarsPage() {
     return (
       <>
         <PageHeader
-          title="Khán giả & Trụ cột nội dung"
+          title="Audience & Content Pillars"
           description="Xác định đối tượng mục tiêu và các trụ cột nội dung chính"
         />
         <EmptyState
           icon={Target}
-          title="Chưa có mục tiêu"
+          title="No Objective Yet"
           description="Hãy hoàn thành Onboarding và tạo một mục tiêu đang hoạt động trước khi dựng persona & trụ cột."
         />
         <div className="flex justify-center">
@@ -60,7 +60,7 @@ export default async function AudiencePillarsPage() {
   return (
     <>
       <PageHeader
-        title="Khán giả & Trụ cột nội dung"
+        title="Audience & Content Pillars"
         description="Dựng persona và trụ cột nội dung, rồi duyệt để mở khoá Chiến lược"
       />
       <AudiencePillarsBoard

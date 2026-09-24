@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AiLoading } from "@/components/AiLoading";
 import { ErrorState } from "@/components/ErrorState";
+import { invokeAgentAi } from "@/lib/ai/agent-client";
 
 interface HookItem {
   text: string;
@@ -41,32 +42,13 @@ export function HookGeneratorPanel({
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/ai/hook", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          topic,
-          objectiveKey,
-          persona,
-          count: 5,
-        }),
+      const data = await invokeAgentAi<{ hooks: unknown[] }>("/api/ai/hook", {
+        topic,
+        objectiveKey,
+        persona,
+        count: 5,
       });
-      const json: unknown = await res.json();
-      if (!res.ok) {
-        const msg =
-          typeof json === "object" && json !== null && "error" in json
-            ? String((json as { error: unknown }).error)
-            : "Sinh hook thất bại";
-        throw new Error(msg);
-      }
-      const data =
-        typeof json === "object" && json !== null && "data" in json
-          ? (json as { data: unknown }).data
-          : null;
-      const list =
-        typeof data === "object" && data !== null && "hooks" in data
-          ? (data as { hooks: unknown }).hooks
-          : null;
+      const list = data.hooks;
       return Array.isArray(list) ? list.filter(isHookItem) : [];
     },
     onSuccess: (items) => {

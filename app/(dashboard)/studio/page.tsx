@@ -2,7 +2,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { StudioList } from "@/components/content/StudioList";
 import { getStudioData } from "./actions";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 30;
 
 export default async function StudioPage() {
   const data = await getStudioData();
@@ -10,7 +10,7 @@ export default async function StudioPage() {
   return (
     <>
       <PageHeader
-        title="Studio sáng tạo"
+        title="Studio"
         description="Soạn thảo và quản lý bài đăng"
       />
       <StudioList

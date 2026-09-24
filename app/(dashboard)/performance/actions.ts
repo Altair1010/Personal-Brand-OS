@@ -27,6 +27,8 @@ import {
 import { encryptString, decryptString } from "@/lib/ai/keystore";
 import { METRIC_SOURCES } from "@/lib/constants";
 import { resolveLocalTenant } from "@/lib/piltover/modules/marketing/infrastructure/local-tenant";
+import { resolveCanonicalAgentBinding } from "@/lib/piltover/vnext/canonical-agent-binding";
+import { upsertManualMetaPageConnection } from "@/lib/piltover/providers/connection-service";
 
 // Single-user local app: fixed ids match the seed (prisma/seed.ts).
 const USER_ID = "local";
@@ -427,11 +429,15 @@ export async function runInsight(): Promise<
         };
 
   const evidenceHash = stableHash(evidence);
+  const agentBinding = await resolveCanonicalAgentBinding(db, "marketing-intelligence");
+  const bindingHash = stableHash(agentBinding).slice(0, 12);
   const gateway = new AgentExecutionGateway(new PrismaJobQueue(db));
   const dispatched = await gateway.dispatch({
     organizationId: tenant.organizationId,
     workspaceId: tenant.workspaceId,
     brandId: tenant.brandId,
+    ...agentBinding,
+    repositoryAlias: "personal-brand-os",
     roleRef: "role:marketing-intelligence@h1",
     taskType: "MARKETING_INTELLIGENCE",
     instruction:
@@ -446,9 +452,10 @@ export async function runInsight(): Promise<
       evidence,
       resultContract: "MarketingIntelligenceResult/v1",
     },
-    idempotencyKey: `h1-marketing-intelligence:${tenant.brandId}:${evidenceHash}`,
+    idempotencyKey: `h1-marketing-intelligence:${tenant.brandId}:${evidenceHash}:${bindingHash}`,
     requiredCapabilities: ["marketing.intelligence"],
     priority: 60,
+    executionPolicy: { mode: "parallel", resourceKey: null },
   });
 
   revalidatePath("/performance");
@@ -475,7 +482,7 @@ export async function syncLatestMarketingIntelligence(): Promise<
   ActionResult<{ count: number; runId: string }>
 > {
   const tenant = await resolveLocalTenant(db);
-  const run = await db.agentRun.findFirst({
+  const completedRuns = await db.agentRun.findMany({
     where: {
       organizationId: tenant.organizationId,
       workspaceId: tenant.workspaceId,
@@ -484,9 +491,21 @@ export async function syncLatestMarketingIntelligence(): Promise<
       roleRef: "role:marketing-intelligence@h1",
     },
     orderBy: { completedAt: "desc" },
+    take: 20,
+  });
+  const run = completedRuns.find((candidate) => {
+    if (!candidate.terminalResult || !candidate.task || typeof candidate.task !== "object" || Array.isArray(candidate.task)) {
+      return false;
+    }
+    return MarketingIntelligenceEvidenceSchema.safeParse(
+      (candidate.task as Record<string, unknown>).evidence,
+    ).success;
   });
   if (!run?.terminalResult) {
-    return { ok: false, error: "Chưa có Marketing Intelligence agent run hoàn tất." };
+    return {
+      ok: false,
+      error: "Chưa có Marketing Intelligence agent run hoàn tất với evidence hợp lệ.",
+    };
   }
 
   const terminal = RunResultSchema.parse(run.terminalResult);
@@ -586,14 +605,29 @@ export async function connectFacebookAccount(
   }
 
   const accessToken = encryptString(pageAccessToken);
+  const tenant = await resolveLocalTenant(db);
 
   await db.facebookAccount.upsert({
     where: { ownerRef_pageId: { ownerRef: USER_ID, pageId } },
-    create: { ownerRef: USER_ID, pageId, pageName, accessToken },
-    update: { pageName, accessToken },
+    create: {
+      ownerRef: USER_ID,
+      organizationId: tenant.organizationId,
+      brandId: tenant.brandId,
+      pageId,
+      pageName,
+      accessToken,
+    },
+    update: {
+      organizationId: tenant.organizationId,
+      brandId: tenant.brandId,
+      pageName,
+      accessToken,
+    },
   });
+  await upsertManualMetaPageConnection(db, { pageId, pageName, pageAccessToken });
 
   revalidatePath("/performance");
+  revalidatePath("/settings");
   return { ok: true, data: { pageId, pageName } };
 }
 
@@ -604,8 +638,14 @@ export type FacebookAccountDTO = {
 };
 
 export async function listFacebookAccounts(): Promise<FacebookAccountDTO[]> {
+  const tenant = await resolveLocalTenant(db);
   return db.facebookAccount.findMany({
-    where: { ownerRef: USER_ID },
+    where: {
+      ownerRef: USER_ID,
+      organizationId: tenant.organizationId,
+      brandId: tenant.brandId,
+      status: "ACTIVE",
+    },
     select: { id: true, pageId: true, pageName: true },
     orderBy: { linkedAt: "desc" },
   });
@@ -650,12 +690,32 @@ export async function fetchMetricFromUrl(
 
   const account = await db.facebookAccount.findUnique({
     where: { id: post.facebookAccountId },
-    select: { accessToken: true },
+    select: {
+      accessToken: true,
+      status: true,
+      providerResource: {
+        select: {
+          status: true,
+          connection: { select: { status: true, revokedAt: true } },
+        },
+      },
+    },
   });
   if (!account) {
     return {
       ok: false,
       error: "Không tìm thấy trang Facebook đã gắn — kết nối lại rồi thử.",
+    };
+  }
+  if (
+    account.status === "REVOKED" ||
+    account.providerResource?.status === "REVOKED" ||
+    account.providerResource?.connection.revokedAt ||
+    account.providerResource?.connection.status === "REVOKED"
+  ) {
+    return {
+      ok: false,
+      error: "Kết nối Facebook đã bị thu hồi — hãy reconnect trước khi gọi provider.",
     };
   }
 

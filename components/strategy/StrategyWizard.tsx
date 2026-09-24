@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { Download, FileSpreadsheet, Loader2, Sparkles, Target } from "lucide-react";
@@ -13,6 +13,7 @@ import { FrameworkPicker } from "./FrameworkPicker";
 import { StrategyPreview } from "./StrategyPreview";
 import {
   generateStrategy,
+  getStrategyRunProgress,
   syncStrategyAgentResult,
   exportStrategyMd,
   getStrategyData,
@@ -51,6 +52,8 @@ export function StrategyWizard({
   );
   const [genError, setGenError] = useState<string | null>(null);
   const [agentNotice, setAgentNotice] = useState<string | null>(null);
+  const [currentRunId, setCurrentRunId] = useState<string | null>(null);
+  const [runStatus, setRunStatus] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
 
   // The strategy page loads its own data server-side; after generating we refresh so the
@@ -63,7 +66,9 @@ export function StrategyWizard({
         return;
       }
       setGenError(null);
-      setAgentNotice(`Đã giao Strategy Agent: ${res.data.runId} · ${res.data.status}`);
+      setCurrentRunId(res.data.runId);
+      setRunStatus(res.data.status);
+      setAgentNotice(`Đã giao Strategy Agent: ${res.data.runId}`);
       router.refresh();
     },
     onError: () => setGenError("Không giao được Strategy Agent."),
@@ -84,6 +89,44 @@ export function StrategyWizard({
     },
     onError: () => setGenError("Không đồng bộ được Strategy Agent result."),
   });
+
+  useEffect(() => {
+    if (!currentRunId) return;
+    let cancelled = false;
+    const timer = setInterval(async () => {
+      try {
+        const res = await getStrategyRunProgress(currentRunId);
+        if (cancelled) return;
+        if (!res.ok) {
+          clearInterval(timer);
+          setGenError(res.error);
+          setCurrentRunId(null);
+          return;
+        }
+        const status = res.data.jobStatus ?? res.data.runStatus;
+        setRunStatus(status);
+        if (res.data.completed) {
+          clearInterval(timer);
+          setAgentNotice("Strategy Agent đã hoàn tất. Đang đồng bộ kết quả…");
+          syncMutation.mutate();
+          setCurrentRunId(null);
+          return;
+        }
+        if (res.data.terminal) {
+          clearInterval(timer);
+          setGenError(res.data.error ?? `Strategy Agent kết thúc với trạng thái ${res.data.runStatus}.`);
+          setAgentNotice(null);
+          setCurrentRunId(null);
+        }
+      } catch {
+        // Giữ polling; sidebar vẫn có thể hiển thị trạng thái control plane.
+      }
+    }, 1500);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [currentRunId, syncMutation]);
 
   const exportMutation = useMutation({
     mutationFn: (strategyVersionId: string) =>
@@ -120,7 +163,7 @@ export function StrategyWizard({
     );
   }
 
-  const generating = genMutation.isPending || syncMutation.isPending;
+  const generating = genMutation.isPending || syncMutation.isPending || Boolean(currentRunId);
 
   return (
     <div className="space-y-6">
@@ -192,6 +235,11 @@ export function StrategyWizard({
               Đồng bộ kết quả Agent
             </Button>
             {agentNotice && <span className="text-xs text-muted-foreground">{agentNotice}</span>}
+            {runStatus && currentRunId && (
+              <span className="rounded-full border bg-muted px-2 py-1 text-[11px] font-semibold">
+                {runStatus}
+              </span>
+            )}
           </div>
           <p className="text-xs text-muted-foreground">
             Nguồn: {personas.length} persona · {pillars.length} trụ cột ·{" "}
@@ -208,7 +256,7 @@ export function StrategyWizard({
       {generating ? (
         <Card className="border-dashed">
           <CardContent className="py-4">
-            <AiLoading status={GEN_STATUS} />
+            <AiLoading status={runStatus ? `Strategy Agent: ${runStatus}` : GEN_STATUS} />
           </CardContent>
         </Card>
       ) : strategy ? (

@@ -20,6 +20,8 @@ import { PrismaJobQueue } from "@/lib/piltover/modules/agents/infrastructure/pri
 import { stableHash } from "@/lib/piltover/shared/contracts/stable-json";
 import { RunResultSchema } from "@/lib/piltover/shared/contracts/control-plane";
 import { resolveLocalTenant } from "@/lib/piltover/modules/marketing/infrastructure/local-tenant";
+import { ensureImcPlanFromStrategy } from "@/lib/piltover/vnext/imc-service";
+import { resolveCanonicalAgentBinding } from "@/lib/piltover/vnext/canonical-agent-binding";
 
 // Single-user local app: fixed ids match the seed (prisma/seed.ts).
 const USER_ID = "local";
@@ -413,28 +415,95 @@ export async function generateStrategy(args: {
         };
 
   const contextHash = stableHash(context);
+  const agentBinding = await resolveCanonicalAgentBinding(db, "strategy-planner");
+  const bindingHash = stableHash(agentBinding).slice(0, 12);
   const dispatched = await new AgentExecutionGateway(new PrismaJobQueue(db)).dispatch({
     organizationId: tenant.organizationId,
     workspaceId: tenant.workspaceId,
     brandId: tenant.brandId,
+    ...agentBinding,
+    repositoryAlias: "personal-brand-os",
     roleRef: "role:strategy-planner@h1",
     taskType: "STRATEGY_PLAN_30D",
     instruction:
-      "Create a 30-day strategy from the supplied Brand, Goal, Persona and Pillar context. Return one strategy-plan-result artifact containing tier1 plus exactly five weeklyOutputs. Do not mutate Piltover state directly.",
+      "Create a 30-day strategy from the supplied Brand, Goal, Persona and Pillar context. Return ONLY the canonical StrategyPlanResult/v2 JSON contract described in contractGuidance. Do not add alternate architecture fields and do not mutate Piltover state directly.",
     contextRef: { id: `strategy-plan:${tenant.brandId}:${contextHash}`, hash: contextHash },
     permissionManifestRef: "permission:h1-strategy-planner",
     route,
     taskPayload: {
       context,
-      resultContract: "StrategyPlanResult/v1",
+      resultContract: "StrategyPlanResult/v2",
+      contractGuidance:
+        "Return exactly {tier1,weeklyOutputs}. tier1 must contain contentRatio with exactly seo,educate,trust,conversion,story,community; weeklyThemes exactly 5 items with weekIndex,theme,focusPillar,objectivesMix using those same six keys; ctaPlan[{stage,cta,when}]; topicMap[{pillar,topics[]}]; recommendedTemplates[]; kpiToTrack[]; doNotList[]; assumptions[]. weeklyOutputs must be exactly 5 items; each item is {weekIndex,dailyPlans,notes}; weekIndex 1..5; dailyPlans count must be 7,7,7,7,2; every daily item is {dayIndex,objective,pillar,suggestedTopic,suggestedCta}; objective must be one of seo,educate,trust,conversion,story,community; pillar/focusPillar must exactly match one supplied pillar name.",
     },
-    idempotencyKey: `h1-strategy:${tenant.brandId}:${contextHash}`,
+    idempotencyKey: `h1-strategy-v2:${tenant.brandId}:${contextHash}:${bindingHash}`,
     requiredCapabilities: ["strategy.plan"],
     priority: 60,
+    executionPolicy: { mode: "sequential", resourceKey: `strategy:${tenant.brandId}` },
   });
 
   revalidatePath("/strategy");
   return { ok: true, data: { runId: dispatched.runId, status: dispatched.status } };
+}
+
+export async function getStrategyRunProgress(runId: string): Promise<
+  ActionResult<{
+    runStatus: string;
+    jobStatus: string | null;
+    attemptCount: number;
+    maxAttempts: number;
+    leased: boolean;
+    completed: boolean;
+    terminal: boolean;
+    error: string | null;
+  }>
+> {
+  const tenant = await resolveLocalTenant(db);
+  const run = await db.agentRun.findFirst({
+    where: {
+      id: runId,
+      organizationId: tenant.organizationId,
+      workspaceId: tenant.workspaceId,
+      brandId: tenant.brandId,
+      roleRef: "role:strategy-planner@h1",
+    },
+    include: {
+      jobs: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: {
+          status: true,
+          attemptCount: true,
+          maxAttempts: true,
+          currentLeaseId: true,
+        },
+      },
+    },
+  });
+  if (!run) return { ok: false, error: "Không tìm thấy Strategy Agent run." };
+  const job = run.jobs[0] ?? null;
+  return {
+    ok: true,
+    data: {
+      runStatus: run.status,
+      jobStatus: job?.status ?? null,
+      attemptCount: job?.attemptCount ?? 0,
+      maxAttempts: job?.maxAttempts ?? 0,
+      leased: Boolean(job?.currentLeaseId),
+      completed: run.status === "COMPLETED",
+      terminal: ["COMPLETED", "FAILED", "CANCELLED"].includes(run.status),
+      error:
+        run.status === "FAILED" && run.terminalResult && typeof run.terminalResult === "object" && !Array.isArray(run.terminalResult)
+          ? (() => {
+              const raw = run.terminalResult as Record<string, unknown>;
+              const err = raw.error;
+              return err && typeof err === "object" && !Array.isArray(err) && typeof (err as Record<string, unknown>).message === "string"
+                ? String((err as Record<string, unknown>).message)
+                : "Strategy Agent thất bại.";
+            })()
+          : null,
+    },
+  };
 }
 
 export async function syncStrategyAgentResult(): Promise<
@@ -455,13 +524,39 @@ export async function syncStrategyAgentResult(): Promise<
     return { ok: false, error: "Chưa có Strategy Agent run hoàn tất." };
   }
 
+  const alreadySynced = await db.strategyVersion.findUnique({
+    where: { sourceAgentRunId: run.id },
+    select: { id: true, strategyId: true },
+  });
+  if (alreadySynced) {
+    await ensureImcPlanFromStrategy(db, alreadySynced.id);
+    return {
+      ok: true,
+      data: { strategyId: alreadySynced.strategyId, versionId: alreadySynced.id, runId: run.id },
+    };
+  }
+
   const terminal = RunResultSchema.parse(run.terminalResult);
   const artifact = terminal.artifacts?.find((item) => item.kind === "strategy-plan-result");
   if (!artifact?.payload || typeof artifact.payload !== "object" || artifact.payload === null) {
     return { ok: false, error: "Strategy Agent chưa trả artifact strategy-plan-result." };
   }
   const raw = artifact.payload as Record<string, unknown>;
-  const tier1Raw = strategyOutputSchema.parse(raw.tier1);
+  const canonicalPlan = z.object({
+    tier1: strategyOutputSchema,
+    weeklyOutputs: z.array(weeklyPlanOutputSchema).length(5),
+  }).safeParse(raw);
+  if (!canonicalPlan.success) {
+    const detail = canonicalPlan.error.issues
+      .slice(0, 6)
+      .map((issue) => `${issue.path.join(".") || "root"}: ${issue.message}`)
+      .join("; ");
+    return {
+      ok: false,
+      error: `Strategy Agent result không đúng StrategyPlanResult/v2: ${detail}`,
+    };
+  }
+  const tier1Raw = canonicalPlan.data.tier1;
   const tier1 = {
     ...tier1Raw,
     contentRatio: normalizeRecordTo100(tier1Raw.contentRatio),
@@ -470,7 +565,7 @@ export async function syncStrategyAgentResult(): Promise<
       objectivesMix: normalizeRecordTo100(w.objectivesMix),
     })),
   };
-  const weeklyOutputsRaw = z.array(weeklyPlanOutputSchema).length(5).parse(raw.weeklyOutputs);
+  const weeklyOutputsRaw = canonicalPlan.data.weeklyOutputs;
   const weeklyOutputs: WeeklyPlanOutput[] = weeklyOutputsRaw.map((week, index) => {
     const expectedDays = DAYS_PER_WEEK[index];
     if (week.weekIndex !== index + 1 || week.dailyPlans.length !== expectedDays) {
@@ -498,8 +593,58 @@ export async function syncStrategyAgentResult(): Promise<
   const pillarNameToId: Record<string, string> = {};
   for (const pillar of pillars) pillarNameToId[pillar.name] = pillar.id;
   const assembledWeeks = assembleStrategy(tier1, weeklyOutputs, pillarNameToId);
-  const goal = await db.goal.findUnique({ where: { id: goalId }, select: { name: true } });
+  const goal = await db.goal.findUnique({
+    where: { id: goalId },
+    select: { name: true, goalType: true, targetAudience: true, mainOffer: true },
+  });
   if (!goal) return { ok: false, error: "Không tìm thấy goal của Strategy Agent run." };
+
+  const brandContext =
+    payload?.brandDna && typeof payload.brandDna === "object" && !Array.isArray(payload.brandDna)
+      ? (payload.brandDna as Record<string, unknown>)
+      : {};
+  const personasContext = Array.isArray(payload?.personas) ? payload.personas : [];
+  const pillarsContext = Array.isArray(payload?.pillars) ? payload.pillars : [];
+  const themeSummary = tier1.weeklyThemes.map((item) => item.theme).filter(Boolean).join(" → ");
+  const structuredPlan = {
+    schemaVersion: "piltover.marketing-strategy/v1",
+    diagnosis: {
+      assumptions: tier1.assumptions,
+      guardrails: tier1.doNotList,
+    },
+    marketContext: {
+      timeframeDays: 30,
+      frameworkSlug: frameworkSlug ?? null,
+      sourceAgentRunId: run.id,
+    },
+    audiences: personasContext,
+    positioning: {
+      ...brandContext,
+      targetAudience: goal.targetAudience,
+      offer: goal.mainOffer,
+    },
+    strategicThesis:
+      themeSummary || `Execute a 30-day content strategy to achieve ${goal.name}.`,
+    objectives: [
+      {
+        key: goal.goalType,
+        name: goal.name,
+        contentRatio: tier1.contentRatio,
+      },
+    ],
+    funnel: {
+      ctaPlan: tier1.ctaPlan,
+    },
+    channels: [],
+    contentPillars: tier1.topicMap.length ? tier1.topicMap : pillarsContext,
+    kpis: tier1.kpiToTrack.map((key) => ({ key })),
+    assumptions: tier1.assumptions,
+    risks: tier1.doNotList.map((description) => ({
+      type: "guardrail",
+      description,
+    })),
+    experiments: [],
+  };
 
   try {
     const result = await createStrategyVersion({
@@ -508,8 +653,11 @@ export async function syncStrategyAgentResult(): Promise<
       frameworkSlug,
       tier1,
       assembledWeeks,
+      sourceAgentRunId: run.id,
+      structuredPlan,
       reason: `Strategy Agent H1 run ${run.id}: tạo kế hoạch 30 ngày từ context đã duyệt`,
     });
+    await ensureImcPlanFromStrategy(db, result.versionId);
     revalidatePath("/strategy");
     revalidatePath("/");
     return {

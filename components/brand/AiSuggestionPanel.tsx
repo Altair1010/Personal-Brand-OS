@@ -1,124 +1,122 @@
 "use client";
 
-import { useState } from "react";
-import { Sparkles } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { AiLoading } from "@/components/AiLoading";
 import { ErrorState } from "@/components/ErrorState";
 import { useOnboardingStore } from "@/lib/stores/onboarding";
-
-// D.1 Brand DNA Analyzer UI. Client component that ONLY fetches the server route — it never
-// imports lib/ai/* so the API key stays server-side. On success it renders positioning +
-// threeWords + suggested topics; "Áp dụng" writes only threeWords back into the wizard.
+import { invokeAgentAi } from "@/lib/ai/agent-client";
+import type { BrandDnaInput } from "@/lib/validators/brandDna";
 
 interface BrandDnaResult {
   positioning: string;
   threeWords: [string, string, string];
+  differentiationSharpened: string;
   suggestedEducationTopics: string[];
+  profilePatch?: Partial<BrandDnaInput>;
+}
+
+function isBlank(value: unknown): boolean {
+  if (Array.isArray(value)) return value.length === 0;
+  return value === undefined || value === null || (typeof value === "string" && value.trim() === "");
 }
 
 export function AiSuggestionPanel() {
   const brand = useOnboardingStore((s) => s.brand);
+  const sourceDocuments = useOnboardingStore((s) => s.sourceDocuments);
+  const analysisRequestId = useOnboardingStore((s) => s.analysisRequestId);
   const patchBrand = useOnboardingStore((s) => s.patchBrand);
-
+  const handledAnalysisRequest = useRef(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<BrandDnaResult | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   async function analyze() {
+    if (loading) return;
     setLoading(true);
     setError(null);
-    setResult(null);
+    setNotice(null);
     try {
-      const res = await fetch("/api/ai/brand-dna", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          whoAmI: brand.whoAmI,
-          field: brand.field,
-          coreBeliefs: brand.coreBeliefs,
-          differentiation: brand.differentiation,
-          personalStory: brand.personalStory,
-          expertise: brand.expertise,
-          customerProfile: brand.customerProfile,
-          customerPain: brand.customerPain,
-          customerMisunderstanding: brand.customerMisunderstanding,
-          marketEducationGoal: brand.marketEducationGoal,
-        }),
+      const extractedFileText = sourceDocuments
+        .map((doc) => `# SOURCE: ${doc.fileName}\n${doc.text}`)
+        .join("\n\n");
+      const data = await invokeAgentAi<BrandDnaResult>("/api/ai/brand-dna", {
+        whoAmI: brand.whoAmI,
+        field: brand.field,
+        coreBeliefs: brand.coreBeliefs,
+        differentiation: brand.differentiation,
+        personalStory: brand.personalStory,
+        expertise: brand.expertise,
+        customerProfile: brand.customerProfile,
+        customerPain: brand.customerPain,
+        customerMisunderstanding: brand.customerMisunderstanding,
+        marketEducationGoal: brand.marketEducationGoal,
+        extractedFileText: extractedFileText || undefined,
       });
-      const json = await res.json();
-      if (!res.ok || !json.ok) {
-        setError(json.error ?? "Phân tích thất bại. Vui lòng thử lại.");
-        return;
+
+      const patch: Partial<BrandDnaInput> = {};
+      const candidate = data.profilePatch ?? {};
+      for (const [key, value] of Object.entries(candidate)) {
+        const current = brand[key as keyof BrandDnaInput];
+        if (isBlank(current) && !isBlank(value)) {
+          (patch as Record<string, unknown>)[key] = value;
+        }
       }
-      setResult(json.data as BrandDnaResult);
-    } catch {
-      setError("Không kết nối được tới máy chủ AI.");
+      if (isBlank(brand.aiPositioning) && data.positioning) {
+        patch.aiPositioning = data.positioning;
+      }
+      if (isBlank(brand.threeWords) && data.threeWords?.length === 3) {
+        patch.threeWords = [...data.threeWords];
+      }
+      if (isBlank(brand.differentiation) && data.differentiationSharpened) {
+        patch.differentiation = data.differentiationSharpened;
+      }
+      if (isBlank(brand.marketEducationGoal) && data.suggestedEducationTopics?.length) {
+        patch.marketEducationGoal = data.suggestedEducationTopics.join("\n");
+      }
+
+      patchBrand(patch);
+      const count = Object.keys(patch).length;
+      setNotice(
+        count > 0
+          ? `Agent đã phân tích nguồn và tự điền ${count} trường còn trống. Bạn có thể chỉnh sửa trực tiếp bên dưới.`
+          : "Agent đã phân tích xong; không có trường trống nào cần tự điền.",
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Không kết nối được Agent Control Plane. Kiểm tra OpenClaw/OAuth worker trong Cài đặt.",
+      );
     } finally {
       setLoading(false);
     }
   }
 
+  useEffect(() => {
+    if (analysisRequestId <= 0 || analysisRequestId === handledAnalysisRequest.current) return;
+    handledAnalysisRequest.current = analysisRequestId;
+    void analyze();
+    // analysisRequestId is an explicit upload-trigger nonce; other Brand DNA edits must not retrigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [analysisRequestId]);
+
   return (
     <Card className="border-dashed">
-      <CardContent className="space-y-4 py-4">
-        <div className="flex items-center justify-between gap-4">
-          <div className="text-sm text-muted-foreground">
-            <p className="font-medium text-foreground">Phân tích AI</p>
-            <p>Gợi ý định vị + 3 từ khoá thương hiệu từ thông tin đã nhập.</p>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={analyze}
-            disabled={loading}
-          >
-            <Sparkles className="size-4" />
-            Phân tích AI
-          </Button>
+      <CardContent className="flex items-center justify-between gap-4 py-4">
+        <div className="text-sm">
+          <p className="font-medium text-foreground">Phân tích Brand DNA bằng Agent</p>
+          <p className="mt-1 text-muted-foreground">
+            Upload file sẽ tự kích hoạt Agent phân tích và chỉ điền các ô đang trống. Bạn vẫn có thể sửa thủ công sau đó.
+          </p>
+          {notice && <p className="mt-2 text-emerald-700">{notice}</p>}
+          {error && <div className="mt-2"><ErrorState message={error} onRetry={analyze} /></div>}
         </div>
-
-        {loading && <AiLoading status="AI đang phân tích thương hiệu..." />}
-
-        {error && !loading && (
-          <ErrorState message={error} onRetry={analyze} />
-        )}
-
-        {result && !loading && (
-          <div className="space-y-3 rounded-lg border bg-muted/30 p-4 text-sm">
-            <div>
-              <p className="font-medium text-foreground">Định vị</p>
-              <p className="text-muted-foreground">{result.positioning}</p>
-            </div>
-            <div>
-              <p className="font-medium text-foreground">3 từ khoá</p>
-              <p className="text-muted-foreground">
-                {result.threeWords.join(" · ")}
-              </p>
-            </div>
-            {result.suggestedEducationTopics.length > 0 && (
-              <div>
-                <p className="font-medium text-foreground">
-                  Chủ đề giáo dục gợi ý
-                </p>
-                <ul className="list-disc pl-5 text-muted-foreground">
-                  {result.suggestedEducationTopics.map((t, i) => (
-                    <li key={i}>{t}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => patchBrand({ threeWords: [...result.threeWords] })}
-            >
-              Áp dụng 3 từ khoá
-            </Button>
-          </div>
-        )}
+        <Button type="button" variant="outline" onClick={analyze} disabled={loading}>
+          {loading ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+          {loading ? "Agent đang phân tích..." : "Phân tích AI"}
+        </Button>
       </CardContent>
     </Card>
   );

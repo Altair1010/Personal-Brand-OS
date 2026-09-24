@@ -10,7 +10,7 @@ import { getStrategyData } from "./actions";
 // set, render a locked EmptyState pointing back at /audience-pillars. Once approved, the
 // 30-day builder (StrategyWizard) is exposed with the current strategy if one exists.
 
-export const dynamic = "force-dynamic";
+export const revalidate = 30;
 
 export default async function StrategyPage() {
   const data = await getStrategyData();
@@ -19,12 +19,12 @@ export default async function StrategyPage() {
     return (
       <>
         <PageHeader
-          title="Chiến lược nội dung"
+          title="Content Strategy"
           description="Lập kế hoạch nội dung 30 ngày theo tuần"
         />
         <EmptyState
           icon={Lock}
-          title="Chưa duyệt Khán giả & Trụ cột"
+          title="Audience Approval Required"
           description="Hãy xác nhận Persona & Trụ cột và bấm “Duyệt & tạo chiến lược” trước khi vào bước này."
         />
         <div className="flex justify-center">
@@ -39,7 +39,7 @@ export default async function StrategyPage() {
   return (
     <>
       <PageHeader
-        title="Chiến lược nội dung"
+        title="Content Strategy"
         description="Lập kế hoạch nội dung 30 ngày theo tuần"
       />
       <StrategyWizard

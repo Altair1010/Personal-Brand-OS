@@ -4,7 +4,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { CampaignWorkspace } from "@/components/marketing/CampaignWorkspace";
 import { getCampaignWorkspaceData } from "./actions";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 30;
 
 export default async function CampaignsPage() {
   const data = await getCampaignWorkspaceData();
@@ -12,13 +12,13 @@ export default async function CampaignsPage() {
   return (
     <>
       <PageHeader
-        title="Chiến dịch"
+        title="Campaigns"
         description="Nối chiến lược với Organic delivery, Meta Ads và performance evidence"
       />
       {!data.strategyVersionId ? (
         <EmptyState
           icon={Megaphone}
-          title="Chưa có chiến lược hoạt động"
+          title="No Active Strategy"
           description="Tạo chiến lược trước, sau đó dùng chiến dịch để chạy golden path H1."
         />
       ) : (

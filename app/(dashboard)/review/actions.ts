@@ -12,6 +12,7 @@ import { PrismaJobQueue } from "@/lib/piltover/modules/agents/infrastructure/pri
 import { stableHash } from "@/lib/piltover/shared/contracts/stable-json";
 import { RunResultSchema } from "@/lib/piltover/shared/contracts/control-plane";
 import { resolveLocalTenant } from "@/lib/piltover/modules/marketing/infrastructure/local-tenant";
+import { resolveCanonicalAgentBinding } from "@/lib/piltover/vnext/canonical-agent-binding";
 
 // Single-user local app: fixed ids match the seed (prisma/seed.ts).
 const USER_ID = "local";
@@ -353,10 +354,14 @@ export async function generateRevision(): Promise<
         };
 
   const contextHash = stableHash(input);
+  const agentBinding = await resolveCanonicalAgentBinding(db, "strategy-revision");
+  const bindingHash = stableHash(agentBinding).slice(0, 12);
   const dispatched = await new AgentExecutionGateway(new PrismaJobQueue(db)).dispatch({
     organizationId: tenant.organizationId,
     workspaceId: tenant.workspaceId,
     brandId: tenant.brandId,
+    ...agentBinding,
+    repositoryAlias: "personal-brand-os",
     roleRef: "role:strategy-revision@h1",
     taskType: "STRATEGY_REVISION",
     instruction:
@@ -368,9 +373,10 @@ export async function generateRevision(): Promise<
       context: input,
       resultContract: "StrategyRevisionResult/v1",
     },
-    idempotencyKey: `h1-strategy-revision:${tenant.brandId}:${contextHash}`,
+    idempotencyKey: `h1-strategy-revision:${tenant.brandId}:${contextHash}:${bindingHash}`,
     requiredCapabilities: ["strategy.revise"],
     priority: 55,
+    executionPolicy: { mode: "sequential", resourceKey: `strategy:${tenant.brandId}` },
   });
 
   return { ok: true, data: { runId: dispatched.runId, status: dispatched.status } };

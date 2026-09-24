@@ -28,7 +28,7 @@ export function WeeklyAdjustmentCard({
         <CardTitle className="text-base">
           Đề xuất điều chỉnh tuần này
         </CardTitle>
-        <Badge className="border-transparent bg-slate-100 text-slate-700">
+        <Badge className="border-transparent bg-[var(--neu-teal-soft)] text-[var(--neu-teal)]">
           từ v{bundle.currentVersion}
         </Badge>
       </CardHeader>

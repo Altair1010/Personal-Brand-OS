@@ -1,187 +1,258 @@
 "use server";
 
+import { execFile } from "node:child_process";
+import { Socket } from "node:net";
+import { promisify } from "node:util";
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
 import { db } from "@/lib/db";
-import { resolveModelConfig } from "@/lib/ai/adapter";
-import { encryptString } from "@/lib/ai/keystore";
 import { wipeAll } from "@/lib/import-export/backup";
 import { seedCore } from "@/prisma/seedCore";
+
+const execFileAsync = promisify(execFile);
+const WORKER_FRESH_MS = 60_000;
+
+type StatusTone = "ok" | "warn" | "offline";
+
+export type ControlPlaneItem = {
+  label: string;
+  status: string;
+  tone: StatusTone;
+  detail: string;
+};
+
+export type WorkerDTO = {
+  id: string;
+  adapter: string;
+  status: string;
+  lastSeenAt: string | null;
+  fresh: boolean;
+  capabilities: string[];
+  credentialExpiresAt: string | null;
+  credentialState: "VALID" | "EXPIRING" | "EXPIRED" | "MISSING";
+};
+
+export type SettingsData = {
+  routing: {
+    policy: "AGENT_FIRST";
+    openClawReady: boolean;
+    oauthReady: boolean;
+    workers: WorkerDTO[];
+    legacyApiKeyConfigs: number;
+  };
+  controlPlane: {
+    infrastructure: ControlPlaneItem[];
+    codebase: ControlPlaneItem[];
+    server: ControlPlaneItem[];
+    issues: ControlPlaneItem[];
+    agents: ControlPlaneItem[];
+    futureSlots: string[];
+  };
+};
+
+async function git(args: string[]): Promise<string> {
+  try {
+    const { stdout } = await execFileAsync("git", args, {
+      cwd: process.cwd(),
+      windowsHide: true,
+    });
+    return stdout.trim();
+  } catch {
+    return "";
+  }
+}
+
+async function tcpReachable(host: string, port: number, timeoutMs = 500): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = new Socket();
+    let settled = false;
+    const finish = (value: boolean) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      resolve(value);
+    };
+    socket.setTimeout(timeoutMs);
+    socket.once("connect", () => finish(true));
+    socket.once("timeout", () => finish(false));
+    socket.once("error", () => finish(false));
+    socket.connect(port, host);
+  });
+}
+
+export async function getSettingsData(): Promise<SettingsData> {
+  const now = Date.now();
+  const [workers, legacyApiKeyConfigs, failedRuns, retryJobs, branch, commit, status, openClawGatewayReady] =
+    await Promise.all([
+      db.worker.findMany({
+        include: {
+          capabilities: true,
+          credentials: {
+            where: { revokedAt: null },
+            orderBy: { expiresAt: "desc" },
+            take: 1,
+          },
+        },
+        orderBy: { lastSeenAt: "desc" },
+      }),
+      db.aIModelConfig.count({ where: { apiKey: { not: null } } }),
+      db.agentRun.count({ where: { status: "FAILED" } }),
+      db.job.count({ where: { status: { in: ["RETRY_PENDING", "FAILED"] } } }),
+      git(["branch", "--show-current"]),
+      git(["rev-parse", "--short", "HEAD"]),
+      git(["status", "--short"]),
+      tcpReachable("127.0.0.1", 18789),
+    ]);
+
+  const workerDtos: WorkerDTO[] = workers.map((worker) => {
+    const lastSeenAt = worker.lastSeenAt?.toISOString() ?? null;
+    const credential = worker.credentials[0] ?? null;
+    const credentialMs = credential?.expiresAt.getTime() ?? 0;
+    const credentialState: WorkerDTO["credentialState"] = !credential
+      ? "MISSING"
+      : credentialMs <= now
+        ? "EXPIRED"
+        : credentialMs - now <= 7 * 24 * 60 * 60 * 1000
+          ? "EXPIRING"
+          : "VALID";
+    return {
+      id: worker.id,
+      adapter: worker.runtimeAdapter,
+      status: worker.status,
+      lastSeenAt,
+      fresh:
+        worker.status === "ACTIVE" &&
+        !!worker.lastSeenAt &&
+        now - worker.lastSeenAt.getTime() < WORKER_FRESH_MS,
+      capabilities: worker.capabilities.map(({ capability }) => capability).sort(),
+      credentialExpiresAt: credential?.expiresAt.toISOString() ?? null,
+      credentialState,
+    };
+  });
+  const openClawReady = workerDtos.some(
+    (worker) => worker.fresh && worker.capabilities.includes("agent.execute.openclaw"),
+  );
+  const oauthReady = workerDtos.some(
+    (worker) => worker.fresh && worker.capabilities.includes("agent.execute.oauth"),
+  );
+  const dirtyCount = status ? status.split(/\r?\n/).filter(Boolean).length : 0;
+
+  return {
+    routing: {
+      policy: "AGENT_FIRST",
+      openClawReady,
+      oauthReady,
+      workers: workerDtos,
+      legacyApiKeyConfigs,
+    },
+    controlPlane: {
+      infrastructure: [
+        {
+          label: "Worker HTTP Bridge",
+          status: process.env.PILTOVER_P4_WORKER_HTTPS_POLLING === "true" ? "ENABLED" : "DISABLED",
+          tone: process.env.PILTOVER_P4_WORKER_HTTPS_POLLING === "true" ? "ok" : "offline",
+          detail: "Authenticated worker transport for OpenClaw/OAuth execution.",
+        },
+        {
+          label: "Database",
+          status: "CONNECTED",
+          tone: "ok",
+          detail: "Prisma control-plane state is readable.",
+        },
+        {
+          label: "OpenClaw Gateway",
+          status: openClawGatewayReady ? "ONLINE" : "OFFLINE",
+          tone: openClawGatewayReady ? "ok" : "offline",
+          detail: "Local gateway probe at 127.0.0.1:18789.",
+        },
+      ],
+      codebase: [
+        {
+          label: "Git branch",
+          status: branch || "UNKNOWN",
+          tone: branch ? "ok" : "warn",
+          detail: commit ? `HEAD ${commit}` : "Git metadata unavailable.",
+        },
+        {
+          label: "Working tree",
+          status: dirtyCount === 0 ? "CLEAN" : `${dirtyCount} CHANGES`,
+          tone: dirtyCount === 0 ? "ok" : "warn",
+          detail: dirtyCount === 0 ? "No tracked/untracked changes." : "Local H1 work is not committed yet.",
+        },
+        {
+          label: "AI execution boundary",
+          status: "AGENT/OAUTH ONLY",
+          tone: "ok",
+          detail: "Active product AI routes dispatch through Agent Control Plane; direct model API-key execution is disabled.",
+        },
+        {
+          label: "Brand DNA file intake",
+          status: "MD / DOCX / PDF",
+          tone: "ok",
+          detail: "Markdown (.md/.markdown), Word and PDF are accepted as source material.",
+        },
+      ],
+      server: [
+        {
+          label: "Piltover runtime",
+          status: "ONLINE",
+          tone: "ok",
+          detail: `Node ${process.version}; worker transport evaluated at server startup.`,
+        },
+        {
+          label: "Execution policy",
+          status: "AGENT FIRST",
+          tone: "ok",
+          detail: "OpenClaw preferred; OAuth worker is fallback. Model API-key execution is disabled in product routes.",
+        },
+      ],
+      issues: [
+        {
+          label: "Failed agent runs",
+          status: String(failedRuns),
+          tone: failedRuns === 0 ? "ok" : "warn",
+          detail: "Terminal AgentRun failures in the local control plane.",
+        },
+        {
+          label: "Retry/failed jobs",
+          status: String(retryJobs),
+          tone: retryJobs === 0 ? "ok" : "warn",
+          detail: "Jobs requiring retry or already exhausted.",
+        },
+        {
+          label: "Legacy API-key configs",
+          status: String(legacyApiKeyConfigs),
+          tone: legacyApiKeyConfigs === 0 ? "ok" : "warn",
+          detail: "Historical DB records only; active product AI routes no longer consume them.",
+        },
+      ],
+      agents: workerDtos.map((worker) => ({
+        label: worker.id,
+        status: worker.fresh ? "ONLINE" : worker.status,
+        tone: worker.fresh && worker.credentialState === "VALID" ? "ok" : worker.credentialState === "EXPIRING" ? "warn" : "offline",
+        detail: [
+          worker.adapter,
+          worker.capabilities.join(", ") || "no capabilities",
+          `credential ${worker.credentialState.toLowerCase()}${worker.credentialExpiresAt ? ` until ${worker.credentialExpiresAt}` : ""}`,
+        ].join(" · "),
+      })),
+      futureSlots: [
+        "Deployment / release health",
+        "Repository & migration health",
+        "External connector health",
+        "Observability / incident status",
+      ],
+    },
+  };
+}
 
 type ActionResult<T = undefined> =
   | { ok: true; data: T }
   | { ok: false; error: string };
 
-// ============================================================
-// DTOs (serializable — Date → ISO string)
-// ============================================================
-
-export type AiModelConfigDTO = {
-  id: string;
-  provider: string;
-  model: string;
-  label: string | null;
-  temperature: number | null;
-  maxTokens: number | null;
-  isDefault: boolean;
-  // NEVER expose the encrypted/raw key to the client — only whether one is stored.
-  hasKey: boolean;
-  createdAt: string;
-};
-
-export type SettingsData = {
-  configs: AiModelConfigDTO[];
-  active: { provider: string; model: string } | null;
-};
-
-// ============================================================
-// Reads
-// ============================================================
-
-export async function getSettingsData(): Promise<SettingsData> {
-  const rows = await db.aIModelConfig.findMany({
-    orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
-  });
-
-  // resolveModelConfig throws when no model is set → treat as "no active model".
-  let active: { provider: string; model: string } | null = null;
-  try {
-    active = await resolveModelConfig();
-  } catch {
-    active = null;
-  }
-
-  return {
-    configs: rows.map((r) => ({
-      id: r.id,
-      provider: r.provider,
-      model: r.model,
-      label: r.label,
-      temperature: r.temperature,
-      maxTokens: r.maxTokens,
-      isDefault: r.isDefault,
-      hasKey: !!r.apiKey,
-      createdAt: r.createdAt.toISOString(),
-    })),
-    active,
-  };
-}
-
-// ============================================================
-// Mutations
-// ============================================================
-
-const saveModelConfigSchema = z.object({
-  provider: z.enum(["anthropic", "openai"]),
-  // Accept a preset model id OR any non-empty custom string (RULES #3: presets are DATA,
-  // not a hard whitelist — a custom model must still be allowed).
-  model: z.string().min(1),
-  label: z.string().optional(),
-  temperature: z.number().optional(),
-  maxTokens: z.number().int().optional(),
-  isDefault: z.boolean().optional(),
-  apiKey: z.string().min(1).optional(),
-});
-
-export type SaveModelConfigInput = z.input<typeof saveModelConfigSchema>;
-
-export async function saveModelConfig(
-  input: SaveModelConfigInput,
-): Promise<ActionResult<{ id: string }>> {
-  const parsed = saveModelConfigSchema.safeParse(input);
-  if (!parsed.success) {
-    return { ok: false, error: "Cấu hình model không hợp lệ." };
-  }
-  const v = parsed.data;
-  const isDefault = v.isDefault ?? true;
-
-  // Encrypt the key BEFORE any DB write — plaintext never reaches the database.
-  let encryptedKey: string | null = null;
-  if (v.apiKey) {
-    try {
-      encryptedKey = encryptString(v.apiKey);
-    } catch (e) {
-      return {
-        ok: false,
-        error: e instanceof Error ? e.message : "Mã hóa API key thất bại.",
-      };
-    }
-  }
-
-  try {
-    const created = await db.$transaction(async (tx) => {
-      if (isDefault) {
-        await tx.aIModelConfig.updateMany({
-          data: { isDefault: false },
-        });
-      }
-      return tx.aIModelConfig.create({
-        data: {
-          provider: v.provider,
-          model: v.model,
-          label: v.label ?? null,
-          temperature: v.temperature ?? null,
-          maxTokens: v.maxTokens ?? null,
-          isDefault,
-          apiKey: encryptedKey,
-        },
-        select: { id: true },
-      });
-    });
-    revalidatePath("/settings");
-    return { ok: true, data: { id: created.id } };
-  } catch (e) {
-    return {
-      ok: false,
-      error: e instanceof Error ? e.message : "Lưu cấu hình thất bại.",
-    };
-  }
-}
-
-export async function setDefaultModelConfig(
-  id: string,
-): Promise<ActionResult> {
-  try {
-    await db.$transaction(async (tx) => {
-      const target = await tx.aIModelConfig.findUnique({ where: { id } });
-      if (!target) throw new Error("Không tìm thấy cấu hình model.");
-      await tx.aIModelConfig.updateMany({ data: { isDefault: false } });
-      await tx.aIModelConfig.update({
-        where: { id },
-        data: { isDefault: true },
-      });
-    });
-    revalidatePath("/settings");
-    return { ok: true, data: undefined };
-  } catch (e) {
-    return {
-      ok: false,
-      error: e instanceof Error ? e.message : "Đặt mặc định thất bại.",
-    };
-  }
-}
-
-export async function deleteModelConfig(id: string): Promise<ActionResult> {
-  try {
-    await db.aIModelConfig.delete({ where: { id } });
-    revalidatePath("/settings");
-    return { ok: true, data: undefined };
-  } catch (e) {
-    return {
-      ok: false,
-      error: e instanceof Error ? e.message : "Xóa cấu hình thất bại.",
-    };
-  }
-}
-
-export async function resetDatabase(
-  confirmText: string,
-): Promise<ActionResult> {
-  // Server RE-CHECKS the confirmation phrase — never trust the client alone.
+export async function resetDatabase(confirmText: string): Promise<ActionResult> {
   if (confirmText !== "RESET") {
     return { ok: false, error: "Xác nhận không đúng. Nhập chính xác RESET." };
   }
-
   try {
     await db.$transaction(async (tx) => {
       await wipeAll(tx);
@@ -189,10 +260,10 @@ export async function resetDatabase(
     });
     revalidatePath("/settings");
     return { ok: true, data: undefined };
-  } catch (e) {
+  } catch (error) {
     return {
       ok: false,
-      error: e instanceof Error ? e.message : "Reset dữ liệu thất bại.",
+      error: error instanceof Error ? error.message : "Reset dữ liệu thất bại.",
     };
   }
 }

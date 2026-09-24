@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AiLoading } from "@/components/AiLoading";
 import { ErrorState } from "@/components/ErrorState";
+import { invokeAgentAi } from "@/lib/ai/agent-client";
 
 interface ToneRewriterProps {
   currentBody: string;
@@ -23,31 +24,12 @@ export function ToneRewriter({ currentBody, onRewritten }: ToneRewriterProps) {
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/ai/tone", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: currentBody, targetTone }),
-      });
-      const json: unknown = await res.json();
-      if (!res.ok) {
-        const msg =
-          typeof json === "object" && json !== null && "error" in json
-            ? String((json as { error: unknown }).error)
-            : "Đổi tone thất bại";
-        throw new Error(msg);
-      }
-      const data =
-        typeof json === "object" && json !== null && "data" in json
-          ? (json as { data: unknown }).data
-          : null;
-      const rewritten =
-        typeof data === "object" && data !== null && "rewritten" in data
-          ? String((data as { rewritten: unknown }).rewritten)
-          : "";
-      const changes =
-        typeof data === "object" && data !== null && "changesSummary" in data
-          ? String((data as { changesSummary: unknown }).changesSummary)
-          : "";
+      const data = await invokeAgentAi<{ rewritten?: unknown; changesSummary?: unknown }>(
+        "/api/ai/tone",
+        { text: currentBody, targetTone },
+      );
+      const rewritten = typeof data.rewritten === "string" ? data.rewritten : "";
+      const changes = typeof data.changesSummary === "string" ? data.changesSummary : "";
       return { rewritten, changes };
     },
     onSuccess: ({ rewritten, changes }) => {

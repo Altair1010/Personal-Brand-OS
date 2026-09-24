@@ -66,7 +66,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
             {isSignup ? "Tạo tài khoản" : "Đăng nhập"}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Personal Brand OS — đồng bộ & sao lưu đám mây
+            Piltover — đồng bộ & sao lưu đám mây
           </p>
         </div>
 

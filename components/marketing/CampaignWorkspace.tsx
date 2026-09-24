@@ -1,16 +1,20 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { SoftSelect } from "@/components/ui/soft-select";
+import { SoftDateTimePicker } from "@/components/ui/soft-datetime-picker";
+import { ErrorState } from "@/components/ErrorState";
 import {
   createCampaign,
   createMetaAdsCampaign,
   saveMetaAdsMetrics,
   scheduleOrganicPost,
+  transitionCampaign,
   type CampaignWorkspaceData,
 } from "@/app/(dashboard)/campaigns/actions";
 
@@ -28,9 +32,12 @@ function stateVariant(state: string) {
 }
 export function CampaignWorkspace({ data }: { data: CampaignWorkspaceData }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const facebookAccountId = searchParams.get("fb");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const [campaignName, setCampaignName] = useState("H1 Marketing Campaign");
+  const [campaignName, setCampaignName] = useState("Marketing Campaign");
+  const [selectedCampaignId, setSelectedCampaignId] = useState(data.campaigns[0]?.id ?? "");
   const [objective, setObjective] = useState("conversion");
   const [postId, setPostId] = useState(data.approvedPosts[0]?.id ?? "");
   const [scheduledAt, setScheduledAt] = useState("");
@@ -46,8 +53,21 @@ export function CampaignWorkspace({ data }: { data: CampaignWorkspaceData }) {
     conversions: "0",
   });
 
-  const current = data.campaigns[0] ?? null;
+  const current = data.campaigns.find((campaign) => campaign.id === selectedCampaignId) ?? data.campaigns[0] ?? null;
   const currentAd = current?.metaAds[0] ?? null;
+  const selectedPost = data.approvedPosts.find((post) => post.id === postId) ?? null;
+
+  useEffect(() => {
+    if (!selectedPost || scheduledAt) return;
+    const source = selectedPost.scheduledAt ?? selectedPost.plannedDate;
+    if (!source) return;
+    const date = new Date(source);
+    if (!selectedPost.scheduledAt) date.setHours(9, 0, 0, 0);
+    const pad = (value: number) => String(value).padStart(2, "0");
+    setScheduledAt(
+      `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`,
+    );
+  }, [selectedPost, scheduledAt]);
 
   function run(task: () => Promise<{ ok: boolean; error?: string }>) {
     setError(null);
@@ -71,6 +91,11 @@ export function CampaignWorkspace({ data }: { data: CampaignWorkspaceData }) {
     );
   }
 
+  function onTransitionCampaign(status: string) {
+    if (!current) return;
+    run(() => transitionCampaign({ campaignId: current.id, status: status as "DRAFT" | "PLANNING" | "READY" | "ACTIVE" | "PAUSED" | "COMPLETED" | "ARCHIVED" }));
+  }
+
   function onSchedule() {
     if (!current || !postId || !scheduledAt) {
       setError("Chọn chiến dịch, bài viết và thời gian lên lịch.");
@@ -81,6 +106,7 @@ export function CampaignWorkspace({ data }: { data: CampaignWorkspaceData }) {
         campaignId: current.id,
         postId,
         scheduledAt: new Date(scheduledAt).toISOString(),
+        facebookAccountId: facebookAccountId ?? undefined,
       }),
     );
   }
@@ -122,54 +148,85 @@ export function CampaignWorkspace({ data }: { data: CampaignWorkspaceData }) {
 
   return (
     <div className="space-y-6">
-      {error && (
-        <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-          {error}
-        </div>
-      )}
+      {error && <ErrorState message={error} />}
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card>
-          <CardHeader><CardTitle className="text-base">1. Chiến dịch</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
+      <div className="grid items-stretch gap-5 xl:grid-cols-3">
+        <Card className="flex h-full min-h-[430px] flex-col overflow-hidden">
+
+          <CardHeader className="px-6 pb-3 pt-6"><CardTitle className="text-base font-extrabold tracking-tight">1. Campaign</CardTitle></CardHeader>
+          <CardContent className="flex flex-1 flex-col gap-3 px-6 pb-6">
             <Input value={campaignName} onChange={(e) => setCampaignName(e.target.value)} />
             <Input value={objective} onChange={(e) => setObjective(e.target.value)} />
-            <Button onClick={onCreateCampaign} disabled={pending || !!current}>
-              {current ? "Đã có campaign H1" : "Tạo campaign MIXED"}
+            <Button className="w-full" onClick={onCreateCampaign} disabled={pending || !data.strategyVersionId}>
+              Tạo campaign MIXED
             </Button>
+            {data.campaigns.length > 0 && (
+              <SoftSelect
+                ariaLabel="Chọn chiến dịch"
+                value={current?.id ?? ""}
+                onChange={setSelectedCampaignId}
+                options={data.campaigns.map((campaign) => ({
+                  value: campaign.id,
+                  label: campaign.name,
+                  description: campaign.status,
+                }))}
+              />
+            )}
             {current && (
-              <div className="rounded-md border p-3 text-sm">
+              <div className="rounded-xl border border-white/20 bg-[var(--neu-inset)] p-4 text-sm [box-shadow:var(--shadow-inset)]">
                 <p className="font-medium">{current.name}</p>
                 <p className="text-muted-foreground">{current.objective} · {current.channelMode}</p>
-                <Badge className="mt-2" variant={stateVariant(current.status)}>{current.status}</Badge>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <Badge variant={stateVariant(current.status)}>{current.status}</Badge>
+                  {current.imcPlanId && <Badge variant="outline">IMC linked</Badge>}
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {current.status === "DRAFT" && <Button size="sm" variant="outline" onClick={() => onTransitionCampaign("PLANNING")} disabled={pending}>Planning</Button>}
+                  {current.status === "PLANNING" && <Button size="sm" variant="outline" onClick={() => onTransitionCampaign("READY")} disabled={pending}>Ready</Button>}
+                  {current.status === "READY" && <Button size="sm" onClick={() => onTransitionCampaign("ACTIVE")} disabled={pending}>Activate</Button>}
+                  {current.status === "ACTIVE" && <>
+                    <Button size="sm" variant="outline" onClick={() => onTransitionCampaign("PAUSED")} disabled={pending}>Pause</Button>
+                    <Button size="sm" onClick={() => onTransitionCampaign("COMPLETED")} disabled={pending}>Complete</Button>
+                  </>}
+                  {current.status === "PAUSED" && <>
+                    <Button size="sm" onClick={() => onTransitionCampaign("ACTIVE")} disabled={pending}>Resume</Button>
+                    <Button size="sm" variant="outline" onClick={() => onTransitionCampaign("COMPLETED")} disabled={pending}>Complete</Button>
+                  </>}
+                  {["DRAFT","PLANNING","READY","PAUSED","COMPLETED"].includes(current.status) && (
+                    <Button size="sm" variant="ghost" onClick={() => onTransitionCampaign("ARCHIVED")} disabled={pending}>Archive</Button>
+                  )}
+                </div>
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader><CardTitle className="text-base">2. Organic delivery</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            <select
-              className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+        <Card className="flex h-full min-h-[430px] flex-col overflow-hidden">
+          <CardHeader className="px-6 pb-3 pt-6"><CardTitle className="text-base font-extrabold tracking-tight">2. Organic Delivery</CardTitle></CardHeader>
+          <CardContent className="flex flex-1 flex-col gap-3 px-6 pb-6">
+            <SoftSelect
+              ariaLabel="Chọn bài đã duyệt"
               value={postId}
-              onChange={(e) => setPostId(e.target.value)}
-            >
-              <option value="">Chọn bài đã duyệt</option>
-              {data.approvedPosts.map((post) => (
-                <option key={post.id} value={post.id}>{post.title}</option>
-              ))}
-            </select>
-            <Input
-              type="datetime-local"
-              value={scheduledAt}
-              onChange={(e) => setScheduledAt(e.target.value)}
+              onChange={(next) => {
+                setPostId(next);
+                setScheduledAt("");
+              }}
+              placeholder="Chọn bài đã duyệt"
+              options={[
+                { value: "", label: "Chọn bài đã duyệt" },
+                ...data.approvedPosts.map((post) => ({ value: post.id, label: post.title })),
+              ]}
             />
-            <Button variant="outline" onClick={onSchedule} disabled={pending || !current}>
+            <SoftDateTimePicker
+              value={scheduledAt}
+              onChange={setScheduledAt}
+              placeholder="Chọn ngày và giờ đăng"
+            />
+            <Button className="w-full" variant="outline" onClick={onSchedule} disabled={pending || !current}>
               Lên lịch Organic
             </Button>
             {current?.organicPosts.map((post) => (
-              <div key={post.id} className="rounded-md border p-3 text-sm">
+              <div key={post.id} className="rounded-xl border border-white/20 bg-[var(--neu-inset)] p-4 text-sm [box-shadow:var(--shadow-inset)]">
                 <p className="font-medium">{post.title}</p>
                 <div className="mt-2 flex items-center gap-2">
                   <Badge variant={stateVariant(post.deliveryState ?? "")}>
@@ -186,17 +243,17 @@ export function CampaignWorkspace({ data }: { data: CampaignWorkspaceData }) {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader><CardTitle className="text-base">3. Meta Ads seam</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
+        <Card className="flex h-full min-h-[430px] flex-col overflow-hidden">
+          <CardHeader className="px-6 pb-3 pt-6"><CardTitle className="text-base font-extrabold tracking-tight">3. Meta Ads</CardTitle></CardHeader>
+          <CardContent className="flex flex-1 flex-col gap-3 px-6 pb-6">
             <Input value={adName} onChange={(e) => setAdName(e.target.value)} />
             <Input type="number" min={0} value={budget} onChange={(e) => setBudget(e.target.value)} />
             <Input value={audience} onChange={(e) => setAudience(e.target.value)} />
-            <Button variant="outline" onClick={onCreateMeta} disabled={pending || !current || !!currentAd}>
+            <Button className="w-full" variant="outline" onClick={onCreateMeta} disabled={pending || !current || !!currentAd}>
               {currentAd ? "Meta Ads seam đã tạo" : "Tạo Meta Ads seam"}
             </Button>
             {currentAd && (
-              <div className="rounded-md border p-3 text-sm">
+              <div className="rounded-xl border border-white/20 bg-[var(--neu-inset)] p-4 text-sm [box-shadow:var(--shadow-inset)]">
                 <p className="font-medium">{currentAd.name}</p>
                 <p className="text-muted-foreground">
                   Budget: {(currentAd.budgetMinor ?? 0).toLocaleString("vi-VN")} {currentAd.currency}
@@ -216,7 +273,7 @@ export function CampaignWorkspace({ data }: { data: CampaignWorkspaceData }) {
       </div>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">4. Paid performance evidence</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">4. Paid Performance Evidence</CardTitle></CardHeader>
         <CardContent>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
             {([

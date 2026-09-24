@@ -10,32 +10,28 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
-const STEPS: { title: string; body: string }[] = [
+const STEPS = [
   {
-    title: "Prompt hệ thống theo khuôn mẫu",
-    body: "Mỗi module ghép một hợp đồng chung (GLOBAL_CONTRACT) với system riêng của module. Đây là bộ khung cố định định hình vai trò, giọng điệu và ràng buộc đầu ra — AI không tự do phá khuôn.",
+    title: "Yêu cầu AI đi qua Agent Control Plane",
+    body: "Các tính năng AI của sản phẩm không gọi model bằng API key. OpenClaw là route ưu tiên; OAuth worker là route dự phòng.",
   },
   {
-    title: "Chèn dữ liệu của bạn",
-    body: "Dữ liệu bạn nhập (persona, pillar, cấu hình…) được đưa vào prompt qua hàm buildUser của module, tạo phần yêu cầu cụ thể cho lần chạy đó.",
+    title: "Đóng gói context theo task",
+    body: "Brand DNA, audience, strategy, content và evidence được đóng gói vào task có role, permission manifest và result contract rõ ràng.",
   },
   {
-    title: "Bọc và khử lệnh dữ liệu ngoài",
-    body: "Nội dung dán/upload từ bên ngoài được bao trong khối <<DATA>> và làm sạch (sanitize) để hệ thống coi đó là DỮ LIỆU, không phải chỉ thị — chống chèn lệnh độc hại.",
+    title: "Chặn dữ liệu ngoài khỏi quyền điều khiển",
+    body: "Nội dung dán hoặc upload được coi là dữ liệu đầu vào, không phải chỉ thị hệ thống. File Brand DNA hỗ trợ Markdown, DOCX và PDF.",
   },
   {
-    title: "Gọi model ở nhiệt độ thấp",
-    body: "Model được gọi với nhiệt độ thấp để cho đầu ra có cấu trúc, ổn định và ít ngẫu hứng, phục vụ việc parse chính xác.",
+    title: "Worker thực thi và trả artifact",
+    body: "Worker nhận job, giữ lease, thực thi qua Agent/OAuth và trả artifact có cấu trúc về Piltover.",
   },
   {
-    title: "Kiểm tra bằng zod + sửa một lần",
-    body: "Đầu ra được kiểm tra theo một schema zod. Nếu sai định dạng, hệ thống gửi lại một prompt sửa lỗi đúng một lần trước khi báo lỗi — không lặp vô hạn.",
+    title: "Piltover xác thực trước khi ghi trạng thái",
+    body: "Kết quả được kiểm tra schema, evidence refs và quyền trước khi đồng bộ vào dữ liệu sản phẩm.",
   },
-  {
-    title: "Ghi log mỗi lần chạy",
-    body: "Mỗi lần gọi được lưu vào PromptRun để bạn truy vết, đối chiếu và kiểm toán về sau.",
-  },
-];
+] as const;
 
 export function ContentGenInfoPanel() {
   const [open, setOpen] = useState(false);
@@ -50,11 +46,10 @@ export function ContentGenInfoPanel() {
           >
             <div>
               <h2 className="text-base font-semibold text-foreground">
-                Cách AI tạo nội dung
+                Cách Piltover sử dụng AI
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Minh bạch về quy trình sinh nội dung — AI là cộng sự được duyệt,
-                không phải hộp đen.
+                Agent-first execution, có kiểm soát context, permission và evidence.
               </p>
             </div>
             <ChevronDown
@@ -69,28 +64,23 @@ export function ContentGenInfoPanel() {
         <CollapsibleContent>
           <CardContent className="space-y-4 pt-0">
             <ol className="space-y-3">
-              {STEPS.map((step, i) => (
+              {STEPS.map((step, index) => (
                 <li key={step.title} className="flex gap-3">
                   <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
-                    {i + 1}
+                    {index + 1}
                   </span>
                   <div>
-                    <p className="text-sm font-medium text-foreground">
-                      {step.title}
-                    </p>
-                    <p className="mt-0.5 text-sm text-muted-foreground">
-                      {step.body}
-                    </p>
+                    <p className="text-sm font-medium text-foreground">{step.title}</p>
+                    <p className="mt-0.5 text-sm text-muted-foreground">{step.body}</p>
                   </div>
                 </li>
               ))}
             </ol>
 
             <p className="rounded-md bg-muted/60 p-3 text-sm text-muted-foreground">
-              AI ở đây là <strong className="text-foreground">cộng sự được duyệt</strong>:
-              nó đề xuất theo khuôn mẫu và dữ liệu của bạn, còn bạn luôn là người
-              xem lại và quyết định. API key được lưu cục bộ và chỉ dùng phía máy
-              chủ — không gửi ra client.
+              Chính sách hiện tại: <strong className="text-foreground">AGENT FIRST</strong>.
+              OpenClaw được ưu tiên, OAuth worker là fallback. Direct model API-key execution
+              bị vô hiệu hóa trên product path.
             </p>
           </CardContent>
         </CollapsibleContent>

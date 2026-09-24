@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { brandDnaSchema, type BrandDnaInput } from "@/lib/validators/brandDna";
 import { goalSchema, type GoalInput } from "@/lib/validators/goal";
+import { syncMarketingProjectContext } from "@/lib/piltover/vnext/project-context-service";
 
 // Single-user local app: fixed ids match the seed (prisma/seed.ts).
 const USER_ID = "local";
@@ -12,6 +13,16 @@ const APPSTATE_ID = "singleton";
 type ActionResult<T = undefined> =
   | { ok: true; data: T }
   | { ok: false; error: string };
+
+function normalizeKpiTarget(value: string | undefined): string | undefined {
+  if (!value?.trim()) return undefined;
+  const raw = value.trim().toLowerCase().replace(/,/g, "");
+  const match = raw.match(/^(-?\d+(?:\.\d+)?)\s*([kmb])?$/);
+  if (!match) return value.trim();
+  const base = Number(match[1]);
+  const multiplier = match[2] === "k" ? 1_000 : match[2] === "m" ? 1_000_000 : match[2] === "b" ? 1_000_000_000 : 1;
+  return String(base * multiplier);
+}
 
 // --- BrandDNA (upsert on userId unique) ---
 export async function saveBrandDna(
@@ -38,6 +49,7 @@ export async function saveBrandDna(
     offers: d.offers ?? undefined,
     usp: d.usp,
     region: d.region,
+    aiPositioning: d.aiPositioning,
     sourceFiles: d.sourceFiles ?? undefined,
   };
 
@@ -46,6 +58,7 @@ export async function saveBrandDna(
     update: data,
     create: { userId: USER_ID, ...data },
   });
+  await syncMarketingProjectContext(db);
   revalidatePath("/onboarding");
   return { ok: true, data: undefined };
 }
@@ -67,7 +80,10 @@ export async function saveGoal(
     targetAudience: d.targetAudience,
     mainOffer: d.mainOffer,
     mainMessage: d.mainMessage,
-    kpi: d.kpi ?? undefined,
+    kpi: d.kpi?.map((item) => ({
+      ...item,
+      target: normalizeKpiTarget(item.target),
+    })) ?? undefined,
     contentRatio: d.contentRatio ?? undefined,
     risk: d.risk,
     successDefinition: d.successDefinition,
@@ -86,6 +102,7 @@ export async function saveGoal(
     create: { id: APPSTATE_ID, activeGoalId: goal.id },
   });
 
+  await syncMarketingProjectContext(db);
   revalidatePath("/onboarding");
   return { ok: true, data: { goalId: goal.id } };
 }
