@@ -9,8 +9,8 @@ import type { PromptModule } from "@/lib/ai/run";
 
 // D.1 Failure rule: input < 2 trường → yêu cầu tối thiểu whoAmI + field.
 export const brandDnaInputSchema = z.object({
-  whoAmI: z.string().trim().min(1, "Cần whoAmI"),
-  field: z.string().trim().min(1, "Cần field"),
+  whoAmI: z.string().trim().optional(),
+  field: z.string().trim().optional(),
   coreBeliefs: z.string().optional(),
   differentiation: z.string().optional(),
   personalStory: z.string().optional(),
@@ -20,6 +20,16 @@ export const brandDnaInputSchema = z.object({
   customerMisunderstanding: z.string().optional(),
   marketEducationGoal: z.string().optional(),
   extractedFileText: z.string().optional(),
+}).superRefine((input, ctx) => {
+  const hasCore = Boolean(input.whoAmI?.trim() && input.field?.trim());
+  const hasFile = Boolean(input.extractedFileText?.trim());
+  if (!hasCore && !hasFile) {
+    ctx.addIssue({
+      code: "custom",
+      message: "Cần whoAmI + field hoặc một tài liệu Brand DNA đã upload.",
+      path: ["extractedFileText"],
+    });
+  }
 });
 
 export type BrandDnaModuleInput = z.infer<typeof brandDnaInputSchema>;
@@ -36,6 +46,22 @@ export const brandDnaOutputSchema = z.object({
   suggestedEducationTopics: z.array(z.string()),
   gaps: z.array(z.string()),
   assumptions: z.array(z.string()),
+  profilePatch: z.object({
+    whoAmI: z.string().optional(),
+    field: z.string().optional(),
+    coreBeliefs: z.string().optional(),
+    differentiation: z.string().optional(),
+    personalStory: z.string().optional(),
+    expertise: z.string().optional(),
+    customerProfile: z.string().optional(),
+    customerPain: z.string().optional(),
+    customerMisunderstanding: z.string().optional(),
+    marketEducationGoal: z.string().optional(),
+    companyName: z.string().optional(),
+    offers: z.array(z.string()).optional(),
+    usp: z.string().optional(),
+    region: z.string().optional(),
+  }),
 });
 
 export type BrandDnaOutput = z.infer<typeof brandDnaOutputSchema>;
@@ -43,17 +69,18 @@ export type BrandDnaOutput = z.infer<typeof brandDnaOutputSchema>;
 const SELF_CHECK = `SELF-CHECK trước khi trả:
 - "threeWords" ĐÚNG 3 phần tử, không rỗng.
 - Trường input nào thiếu → đưa ghi chú vào "gaps"; KHÔNG bịa nội dung.
-- "positioning" là 1 câu định vị súc tích, không rỗng.`;
+- "positioning" là 1 câu định vị súc tích, không rỗng.
+- Nếu tài liệu upload có dữ liệu rõ ràng, điền "profilePatch" bằng các trường Brand DNA suy ra trực tiếp từ tài liệu; không bịa trường không được tài liệu hỗ trợ.`;
 
 const FEW_SHOT = `VÍ DỤ (rút gọn):
 Input: whoAmI="chuyên gia trading vàng", field="giao dịch XAUUSD"
 Output:
-{"positioning":"Người dẫn đường giao dịch XAUUSD kỷ luật cho nhà đầu tư cá nhân","threeWords":["kỷ luật","minh bạch","thực chiến"],"differentiationSharpened":"Tập trung quản trị rủi ro thay vì phím lệnh","voiceTraits":["thẳng thắn","dựa dữ liệu"],"suggestedEducationTopics":["quản trị vốn","tâm lý giao dịch"],"gaps":[],"assumptions":[]}`;
+{"positioning":"Người dẫn đường giao dịch XAUUSD kỷ luật cho nhà đầu tư cá nhân","threeWords":["kỷ luật","minh bạch","thực chiến"],"differentiationSharpened":"Tập trung quản trị rủi ro thay vì phím lệnh","voiceTraits":["thẳng thắn","dựa dữ liệu"],"suggestedEducationTopics":["quản trị vốn","tâm lý giao dịch"],"gaps":[],"assumptions":[],"profilePatch":{"whoAmI":"chuyên gia trading vàng","field":"giao dịch XAUUSD","differentiation":"Tập trung quản trị rủi ro thay vì phím lệnh"}}`;
 
 const SYSTEM = `Bạn là brand strategist, nhiệm vụ chuẩn hóa lõi thương hiệu cá nhân thành định vị rõ ràng.
 Từ các trường input, hãy tổng hợp: positioning (1 câu), threeWords (đúng 3 từ khóa thương hiệu),
 differentiationSharpened, voiceTraits, suggestedEducationTopics, gaps (trường còn thiếu/mơ hồ),
-assumptions (giả định khi thiếu dữ liệu).
+assumptions (giả định khi thiếu dữ liệu), và profilePatch để điền các trường Brand DNA còn trống từ tài liệu nguồn.
 
 ${SELF_CHECK}
 

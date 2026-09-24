@@ -29,6 +29,31 @@ function json(value: unknown): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue;
 }
 
+type ExecutionPolicy = {
+  mode: "parallel" | "sequential";
+  resourceKey: string | null;
+};
+
+function executionPolicy(task: Prisma.JsonValue, threadId: string | null): ExecutionPolicy {
+  if (!task || typeof task !== "object" || Array.isArray(task)) {
+    return { mode: "sequential", resourceKey: threadId ? `thread:${threadId}` : null };
+  }
+  const record = task as Record<string, unknown>;
+  const raw = record.executionPolicy;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return { mode: "sequential", resourceKey: threadId ? `thread:${threadId}` : null };
+  }
+  const policy = raw as Record<string, unknown>;
+  const mode = policy.mode === "parallel" ? "parallel" : "sequential";
+  const explicit = typeof policy.resourceKey === "string" && policy.resourceKey.trim()
+    ? policy.resourceKey.trim()
+    : null;
+  return {
+    mode,
+    resourceKey: explicit ?? (mode === "sequential" && threadId ? `thread:${threadId}` : null),
+  };
+}
+
 export class PrismaJobQueue implements JobQueuePort {
   constructor(
     private readonly db: PrismaClient,
@@ -65,6 +90,13 @@ export class PrismaJobQueue implements JobQueuePort {
           organizationId: request.organizationId,
           workspaceId: request.workspaceId ?? null,
           brandId: request.brandId ?? null,
+          threadId: request.threadId ?? null,
+          agentVersionId: request.agentVersionId ?? null,
+          promptVersionId: request.promptVersionId ?? null,
+          skillVersionRefs: json(request.skillVersionRefs ?? []),
+          modelRef: request.modelRef ?? null,
+          traceId: request.traceId ?? correlationId,
+          startedAt: this.clock.now(),
           roleRef: request.roleRef,
           task: json(request.task),
           contextRef: json(request.contextRef),
@@ -172,11 +204,27 @@ export class PrismaJobQueue implements JobQueuePort {
     });
     if (!worker || worker.status !== "ACTIVE" || worker.protocolVersion !== "1.0") return null;
     const workerCapabilities = new Set(worker.capabilities.map(({ capability }) => capability));
+    const activeRows = await this.db.job.findMany({
+      where: {
+        status: { in: ["CLAIMED", "RUNNING"] },
+        currentLeaseId: { not: null },
+      },
+      select: { run: { select: { threadId: true, task: true } } },
+    });
+    const busyResources = new Set(
+      activeRows
+        .map(({ run }) => executionPolicy(run.task, run.threadId))
+        .filter((policy) => policy.mode === "sequential" && policy.resourceKey)
+        .map((policy) => policy.resourceKey as string),
+    );
     const candidates = await this.db.job.findMany({
       where: { status: "QUEUED", currentLeaseId: null },
       orderBy: [{ priority: "desc" }, { createdAt: "asc" }, { id: "asc" }],
+      include: { run: { select: { threadId: true, task: true } } },
     });
     for (const candidate of candidates) {
+      const policy = executionPolicy(candidate.run.task, candidate.run.threadId);
+      if (policy.mode === "sequential" && policy.resourceKey && busyResources.has(policy.resourceKey)) continue;
       if (!capabilities(candidate.requiredCapabilities).every((required) => workerCapabilities.has(required))) continue;
       try {
         const claimed = await this.claimCandidate(candidate.id, workerId, leaseDurationMs);
@@ -279,10 +327,81 @@ export class PrismaJobQueue implements JobQueuePort {
       await tx.agentRun.update({
         where: { id: run.id },
         data: {
-          status: result.status, terminalResult: json(result), terminalFingerprint: fingerprint,
+          status: result.status,
+          terminalResult: json(result),
+          terminalFingerprint: fingerprint,
           completedAt: new Date(result.completedAt),
+          tokenUsage: result.usage ? json({
+            inputTokens: result.usage.inputTokens ?? null,
+            outputTokens: result.usage.outputTokens ?? null,
+            cacheReadTokens: result.usage.cacheReadTokens ?? null,
+            cacheWriteTokens: result.usage.cacheWriteTokens ?? null,
+            totalTokens: result.usage.totalTokens ?? null,
+            provider: result.usage.provider ?? null,
+            model: result.usage.model ?? null,
+            responseModel: result.usage.responseModel ?? null,
+            durationMs: result.usage.durationMs ?? null,
+          }) : undefined,
+          costMinor: typeof result.usage?.costUsd === "number"
+            ? Math.max(0, Math.round(result.usage.costUsd * 100))
+            : undefined,
+          modelRef: result.usage?.provider && result.usage?.model
+            ? `${result.usage.provider}:${result.usage.model}`
+            : undefined,
         },
       });
+      if (run.threadId) {
+        const replyArtifact = result.artifacts?.find((artifact) => artifact.kind === "agent-sidebar-reply");
+        const replyPayload =
+          replyArtifact?.payload && typeof replyArtifact.payload === "object" && !Array.isArray(replyArtifact.payload)
+            ? (replyArtifact.payload as Record<string, unknown>)
+            : null;
+        const replyText = typeof replyPayload?.message === "string" ? replyPayload.message : null;
+        if (replyText) {
+          await tx.agentMessage.create({
+            data: {
+              id: randomUUID(),
+              threadId: run.threadId,
+              runId: run.id,
+              role: "agent",
+              content: json({ text: replyText }),
+              metadata: json({ source: "worker-result", artifactKind: replyArtifact?.kind ?? null }),
+            },
+          });
+        }
+
+        const lastCheckpoint = await tx.agentCheckpoint.findFirst({
+          where: { threadId: run.threadId },
+          orderBy: { sequence: "desc" },
+          select: { sequence: true },
+        });
+        const checkpoint = await tx.agentCheckpoint.create({
+          data: {
+            id: randomUUID(),
+            threadId: run.threadId,
+            runId: run.id,
+            sequence: (lastCheckpoint?.sequence ?? 0) + 1,
+            stateSnapshot: json({
+              runId: run.id,
+              status: result.status,
+              summary: result.summary,
+              artifacts: result.artifacts ?? [],
+            }),
+            summary: result.summary,
+          },
+        });
+        await tx.agentThread.update({
+          where: { id: run.threadId },
+          data: {
+            activeCheckpointId: checkpoint.id,
+            state: json({
+              lastRunId: run.id,
+              lastStatus: result.status,
+              lastSummary: result.summary,
+            }),
+          },
+        });
+      }
       await this.audit(tx, job.organizationId, "WORKER", workerId, "AGENT_RUN_TERMINAL", "AGENT_RUN", run.id, run.correlationId, now);
     });
   }

@@ -90,7 +90,7 @@ function createWindow() {
   win = new BrowserWindow({
     width: 1400,
     height: 900,
-    title: "Personal Brand OS",
+    title: "Piltover",
     backgroundColor: "#ffffff",
     webPreferences: { contextIsolation: true, nodeIntegration: false },
   });
@@ -130,7 +130,7 @@ app.whenReady().then(async () => {
     else startNextDev();
   } catch (err) {
     console.error("[pbos]", err.message);
-    dialog.showErrorBox("Personal Brand OS — boot failed", err.message);
+    dialog.showErrorBox("Piltover — boot failed", err.message);
     app.quit();
     return;
   }

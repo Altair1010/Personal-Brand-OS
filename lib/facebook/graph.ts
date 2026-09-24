@@ -91,6 +91,105 @@ export async function verifyPageToken(
 }
 
 /** 1 call gộp (field expansion) → map 4 field manual + shares. Field thiếu = null. */
+export async function publishPagePost(
+  pageToken: string,
+  pageId: string,
+  input: { message: string; link?: string | null },
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ postId: string; raw: unknown }> {
+  const body = new URLSearchParams();
+  body.set("message", input.message);
+  body.set("access_token", pageToken);
+  if (input.link) body.set("link", input.link);
+  const response = await fetchImpl(
+    `${GRAPH_BASE}/${encodeURIComponent(pageId)}/feed`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body,
+    },
+  );
+  const json = await response.json() as { id?: string };
+  throwOnGraphError(json);
+  if (!response.ok || !json.id) {
+    throw new FacebookGraphError("Facebook did not return a post id.", "request");
+  }
+  return { postId: json.id, raw: json };
+}
+
+
+export type FacebookMediaInput = {
+  bytes: Uint8Array;
+  mimeType: string;
+  fileName: string;
+};
+
+export async function publishPageMediaPost(
+  pageToken: string,
+  pageId: string,
+  input: { message: string; media: FacebookMediaInput[] },
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ postId: string; raw: unknown }> {
+  if (input.media.length === 0) {
+    return publishPagePost(pageToken, pageId, { message: input.message }, fetchImpl);
+  }
+
+  const videos = input.media.filter((item) => item.mimeType.startsWith("video/"));
+  const images = input.media.filter((item) => item.mimeType.startsWith("image/"));
+  if (videos.length > 0 && images.length > 0) {
+    throw new FacebookGraphError("Mixed image/video publishing is not supported in one Facebook post yet.", "request");
+  }
+
+  if (videos.length > 0) {
+    if (videos.length !== 1) {
+      throw new FacebookGraphError("Facebook video publishing currently supports one video per post.", "request");
+    }
+    const media = videos[0];
+    const body = new FormData();
+    body.set("description", input.message);
+    body.set("access_token", pageToken);
+    body.set("source", new Blob([Uint8Array.from(media.bytes).buffer], { type: media.mimeType }), media.fileName);
+    const response = await fetchImpl(`${GRAPH_BASE}/${encodeURIComponent(pageId)}/videos`, {
+      method: "POST",
+      body,
+    });
+    const json = await response.json() as { id?: string };
+    throwOnGraphError(json);
+    if (!response.ok || !json.id) throw new FacebookGraphError("Facebook did not return a video post id.", "request");
+    return { postId: json.id, raw: json };
+  }
+
+  const photoIds: string[] = [];
+  for (const media of images) {
+    const body = new FormData();
+    body.set("published", "false");
+    body.set("access_token", pageToken);
+    body.set("source", new Blob([Uint8Array.from(media.bytes).buffer], { type: media.mimeType }), media.fileName);
+    const response = await fetchImpl(`${GRAPH_BASE}/${encodeURIComponent(pageId)}/photos`, {
+      method: "POST",
+      body,
+    });
+    const json = await response.json() as { id?: string };
+    throwOnGraphError(json);
+    if (!response.ok || !json.id) throw new FacebookGraphError("Facebook did not return an uploaded photo id.", "request");
+    photoIds.push(json.id);
+  }
+
+  const body = new URLSearchParams();
+  body.set("message", input.message);
+  body.set("access_token", pageToken);
+  photoIds.forEach((id, index) => body.set(`attached_media[${index}]`, JSON.stringify({ media_fbid: id })));
+  const response = await fetchImpl(`${GRAPH_BASE}/${encodeURIComponent(pageId)}/feed`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  const json = await response.json() as { id?: string };
+  throwOnGraphError(json);
+  if (!response.ok || !json.id) throw new FacebookGraphError("Facebook did not return a post id.", "request");
+  return { postId: json.id, raw: json };
+}
+
 export async function fetchPostInsights(
   pageToken: string,
   postId: string,

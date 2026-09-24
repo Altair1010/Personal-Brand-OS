@@ -57,6 +57,7 @@ Quy tắc:
 2. Mỗi hook dùng style khác nhau nếu có thể — không trùng text.
 3. Hook phải PLAIN TEXT, ngắn gọn (1–2 dòng), kéo người đọc dừng lại.
 4. Bám sát topic và đặc điểm persona.
+5. Tuyệt đối không nhắc các nhãn/trạng thái UI như "bản nháp mới", "draft mới", "new draft". Nếu topic là nhãn UI chung chung, hãy dựa vào objective/persona thay vì lặp lại nhãn đó.
 
 ${SELF_CHECK}
 

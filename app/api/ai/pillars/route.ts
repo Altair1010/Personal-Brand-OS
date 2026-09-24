@@ -1,23 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { runModule } from "@/lib/ai/run";
+import { dispatchPromptModule } from "@/lib/piltover/modules/agents/infrastructure/agent-ai-route";
 import { pillarsModule } from "@/lib/prompts/pillars";
 
-// D.3 Content Pillar Builder route — server-only (keys never reach the client).
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (body === null || typeof body !== "object") {
-    return NextResponse.json({ error: "Body không hợp lệ" }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "Body kh?ng h?p l?" }, { status: 400 });
   }
-
-  const result = await runModule(pillarsModule, body);
-
-  if (result.ok) {
-    return NextResponse.json(result, { status: 200 });
-  }
+  const result = await dispatchPromptModule(pillarsModule, body);
   return NextResponse.json(
-    { error: result.error, status: result.status },
-    { status: 400 },
+    result.ok ? { ok: true, data: result.data } : { ok: false, error: result.error },
+    { status: result.status },
   );
 }

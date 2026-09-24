@@ -13,4 +13,9 @@ export const credentials = new PrismaWorkerCredentialStore(db);
 export const controlPlane = new AuthenticatedWorkerControlPlane(
   new PrismaJobQueue(db), registry, new PrismaRunEvents(db), new PrismaWorkerReconnect(db), new PrismaExecutionEnvelope(db),
 );
-export const workerHttpPolicy = { enabled: isWorkerHttpsPollingEnabled(), maxBodyBytes: 16 * 1_024 } as const;
+// Structured strategy/content artifacts can exceed 16 KiB. Keep a bounded ceiling while
+// allowing H1 Agent results (notably 30-day strategy plans) to return through the bridge.
+export const workerHttpPolicy = {
+  enabled: isWorkerHttpsPollingEnabled(),
+  maxBodyBytes: 256 * 1_024,
+} as const;

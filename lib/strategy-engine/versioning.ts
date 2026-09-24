@@ -3,6 +3,7 @@
 // Bất biến KHÓA: StrategyVersion.reason non-null/non-empty; version tăng dần, KHÔNG xóa version cũ.
 
 import { db } from "@/lib/db";
+import type { Prisma } from "@prisma/client";
 import type { StrategyOutput } from "@/lib/prompts/strategy";
 import type { AssembledStrategy } from "./assembleStrategy";
 
@@ -15,7 +16,9 @@ export interface CreateStrategyVersionArgs {
   frameworkSlug?: string;
   tier1: StrategyOutput; // output D.4 — nguồn cho các Json field cấp version
   assembledWeeks: AssembledStrategy; // 5 tuần + 30 DailyPlan đã ghép
-  aiPromptRunId?: string; // attribution: link về PromptRun nếu có
+  aiPromptRunId?: string; // legacy PromptRun attribution when applicable
+  sourceAgentRunId?: string; // Agent Control Plane provenance + idempotent sync key
+  structuredPlan?: unknown; // canonical MarketingStrategy payload, persisted atomically with the version
   reason: string; // BẮT BUỘC non-empty
 }
 
@@ -41,7 +44,7 @@ export async function createStrategyVersion(
   return db.$transaction(async (tx) => {
     const goal = await tx.goal.findUnique({
       where: { id: args.goalId },
-      select: { organizationId: true, brandId: true },
+      select: { organizationId: true, brandId: true, timeRangeStart: true },
     });
     if (!goal?.organizationId || !goal.brandId) {
       throw new Error("H1_TENANT_SCOPE_REQUIRED");
@@ -105,7 +108,11 @@ export async function createStrategyVersion(
         recommendedTemplates: t.recommendedTemplates,
         kpiToTrack: t.kpiToTrack,
         doNotList: t.doNotList,
+        structuredPlan: args.structuredPlan === undefined
+          ? undefined
+          : (args.structuredPlan as Prisma.InputJsonValue),
         aiPromptRunId: args.aiPromptRunId ?? null,
+        sourceAgentRunId: args.sourceAgentRunId ?? null,
         weeklyPlans: {
           create: args.assembledWeeks.map((w) => ({
             weekIndex: w.weekIndex,
@@ -114,14 +121,28 @@ export async function createStrategyVersion(
             objectivesMix: w.objectivesMix ?? undefined,
             notes: w.notes,
             dailyPlans: {
-              create: w.dailyPlans.map((d) => ({
-                dayIndex: d.dayIndex,
-                plannedObjective: d.plannedObjective,
-                plannedPillarId: d.plannedPillarId,
-                suggestedTopic: d.suggestedTopic,
-                suggestedCta: d.suggestedCta,
-                status: "planned",
-              })),
+              create: w.dailyPlans.map((d) => {
+                const date = goal.timeRangeStart
+                  ? new Date(
+                      goal.timeRangeStart.getFullYear(),
+                      goal.timeRangeStart.getMonth(),
+                      goal.timeRangeStart.getDate() + d.dayIndex - 1,
+                      12,
+                      0,
+                      0,
+                      0,
+                    )
+                  : null;
+                return {
+                  dayIndex: d.dayIndex,
+                  date,
+                  plannedObjective: d.plannedObjective,
+                  plannedPillarId: d.plannedPillarId,
+                  suggestedTopic: d.suggestedTopic,
+                  suggestedCta: d.suggestedCta,
+                  status: "planned",
+                };
+              }),
             },
           })),
         },

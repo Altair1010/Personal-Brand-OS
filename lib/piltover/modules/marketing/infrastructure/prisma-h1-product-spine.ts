@@ -35,6 +35,16 @@ export class PrismaH1ProductSpine {
     objective: string;
     channelMode: "ORGANIC" | "PAID" | "MIXED";
     strategyVersionId?: string;
+    imcPlanId?: string;
+    audienceIds?: unknown[];
+    channelIds?: unknown[];
+    budget?: unknown;
+    kpis?: unknown[];
+    creativePlatform?: unknown;
+    contentPlan?: unknown;
+    experimentIds?: unknown[];
+    startsAt?: Date;
+    endsAt?: Date;
   }) {
     await this.requireBrand(input);
     if (input.strategyVersionId) {
@@ -54,9 +64,19 @@ export class PrismaH1ProductSpine {
         workspaceId: input.workspaceId,
         brandId: input.brandId,
         strategyVersionId: input.strategyVersionId,
+        imcPlanId: input.imcPlanId,
         name: input.name,
         objective: input.objective,
         channelMode: input.channelMode,
+        audienceIds: input.audienceIds as Prisma.InputJsonValue | undefined,
+        channelIds: input.channelIds as Prisma.InputJsonValue | undefined,
+        budget: input.budget as Prisma.InputJsonValue | undefined,
+        kpis: input.kpis as Prisma.InputJsonValue | undefined,
+        creativePlatform: input.creativePlatform as Prisma.InputJsonValue | undefined,
+        contentPlan: input.contentPlan as Prisma.InputJsonValue | undefined,
+        experimentIds: input.experimentIds as Prisma.InputJsonValue | undefined,
+        startsAt: input.startsAt,
+        endsAt: input.endsAt,
       },
     });
   }

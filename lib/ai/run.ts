@@ -7,11 +7,7 @@ import type { ZodType } from "zod";
 import { db } from "@/lib/db";
 import { GLOBAL_CONTRACT, buildRepairPrompt } from "./contract";
 import { safeJsonParse } from "./json";
-import {
-  getAdapter,
-  resolveModelConfig,
-  type AIAdapter,
-} from "./adapter";
+import type { AIAdapter } from "./adapter";
 
 export interface PromptModule<I, O> {
   key: string;
@@ -49,22 +45,18 @@ export async function runModule<I, O>(
   const system = `${GLOBAL_CONTRACT}\n\n${module.system}`;
   const userPrompt = module.buildUser(parsed.data);
 
-  let provider = "unknown";
-  let model = "unknown";
-  let adapter: AIAdapter;
-  try {
-    if (opts?.adapter) {
-      adapter = opts.adapter;
-    } else {
-      const cfg = await resolveModelConfig();
-      provider = cfg.provider;
-      model = cfg.model;
-      adapter = getAdapter(cfg);
-    }
-  } catch (e) {
-    // Model/config resolution failure — surface loudly, no run persisted.
-    return { ok: false, error: errMsg(e), status: "error" };
+  // Legacy/test harness only. Product AI execution is Agent/OAuth-routed through
+  // Agent Control Plane; this runner must never resolve provider credentials itself.
+  if (!opts?.adapter) {
+    return {
+      ok: false,
+      error: "DIRECT_MODEL_EXECUTION_DISABLED: use Agent Control Plane (OpenClaw preferred, OAuth fallback).",
+      status: "error",
+    };
   }
+  const provider = "injected";
+  const model = "test-adapter";
+  const adapter: AIAdapter = opts.adapter;
 
   // Preferred path: schema-constrained output via the AI SDK (generateObject). Used by the
   // real provider adapters; injected mock adapters (tests) omit callStructured → text path.

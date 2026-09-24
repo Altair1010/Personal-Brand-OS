@@ -9,6 +9,7 @@ const trimmedString = z.string().trim().max(5000);
 export const kpiItemSchema = z.object({
   metric: z.string().trim().min(1).max(120),
   target: z.string().trim().max(120).optional(),
+  unit: z.string().trim().max(40).optional(),
 });
 
 export const goalSchema = z.object({
@@ -23,6 +24,16 @@ export const goalSchema = z.object({
   contentRatio: z.record(z.string(), z.number().min(0).max(100)).optional(),
   risk: trimmedString.optional(),
   successDefinition: trimmedString.optional(),
+}).superRefine((value, ctx) => {
+  if (!value.contentRatio) return;
+  const total = Object.values(value.contentRatio).reduce((sum, item) => sum + item, 0);
+  if (Math.abs(total - 100) > 0.001) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["contentRatio"],
+      message: "Tổng tỷ lệ nội dung phải bằng 100%.",
+    });
+  }
 });
 
 export type GoalInput = z.infer<typeof goalSchema>;

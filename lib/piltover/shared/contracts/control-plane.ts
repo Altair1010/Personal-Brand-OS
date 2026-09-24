@@ -21,6 +21,12 @@ export const RunRequestSchema = z
     organizationId: nonEmptyString,
     workspaceId: nonEmptyString.nullable().optional(),
     brandId: nonEmptyString.nullable().optional(),
+    threadId: nonEmptyString.nullable().optional(),
+    agentVersionId: nonEmptyString.nullable().optional(),
+    promptVersionId: nonEmptyString.nullable().optional(),
+    skillVersionRefs: z.array(nonEmptyString).optional(),
+    modelRef: nonEmptyString.nullable().optional(),
+    traceId: nonEmptyString.nullable().optional(),
     roleRef: nonEmptyString,
     task: z
       .object({ type: nonEmptyString, instruction: nonEmptyString })
@@ -64,6 +70,21 @@ export const RunResultSchema = z
           })
           .strict(),
       )
+      .optional(),
+    usage: z
+      .object({
+        inputTokens: z.number().int().nonnegative().optional(),
+        outputTokens: z.number().int().nonnegative().optional(),
+        cacheReadTokens: z.number().int().nonnegative().optional(),
+        cacheWriteTokens: z.number().int().nonnegative().optional(),
+        totalTokens: z.number().int().nonnegative().optional(),
+        costUsd: z.number().nonnegative().optional(),
+        provider: z.string().optional(),
+        model: z.string().optional(),
+        responseModel: z.string().optional(),
+        durationMs: z.number().int().nonnegative().optional(),
+      })
+      .strict()
       .optional(),
     error: ErrorEnvelopeSchema.nullable().optional(),
   })

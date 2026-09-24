@@ -47,10 +47,10 @@ export type MetricSource = (typeof METRIC_SOURCES)[number];
 
 // UI tag color map for Objective — Tailwind color tokens
 export const OBJECTIVE_COLORS: Record<Objective, string> = {
-  seo: "bg-cyan-100 text-cyan-800",
-  educate: "bg-blue-100 text-blue-800",
-  trust: "bg-violet-100 text-violet-800",
-  conversion: "bg-amber-100 text-amber-800",
-  story: "bg-rose-100 text-rose-800",
-  community: "bg-emerald-100 text-emerald-800",
+  seo: "bg-[#D7E1DC] text-[#0C4F54]",
+  educate: "bg-[#DCE4DD] text-[#184F52]",
+  trust: "bg-[#E2DDD0] text-[#5E5548]",
+  conversion: "bg-[#E5D8C2] text-[#73532C]",
+  story: "bg-[#EAD5D1] text-[#87423C]",
+  community: "bg-[#DCE5D9] text-[#315B48]",
 };

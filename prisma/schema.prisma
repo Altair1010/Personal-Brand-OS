@@ -51,36 +51,83 @@ model Organization {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  memberships        Membership[]
-  workspaces         Workspace[]
-  brands             Brand[]
-  brandDna           BrandDNA[]
-  goals              Goal[]
-  segments           AudienceSegment[]
-  pillars            ContentPillar[]
-  templates          ContentTemplate[]
-  frameworks         Framework[]
-  strategies         Strategy[]
-  ideas              ContentIdea[]
-  drafts             ContentDraft[]
-  posts              Post[]
-  facebookAccounts   FacebookAccount[]
-  insights           PerformanceInsight[]
-  promptRuns         PromptRun[]
-  exports            ExportHistory[]
-  metricObservations MetricObservation[]
-  agentRuns          AgentRun[]
-  jobs               Job[]
-  approvals          ApprovalRequest[]
-  workspaceGrants    WorkerWorkspaceGrant[]
-  brandGrants        WorkerBrandGrant[]
-  auditEntries       AuditEntry[]
-  agentDefinitions   AgentDefinition[]
-  agentRoles         AgentRole[]
-  marketingCampaigns MarketingCampaign[]
-  contentDeliveries  ContentDelivery[]
-  metaAdsCampaigns   MetaAdsCampaign[]
-  metaAdsMetrics     MetaAdsMetricSnapshot[]
+  memberships           Membership[]
+  workspaces            Workspace[]
+  brands                Brand[]
+  brandDna              BrandDNA[]
+  goals                 Goal[]
+  segments              AudienceSegment[]
+  pillars               ContentPillar[]
+  templates             ContentTemplate[]
+  frameworks            Framework[]
+  strategies            Strategy[]
+  ideas                 ContentIdea[]
+  drafts                ContentDraft[]
+  posts                 Post[]
+  facebookAccounts      FacebookAccount[]
+  insights              PerformanceInsight[]
+  promptRuns            PromptRun[]
+  exports               ExportHistory[]
+  metricObservations    MetricObservation[]
+  agentRuns             AgentRun[]
+  jobs                  Job[]
+  approvals             ApprovalRequest[]
+  workspaceGrants       WorkerWorkspaceGrant[]
+  brandGrants           WorkerBrandGrant[]
+  auditEntries          AuditEntry[]
+  agentDefinitions      AgentDefinition[]
+  agentRoles            AgentRole[]
+  marketingCampaigns    MarketingCampaign[]
+  contentDeliveries     ContentDelivery[]
+  metaAdsCampaigns      MetaAdsCampaign[]
+  metaAdsMetrics        MetaAdsMetricSnapshot[]
+  legacyAdCampaigns     AdCampaign[]
+  legacyAdMetrics       AdMetricObservation[]
+  providerConnections   ProviderConnection[]
+  providerOAuthAttempts ProviderOAuthAttempt[]
+  envVaultEntries       EnvVaultEntry[]
+  envVaultSecurity      EnvVaultSecurity[]
+}
+
+// H4.1: encrypted brand-scoped .ENV vault for Meta/Page/Ads agent configuration.
+model EnvVaultEntry {
+  id               String   @id
+  organizationId   String
+  workspaceId      String
+  brandId          String
+  key              String
+  value            String?
+  secretCiphertext String?
+  isSecret         Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  workspace    Workspace    @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  brand        Brand        @relation(fields: [brandId, workspaceId, organizationId], references: [id, workspaceId, organizationId], onDelete: Restrict)
+
+  @@unique([brandId, key])
+  @@index([organizationId, workspaceId, brandId])
+}
+
+model EnvVaultSecurity {
+  id             String    @id
+  organizationId String
+  workspaceId    String
+  brandId        String    @unique
+  pinSalt        String
+  pinHash        String
+  failedAttempts Int       @default(0)
+  lockedUntil    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  workspace    Workspace    @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  brand        Brand        @relation(fields: [brandId, workspaceId, organizationId], references: [id, workspaceId, organizationId], onDelete: Restrict)
+
+  @@unique([brandId, workspaceId, organizationId])
+  @@index([organizationId, workspaceId, brandId])
 }
 
 model Membership {
@@ -112,18 +159,22 @@ model Workspace {
   updatedAt      DateTime     @updatedAt
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 
-  brands             Brand[]
-  roleBindings       WorkspaceRoleBinding[]
-  agentRuns          AgentRun[]
-  jobs               Job[]
-  workerGrants       WorkerWorkspaceGrant[]
-  brandWorkerGrants  WorkerBrandGrant[]
-  approvals          ApprovalRequest[]
-  agentDefinitions   AgentDefinition[]
-  agentRoles         AgentRole[]
-  marketingCampaigns MarketingCampaign[]
-  contentDeliveries  ContentDelivery[]
-  metaAdsCampaigns   MetaAdsCampaign[]
+  brands                Brand[]
+  roleBindings          WorkspaceRoleBinding[]
+  agentRuns             AgentRun[]
+  jobs                  Job[]
+  workerGrants          WorkerWorkspaceGrant[]
+  brandWorkerGrants     WorkerBrandGrant[]
+  approvals             ApprovalRequest[]
+  agentDefinitions      AgentDefinition[]
+  agentRoles            AgentRole[]
+  marketingCampaigns    MarketingCampaign[]
+  contentDeliveries     ContentDelivery[]
+  metaAdsCampaigns      MetaAdsCampaign[]
+  providerConnections   ProviderConnection[]
+  providerOAuthAttempts ProviderOAuthAttempt[]
+  envVaultEntries       EnvVaultEntry[]
+  envVaultSecurity      EnvVaultSecurity[]
 
   @@unique([id, organizationId])
   @@index([organizationId, status])
@@ -157,32 +208,38 @@ model Brand {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   workspace      Workspace    @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict)
 
-  roleBindings       BrandRoleBinding[]
-  brandDna           BrandDNA[]
-  goals              Goal[]
-  segments           AudienceSegment[]
-  pillars            ContentPillar[]
-  templates          ContentTemplate[]
-  frameworks         Framework[]
-  strategies         Strategy[]
-  ideas              ContentIdea[]
-  drafts             ContentDraft[]
-  posts              Post[]
-  facebookAccounts   FacebookAccount[]
-  insights           PerformanceInsight[]
-  promptRuns         PromptRun[]
-  exports            ExportHistory[]
-  metricObservations MetricObservation[]
-  agentRuns          AgentRun[]
-  jobs               Job[]
-  workerGrants       WorkerBrandGrant[]
-  approvals          ApprovalRequest[]
-  agentDefinitions   AgentDefinition[]
-  agentRoles         AgentRole[]
-  marketingCampaigns MarketingCampaign[]
-  contentDeliveries  ContentDelivery[]
-  metaAdsCampaigns   MetaAdsCampaign[]
-  metaAdsMetrics     MetaAdsMetricSnapshot[]
+  roleBindings          BrandRoleBinding[]
+  brandDna              BrandDNA[]
+  goals                 Goal[]
+  segments              AudienceSegment[]
+  pillars               ContentPillar[]
+  templates             ContentTemplate[]
+  frameworks            Framework[]
+  strategies            Strategy[]
+  ideas                 ContentIdea[]
+  drafts                ContentDraft[]
+  posts                 Post[]
+  facebookAccounts      FacebookAccount[]
+  insights              PerformanceInsight[]
+  promptRuns            PromptRun[]
+  exports               ExportHistory[]
+  metricObservations    MetricObservation[]
+  agentRuns             AgentRun[]
+  jobs                  Job[]
+  workerGrants          WorkerBrandGrant[]
+  approvals             ApprovalRequest[]
+  agentDefinitions      AgentDefinition[]
+  agentRoles            AgentRole[]
+  marketingCampaigns    MarketingCampaign[]
+  contentDeliveries     ContentDelivery[]
+  metaAdsCampaigns      MetaAdsCampaign[]
+  metaAdsMetrics        MetaAdsMetricSnapshot[]
+  legacyAdCampaigns     AdCampaign[]
+  legacyAdMetrics       AdMetricObservation[]
+  providerConnections   ProviderConnection[]
+  providerOAuthAttempts ProviderOAuthAttempt[]
+  envVaultEntries       EnvVaultEntry[]
+  envVaultSecurity      EnvVaultSecurity?
 
   @@unique([id, organizationId])
   @@unique([id, workspaceId, organizationId])
@@ -479,7 +536,11 @@ model StrategyVersion {
   recommendedTemplates Json?
   kpiToTrack           Json?
   doNotList            Json?
+  structuredPlan       Json?
+  approvalStatus       String              @default("DRAFT")
+  approvedAt           DateTime?
   aiPromptRunId        String?
+  sourceAgentRunId     String?             @unique
   editedAt             DateTime? // EM2c: đánh dấu version bị chỉnh sửa tay
   createdAt            DateTime            @default(now())
   strategy             Strategy            @relation(fields: [strategyId], references: [id], onDelete: Cascade)
@@ -558,6 +619,7 @@ model ContentIdea {
 model ContentDraft {
   id              String         @id @default(cuid())
   contentIdeaId   String?
+  contentBriefId  String?
   userId          String
   organizationId  String?
   brandId         String?
@@ -572,6 +634,8 @@ model ContentDraft {
   ctaIntensity    String? // soft|medium|hard
   format          String? // text|image|carousel|video|reel
   topic           String?
+  notes           String?
+  description     String?
   // --- nội dung (plain text FB) ---
   hook            String?
   body            String?
@@ -590,11 +654,33 @@ model ContentDraft {
   pillar          ContentPillar? @relation(fields: [pillarId], references: [id], onDelete: SetNull)
   promptRun       PromptRun?     @relation(fields: [aiPromptRunId], references: [id], onDelete: SetNull)
   post            Post?
+  assets          ContentAsset[]
 
   @@index([organizationId, brandId])
+  @@index([contentBriefId])
 }
 
 // Mirror analytic dims + attribution (strategyVersionId, dailyPlanId)
+model ContentAsset {
+  id             String       @id @default(cuid())
+  contentDraftId String
+  sourceType     String       @default("UPLOAD") // UPLOAD | GOOGLE_DRIVE
+  mediaType      String       @default("FILE")   // IMAGE | VIDEO | FILE
+  fileName       String?
+  mimeType       String?
+  localPath      String?
+  sourceUrl      String?
+  sortOrder      Int          @default(0)
+  status         String       @default("READY")  // READY | REMOTE | RESOLVING | FAILED
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  contentDraft   ContentDraft @relation(fields: [contentDraftId], references: [id], onDelete: Cascade)
+
+  @@index([contentDraftId, sortOrder])
+  @@index([status])
+}
+
 model Post {
   id                 String              @id @default(cuid())
   contentDraftId     String              @unique
@@ -636,21 +722,98 @@ model Post {
   @@index([organizationId, brandId])
 }
 
+model ProviderConnection {
+  id                     String    @id
+  organizationId         String
+  workspaceId            String
+  brandId                String
+  provider               String
+  status                 String    @default("DISCONNECTED")
+  externalAccountId      String?
+  externalAccountName    String?
+  credentialCiphertext   String?
+  refreshTokenCiphertext String?
+  tokenExpiresAt         DateTime?
+  scopes                 Json?
+  capabilities           Json?
+  health                 Json?
+  lastVerifiedAt         DateTime?
+  lastErrorCode          String?
+  lastErrorMessage       String?
+  revokedAt              DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  workspace    Workspace          @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  brand        Brand              @relation(fields: [brandId, workspaceId, organizationId], references: [id, workspaceId, organizationId], onDelete: Restrict)
+  resources    ProviderResource[]
+
+  @@unique([brandId, provider, externalAccountId])
+  @@index([organizationId, workspaceId, brandId, provider, status])
+}
+
+model ProviderResource {
+  id                   String   @id
+  connectionId         String
+  resourceType         String
+  externalId           String
+  name                 String
+  status               String   @default("ACTIVE")
+  capabilities         Json?
+  metadata             Json?
+  credentialCiphertext String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  connection      ProviderConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  facebookAccount FacebookAccount?
+
+  @@unique([connectionId, resourceType, externalId])
+  @@index([connectionId, status])
+}
+
+model ProviderOAuthAttempt {
+  id             String    @id
+  organizationId String
+  workspaceId    String
+  brandId        String
+  provider       String
+  state          String    @unique
+  redirectUri    String
+  status         String    @default("PENDING")
+  expiresAt      DateTime
+  completedAt    DateTime?
+  errorCode      String?
+  errorMessage   String?
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace    Workspace    @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  brand        Brand        @relation(fields: [brandId, workspaceId, organizationId], references: [id, workspaceId, organizationId], onDelete: Cascade)
+
+  @@index([organizationId, workspaceId, brandId, provider, status])
+  @@index([expiresAt])
+}
+
 // EM1c: linked Facebook Page(s). accessToken stored ENCRYPTED via lib/ai/keystore
 // (connect action encrypts; schema stores the ciphertext string, never plaintext).
 model FacebookAccount {
-  id             String        @id @default(cuid())
-  ownerRef       String        @default("local")
-  organizationId String?
-  brandId        String?
-  pageId         String
-  pageName       String
-  accessToken    String
-  tokenExpiresAt DateTime?
-  linkedAt       DateTime      @default(now())
-  posts          Post[]
-  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  brand          Brand?        @relation(fields: [brandId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  id                 String            @id @default(cuid())
+  ownerRef           String            @default("local")
+  organizationId     String?
+  brandId            String?
+  pageId             String
+  pageName           String
+  accessToken        String
+  tokenExpiresAt     DateTime?
+  status             String            @default("ACTIVE")
+  providerResourceId String?           @unique
+  linkedAt           DateTime          @default(now())
+  posts              Post[]
+  providerResource   ProviderResource? @relation(fields: [providerResourceId], references: [id], onDelete: SetNull)
+  organization       Organization?     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  brand              Brand?            @relation(fields: [brandId, organizationId], references: [id, organizationId], onDelete: Restrict)
 
   @@unique([ownerRef, pageId])
   @@unique([brandId, pageId])
@@ -700,15 +863,71 @@ model PerformanceInsight {
   @@index([organizationId, brandId])
 }
 
+model AdCampaign {
+  id              String                @id
+  organizationId  String
+  brandId         String
+  goalId          String?
+  strategyId      String?
+  creativeDraftId String?
+  name            String
+  objective       String
+  audience        Json?
+  budgetAmount    Float?
+  budgetCurrency  String                @default("VND")
+  bidIntent       String?
+  status          String                @default("DRAFT")
+  deliveryMode    String                @default("INTERNAL_DEMO")
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  organization    Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  brand           Brand                 @relation(fields: [brandId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  metrics         AdMetricObservation[]
+
+  @@index([organizationId, brandId, status])
+  @@index([goalId])
+  @@index([strategyId])
+  @@index([creativeDraftId])
+}
+
+model AdMetricObservation {
+  id             String       @id
+  campaignId     String
+  organizationId String
+  brandId        String
+  metricKey      String
+  numericValue   Float
+  observedAt     DateTime     @default(now())
+  source         String       @default("MANUAL")
+  provenance     Json?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  campaign       AdCampaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  brand          Brand        @relation(fields: [brandId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([campaignId, metricKey, observedAt])
+  @@index([organizationId, brandId, metricKey, observedAt])
+  @@index([campaignId, observedAt])
+}
+
 model MarketingCampaign {
   id                String            @id @default(cuid())
   organizationId    String
   workspaceId       String
   brandId           String
   strategyVersionId String?
+  imcPlanId         String?
   name              String
   objective         String
+  audienceIds       Json?
+  channelIds        Json?
   channelMode       String            @default("MIXED")
+  budget            Json?
+  kpis              Json?
+  creativePlatform  Json?
+  contentPlan       Json?
+  experimentIds     Json?
   status            String            @default("DRAFT")
   startsAt          DateTime?
   endsAt            DateTime?
@@ -814,6 +1033,11 @@ model PromptTemplate {
   inputSchema       Json?
   outputSchema      Json?
   validationNotes   String?
+  supportedModels   Json?
+  evalSuite         Json?
+  lifecycleStatus   String      @default("PRODUCTION")
+  createdBy         String?
+  changelog         String?
   isActive          Boolean     @default(true)
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
@@ -881,16 +1105,25 @@ model ExportHistory {
 }
 
 model AgentDefinition {
-  id             String   @id
-  name           String
-  ownerScope     String
-  organizationId String?
-  workspaceId    String?
-  brandId        String?
-  status         String   @default("ACTIVE")
-  revision       Int      @default(0)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                 String   @id
+  name               String
+  description        String?
+  domain             String?
+  currentVersionId   String?
+  modelPolicy        Json?
+  memoryPolicy       Json?
+  toolPolicy         Json?
+  approvalPolicy     Json?
+  outputSchemaRef    String?
+  evaluationSuiteRef String?
+  ownerScope         String
+  organizationId     String?
+  workspaceId        String?
+  brandId            String?
+  status             String   @default("ACTIVE")
+  revision           Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   organization Organization?            @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   workspace    Workspace?               @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict)
@@ -965,6 +1198,15 @@ model AgentRun {
   organizationId        String
   workspaceId           String?
   brandId               String?
+  threadId              String?
+  agentVersionId        String?
+  promptVersionId       String?
+  skillVersionRefs      Json?
+  modelRef              String?
+  tokenUsage            Json?
+  costMinor             Int?
+  traceId               String?
+  startedAt             DateTime?
   schemaVersion         String    @default("1.0")
   status                String    @default("QUEUED")
   roleRef               String
@@ -987,6 +1229,8 @@ model AgentRun {
   jobs         Job[]
   events       RunEvent[]
   approvals    ApprovalRequest[]
+  thread       AgentThread?      @relation(fields: [threadId], references: [id], onDelete: SetNull)
+  checkpoints  AgentCheckpoint[]
 
   @@unique([id, organizationId])
   @@unique([organizationId, idempotencyKey])
@@ -1191,6 +1435,9 @@ model ApprovalRequest {
   requestedByUserIdentityId String
   decidedByUserIdentityId   String?
   decidedAt                 DateTime?
+  payloadSnapshot           Json?
+  decision                  String?
+  comment                   String?
   expiresAt                 DateTime
   oneTimeNonce              String?   @unique
   consumedAt                DateTime?
@@ -1227,4 +1474,640 @@ model AuditEntry {
 
   @@index([organizationId, targetType, targetId, occurredAt])
   @@index([organizationId, action, occurredAt])
+}
+
+model AgentThread {
+  id                 String            @id
+  organizationId     String
+  workspaceId        String?
+  brandId            String?
+  projectId          String?
+  agentDefinitionId  String?
+  agentVersionId     String?
+  state              Json?
+  memoryRefs         Json?
+  artifactRefs       Json?
+  participants       Json?
+  activeCheckpointId String?
+  status             String            @default("ACTIVE")
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  runs               AgentRun[]
+  checkpoints        AgentCheckpoint[]
+  attachments        ChatAttachment[]
+  messages           AgentMessage[]
+
+  @@index([organizationId, workspaceId, brandId, status])
+}
+
+model AgentCheckpoint {
+  id               String      @id
+  threadId         String
+  runId            String?
+  sequence         Int
+  stateSnapshot    Json
+  pendingActions   Json?
+  pendingApprovals Json?
+  summary          String?
+  createdAt        DateTime    @default(now())
+  thread           AgentThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  run              AgentRun?   @relation(fields: [runId], references: [id], onDelete: SetNull)
+
+  @@unique([threadId, sequence])
+  @@index([threadId, createdAt])
+  @@index([runId])
+}
+
+model ChatAttachment {
+  id               String      @id
+  threadId         String
+  type             String
+  mimeType         String
+  source           String
+  fileRef          String
+  previewRef       String?
+  extractedTextRef String?
+  metadata         Json?
+  createdAt        DateTime    @default(now())
+  thread           AgentThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+}
+
+model AgentMessage {
+  id        String      @id
+  threadId  String
+  runId     String?
+  role      String
+  content   Json
+  metadata  Json?
+  createdAt DateTime    @default(now())
+  thread    AgentThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+  @@index([runId])
+}
+
+model PromptDefinition {
+  id          String          @id
+  key         String          @unique
+  name        String
+  description String?
+  domain      String?
+  status      String          @default("ACTIVE")
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  versions    PromptVersion[]
+}
+
+model PromptVersion {
+  id                String           @id
+  promptId          String
+  version           Int
+  system            String
+  instructions      String?
+  templateVariables Json?
+  inputSchema       Json?
+  outputSchema      Json?
+  supportedModels   Json?
+  evalSuite         Json?
+  status            String           @default("DRAFT")
+  createdAt         DateTime         @default(now())
+  prompt            PromptDefinition @relation(fields: [promptId], references: [id], onDelete: Restrict)
+
+  @@unique([promptId, version])
+  @@index([promptId, status, version])
+}
+
+model SkillDefinition {
+  id          String         @id
+  key         String         @unique
+  domain      String
+  name        String
+  description String?
+  status      String         @default("ACTIVE")
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  versions    SkillVersion[]
+}
+
+model SkillVersion {
+  id                 String          @id
+  skillId            String
+  version            Int
+  inputSchemaRef     String?
+  outputSchemaRef    String?
+  promptRef          String?
+  deterministicSteps Json?
+  llmSteps           Json?
+  tools              Json?
+  evaluators         Json?
+  qualityGates       Json?
+  provenance         Json?
+  tests              Json?
+  status             String          @default("DRAFT")
+  createdAt          DateTime        @default(now())
+  skill              SkillDefinition @relation(fields: [skillId], references: [id], onDelete: Restrict)
+
+  @@unique([skillId, version])
+  @@index([skillId, status, version])
+}
+
+model MarketingProjectContext {
+  id             String   @id
+  organizationId String
+  workspaceId    String
+  brandId        String
+  version        Int      @default(1)
+  brand          Json
+  offerings      Json
+  audiences      Json
+  competitors    Json
+  objectives     Json
+  funnel         Json?
+  channels       Json
+  campaign       Json?
+  seo            Json?
+  measurement    Json?
+  status         String   @default("ACTIVE")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([brandId, version])
+  @@index([organizationId, workspaceId, brandId, status])
+}
+
+model Evidence {
+  id             String   @id
+  organizationId String
+  brandId        String?
+  sourceType     String
+  sourceRef      String?
+  content        Json
+  confidence     String?
+  freshness      String?
+  metadata       Json?
+  capturedAt     DateTime
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId, brandId, sourceType, capturedAt])
+}
+
+model ToolGrant {
+  id                String   @id
+  organizationId    String
+  workspaceId       String?
+  brandId           String?
+  agentDefinitionId String?
+  toolNamespace     String
+  action            String
+  resourceScope     Json?
+  canRead           Boolean  @default(true)
+  canWrite          Boolean  @default(false)
+  approvalRequired  Boolean  @default(false)
+  rateLimit         Json?
+  maxActionsPerRun  Int?
+  credentialRef     String?
+  status            String   @default("ACTIVE")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([organizationId, agentDefinitionId, toolNamespace, action])
+  @@index([organizationId, workspaceId, brandId, agentDefinitionId, status])
+}
+
+model ImportedPattern {
+  id            String   @id
+  sourceRepo    String
+  sourceVersion String?
+  sourcePath    String?
+  license       String?
+  importedAs    String
+  adaptation    String
+  reviewedBy    String?
+  importedAt    DateTime @default(now())
+}
+
+model ContentBrief {
+  id              String   @id
+  organizationId  String
+  workspaceId     String
+  brandId         String
+  campaignId      String?
+  objective       String
+  audienceRef     String?
+  keyMessage      String?
+  offer           String?
+  format          String
+  channel         String
+  tone            String?
+  intensity       String?
+  hookDirection   String?
+  length          String?
+  cta             String?
+  evidenceRefs    Json?
+  requiredPoints  Json?
+  forbiddenPoints Json?
+  references      Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([organizationId, workspaceId, brandId, campaignId])
+}
+
+model CreativeTerritory {
+  id                 String   @id
+  contentBriefId     String
+  insight            String
+  tension            String?
+  promise            String?
+  emotionalDirection String?
+  semanticConnection String?
+  visualMetaphor     String?
+  tone               String?
+  noveltyScore       Float?
+  brandFitScore      Float?
+  mechanism          String?
+  createdAt          DateTime @default(now())
+
+  @@index([contentBriefId, createdAt])
+}
+
+model ContentConcept {
+  id                  String   @id
+  contentBriefId      String
+  creativeTerritoryId String?
+  title               String
+  concept             Json
+  selected            Boolean  @default(false)
+  createdAt           DateTime @default(now())
+
+  @@index([contentBriefId, creativeTerritoryId])
+}
+
+model ContentMaster {
+  id             String   @id
+  organizationId String
+  brandId        String
+  contentBriefId String
+  conceptId      String?
+  schemaType     String
+  content        Json
+  version        Int      @default(1)
+  status         String   @default("DRAFT")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([contentBriefId, version])
+  @@index([organizationId, brandId, status])
+}
+
+model ChannelVariant {
+  id              String   @id
+  contentMasterId String
+  channel         String
+  format          String
+  content         Json
+  status          String   @default("DRAFT")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([contentMasterId, channel, status])
+}
+
+model QualityGate {
+  id              String   @id
+  artifactType    String
+  artifactId      String
+  evaluator       String
+  criteria        Json
+  scores          Json?
+  status          String
+  evidence        Json?
+  recommendations Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([artifactType, artifactId, status])
+}
+
+model PublishingJob {
+  id                 String              @id
+  organizationId     String
+  brandId            String
+  contentVariantId   String
+  integrationId      String
+  scheduledAt        DateTime?
+  providerPayload    Json
+  payloadFingerprint String?
+  idempotencyKey     String              @unique
+  status             String              @default("QUEUED")
+  attempts           Int                 @default(0)
+  maxAttempts        Int                 @default(5)
+  nextAttemptAt      DateTime?
+  leaseOwner         String?
+  leaseExpiresAt     DateTime?
+  providerPostId     String?
+  providerResponse   Json?
+  errorCategory      String?
+  error              String?
+  blockedReason      String?
+  createdAt          DateTime            @default(now())
+  startedAt          DateTime?
+  completedAt        DateTime?
+  updatedAt          DateTime            @updatedAt
+  deliveryAttempts   PublishingAttempt[]
+
+  @@index([organizationId, brandId, status, scheduledAt])
+  @@index([status, nextAttemptAt, scheduledAt])
+  @@index([leaseExpiresAt])
+}
+
+model PublishingAttempt {
+  id                 String        @id
+  publishingJobId    String
+  attemptNumber      Int
+  workerId           String
+  payloadFingerprint String
+  requestFingerprint String
+  status             String        @default("STARTED")
+  errorCategory      String?
+  errorMessage       String?
+  retryAfterMs       Int?
+  providerPostId     String?
+  providerResponse   Json?
+  startedAt          DateTime      @default(now())
+  finishedAt         DateTime?
+  publishingJob      PublishingJob @relation(fields: [publishingJobId], references: [id], onDelete: Cascade)
+
+  @@unique([publishingJobId, attemptNumber])
+  @@index([publishingJobId, status])
+  @@index([requestFingerprint])
+}
+
+model MetricDefinition {
+  id          String   @id
+  key         String   @unique
+  name        String
+  formula     String?
+  unit        String
+  source      String
+  aggregation String
+  createdAt   DateTime @default(now())
+}
+
+model PerformanceSnapshot {
+  id                  String   @id
+  organizationId      String?
+  workspaceId         String?
+  brandId             String?
+  entityType          String
+  entityId            String
+  period              String
+  metrics             Json
+  source              String
+  provider            String?
+  providerAccountRef  String?
+  providerResourceRef String?
+  providerEntityRef   String?
+  provenance          Json?
+  lineage             Json?
+  attributionStatus   String   @default("UNLINKED")
+  capturedAt          DateTime
+  createdAt           DateTime @default(now())
+
+  @@index([organizationId, brandId, entityType, capturedAt])
+  @@index([entityType, entityId, capturedAt])
+  @@index([provider, providerAccountRef, providerEntityRef, capturedAt])
+}
+
+model ProviderMetricObservation {
+  id                    String   @id
+  organizationId        String
+  workspaceId           String?
+  brandId               String?
+  provider              String
+  providerAccountRef    String
+  providerResourceRef   String?
+  providerEntityRef     String
+  metricKey             String
+  numericValue          Float
+  period                String
+  observedAt            DateTime
+  sourceFingerprint     String   @unique
+  raw                   Json?
+  performanceSnapshotId String?
+  createdAt             DateTime @default(now())
+
+  @@index([organizationId, brandId, provider, providerEntityRef, observedAt])
+  @@index([performanceSnapshotId])
+}
+
+model DataSyncState {
+  id               String    @id
+  organizationId   String
+  workspaceId      String?
+  brandId          String    @default("")
+  provider         String
+  connectionId     String    @default("")
+  resourceId       String    @default("")
+  dataset          String
+  cadenceMinutes   Int       @default(1440)
+  status           String    @default("NEVER_SYNCED")
+  lastAttemptAt    DateTime?
+  lastSuccessfulAt DateTime?
+  expectedNextAt   DateTime?
+  windowStart      DateTime?
+  windowEnd        DateTime?
+  missingWindows   Json?
+  lastErrorCode    String?
+  lastErrorMessage String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([organizationId, brandId, provider, connectionId, resourceId, dataset])
+  @@index([organizationId, brandId, status, expectedNextAt])
+}
+
+model Experiment {
+  id               String    @id
+  organizationId   String
+  brandId          String
+  hypothesis       String
+  entityType       String
+  control          Json?
+  variants         Json
+  primaryMetric    String
+  secondaryMetrics Json?
+  startAt          DateTime?
+  endAt            DateTime?
+  sample           Json?
+  status           String    @default("DRAFT")
+  analysis         Json?
+  conclusion       String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([organizationId, brandId, status])
+}
+
+model Recommendation {
+  id             String   @id
+  organizationId String
+  brandId        String
+  type           String
+  title          String
+  rationale      String
+  evidenceRefs   Json?
+  status         String   @default("PROPOSED")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId, brandId, status])
+}
+
+model EvaluationRun {
+  id             String   @id
+  organizationId String
+  brandId        String?
+  subjectType    String
+  subjectRef     String
+  suiteRef       String?
+  baselineRef    String?
+  candidateRef   String?
+  status         String
+  score          Float
+  baselineScore  Float?
+  delta          Float?
+  result         Json
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId, brandId, subjectType, createdAt])
+  @@index([subjectRef, createdAt])
+}
+
+model IMCPlan {
+  id                  String    @id
+  organizationId      String
+  workspaceId         String
+  brandId             String
+  strategyVersionId   String
+  version             Int       @default(1)
+  objective           String
+  audienceSegments    Json
+  strategicThesis     String
+  keyMessage          String
+  creativePlatform    Json
+  funnelStages        Json
+  channelPlans        Json
+  campaigns           Json
+  contentRequirements Json
+  budgetAllocation    Json?
+  kpis                Json
+  experiments         Json?
+  measurementPlan     Json
+  assumptions         Json?
+  risks               Json?
+  status              String    @default("DRAFT")
+  approvedAt          DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@unique([strategyVersionId, version])
+  @@index([organizationId, workspaceId, brandId, status])
+}
+
+model KPIDefinition {
+  id                  String   @id
+  key                 String   @unique
+  name                String
+  category            String
+  supportedObjectives Json
+  defaultUnit         String
+  formula             String?
+  aggregation         String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model CopyTechnique {
+  id                String   @id
+  name              String   @unique
+  mechanism         String
+  triggerConditions Json?
+  inputRequirements Json?
+  steps             Json
+  contraindications Json?
+  evaluationRules   Json?
+  localeAdapters    Json?
+  provenance        Json?
+  status            String   @default("ACTIVE")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model VisualGrammar {
+  id               String   @id
+  organizationId   String?
+  brandId          String?
+  name             String
+  composition      Json
+  palette          Json?
+  typography       Json?
+  propStrategy     Json?
+  humanPresence    Json?
+  visualMetaphor   Json?
+  brandConstraints Json?
+  version          Int      @default(1)
+  status           String   @default("ACTIVE")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([organizationId, brandId, status])
+}
+
+model AIVisibilitySnapshot {
+  id                 String   @id
+  organizationId     String
+  brandId            String
+  provider           String
+  promptSet          Json
+  brandMentions      Json
+  sourceMentions     Json
+  competitorMentions Json
+  citedPages         Json
+  capturedAt         DateTime
+  createdAt          DateTime @default(now())
+
+  @@index([organizationId, brandId, provider, capturedAt])
+}
+
+model SEOAuditSnapshot {
+  id               String   @id
+  organizationId   String
+  brandId          String
+  domain           String
+  extractorVersion String
+  signals          Json
+  findings         Json
+  source           String
+  capturedAt       DateTime
+  createdAt        DateTime @default(now())
+
+  @@index([organizationId, brandId, domain, capturedAt])
+}
+
+model SEOResearchArtifact {
+  id             String   @id
+  organizationId String
+  brandId        String
+  kind           String
+  query          String?
+  provider       String
+  data           Json
+  evidenceRefs   Json?
+  capturedAt     DateTime
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId, brandId, kind, capturedAt])
 }

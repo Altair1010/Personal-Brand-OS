@@ -24,6 +24,13 @@ export interface DispatchAgentCommand {
   readonly organizationId: string;
   readonly workspaceId: string;
   readonly brandId?: string | null;
+  readonly threadId?: string | null;
+  readonly agentVersionId?: string | null;
+  readonly promptVersionId?: string | null;
+  readonly skillVersionRefs?: readonly string[];
+  readonly modelRef?: string | null;
+  readonly traceId?: string | null;
+  readonly repositoryAlias: string;
   readonly roleRef: string;
   readonly taskType: string;
   readonly instruction: string;
@@ -34,6 +41,10 @@ export interface DispatchAgentCommand {
   readonly idempotencyKey: string;
   readonly priority?: number;
   readonly requiredCapabilities?: readonly string[];
+  readonly executionPolicy?: {
+    readonly mode: "parallel" | "sequential";
+    readonly resourceKey?: string | null;
+  };
 }
 
 export interface DispatchedAgentRun {
@@ -70,12 +81,23 @@ export class AgentExecutionGateway {
       organizationId: input.organizationId,
       workspaceId: input.workspaceId,
       brandId: input.brandId ?? null,
+      threadId: input.threadId ?? null,
+      agentVersionId: input.agentVersionId ?? null,
+      promptVersionId: input.promptVersionId ?? null,
+      skillVersionRefs: [...(input.skillVersionRefs ?? [])],
+      modelRef: input.modelRef ?? null,
+      traceId: input.traceId ?? null,
       roleRef: input.roleRef,
       task: {
         type: input.taskType,
         instruction: input.instruction,
         executionRoute: route,
+        executionPolicy: input.executionPolicy ?? {
+          mode: input.threadId ? "sequential" : "parallel",
+          resourceKey: input.threadId ? `thread:${input.threadId}` : null,
+        },
         ...(input.taskPayload ?? {}),
+        repositoryAlias: input.repositoryAlias,
       },
       contextRef: input.contextRef,
       permissionManifestRef: input.permissionManifestRef,

@@ -1,0 +1,2 @@
+-- Phase 2 marketing engines are represented by the vNext foundation migration already applied.
+-- This marker migration intentionally performs no destructive changes.

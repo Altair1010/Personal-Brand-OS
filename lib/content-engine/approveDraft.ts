@@ -1,7 +1,3 @@
-// M7 — approve a ContentDraft → tạo Post gắn attribution bắt buộc.
-// INVARIANT: Post PHẢI có strategyVersionId + dailyPlanId, nếu thiếu → throw (Revision Engine cần).
-// Single-user: userId = "local", AppState id = "singleton".
-
 import { db } from "@/lib/db";
 
 const USER_ID = "local";
@@ -12,13 +8,34 @@ export interface ApproveDraftResult {
   draftId: string;
 }
 
-/**
- * Approve một ContentDraft: set status="approved", tạo Post với đầy đủ attribution.
- * Idempotent-safe: nếu Post đã tồn tại cho draft → throw "draft đã được approve".
- */
-export async function approveDraft(draftId: string): Promise<ApproveDraftResult> {
+export async function approveDraftOnly(
+  draftId: string,
+): Promise<{ draftId: string; status: "approved" }> {
   return db.$transaction(async (tx) => {
-    // 1. Load draft kèm contentIdea để lấy dailyPlanId.
+    const draft = await tx.contentDraft.findUnique({
+      where: { id: draftId },
+      include: { brand: { select: { status: true } } },
+    });
+    if (!draft) throw new Error(`ContentDraft không tồn tại: ${draftId}`);
+    if (!draft.organizationId || !draft.brandId || !draft.brand) {
+      throw new Error("H1_TENANT_SCOPE_REQUIRED");
+    }
+    if (draft.brand.status !== "ACTIVE") throw new Error("H1_BRAND_NOT_ACTIVE");
+    if (draft.status === "posted") throw new Error("Bản nháp đã được xuất bản.");
+    if (draft.status !== "approved") {
+      await tx.contentDraft.update({
+        where: { id: draftId },
+        data: { status: "approved" },
+      });
+    }
+    return { draftId, status: "approved" as const };
+  });
+}
+
+export async function createPostFromApprovedDraft(
+  draftId: string,
+): Promise<ApproveDraftResult> {
+  return db.$transaction(async (tx) => {
     const draft = await tx.contentDraft.findUnique({
       where: { id: draftId },
       include: {
@@ -26,32 +43,23 @@ export async function approveDraft(draftId: string): Promise<ApproveDraftResult>
         brand: { select: { workspaceId: true, status: true } },
       },
     });
-    if (!draft) {
-      throw new Error(`ContentDraft không tồn tại: ${draftId}`);
+    if (!draft) throw new Error(`ContentDraft không tồn tại: ${draftId}`);
+    if (draft.status !== "approved") {
+      throw new Error("Hãy duyệt bản nháp trước khi tạo Post.");
     }
 
-    // Idempotent guard: Post.contentDraftId @unique — nếu đã có → reject.
     const existingPost = await tx.post.findUnique({
       where: { contentDraftId: draftId },
       select: { id: true },
     });
-    if (existingPost) {
-      throw new Error(
-        `Draft "${draftId}" đã được approve (Post: ${existingPost.id}). Không thể approve lại.`,
-      );
-    }
+    if (existingPost) return { postId: existingPost.id, draftId };
 
     if (!draft.organizationId || !draft.brandId || !draft.brand) {
       throw new Error("H1_TENANT_SCOPE_REQUIRED");
     }
-    if (draft.brand.status !== "ACTIVE") {
-      throw new Error("H1_BRAND_NOT_ACTIVE");
-    }
+    if (draft.brand.status !== "ACTIVE") throw new Error("H1_BRAND_NOT_ACTIVE");
 
-    // 2. dailyPlanId từ contentIdea (có thể null).
-    const dailyPlanId = draft.contentIdea?.dailyPlanId ?? null;
-
-    // 3. strategyVersionId = version mới nhất của Strategy đang active.
+    let dailyPlanId = draft.contentIdea?.dailyPlanId ?? null;
     const appState = await tx.appState.findUnique({
       where: { id: APP_STATE_ID },
       select: { activeStrategyId: true },
@@ -68,22 +76,55 @@ export async function approveDraft(draftId: string): Promise<ApproveDraftResult>
       strategyVersionId = latestVersion?.id ?? null;
     }
 
-    // 4. INVARIANT KHÓA: phải có cả hai attribution field.
+    if (strategyVersionId && !dailyPlanId) {
+      const candidate = await tx.dailyPlan.findFirst({
+        where: { weeklyPlan: { strategyVersionId } },
+        orderBy: [{ dayIndex: "asc" }],
+        select: { id: true },
+      });
+      dailyPlanId = candidate?.id ?? null;
+      if (dailyPlanId) {
+        if (draft.contentIdeaId) {
+          await tx.contentIdea.update({
+            where: { id: draft.contentIdeaId },
+            data: { dailyPlanId },
+          });
+        } else {
+          const idea = await tx.contentIdea.create({
+            data: {
+              dailyPlanId,
+              userId: draft.userId,
+              organizationId: draft.organizationId,
+              brandId: draft.brandId,
+              title: draft.topic?.trim() || "Nội dung Studio",
+              objectiveKey: draft.objectiveKey,
+              pillarId: draft.pillarId,
+              source: "studio",
+            },
+            select: { id: true },
+          });
+          await tx.contentDraft.update({
+            where: { id: draftId },
+            data: { contentIdeaId: idea.id },
+          });
+        }
+      }
+    }
+
     if (!strategyVersionId || !dailyPlanId) {
       const missing: string[] = [];
-      if (!strategyVersionId) missing.push("strategyVersionId (không có active strategy hoặc chưa có version)");
-      if (!dailyPlanId) missing.push("dailyPlanId (contentIdea chưa gắn với DailyPlan)");
+      if (!strategyVersionId) missing.push("strategyVersionId");
+      if (!dailyPlanId) missing.push("dailyPlanId");
       throw new Error(
-        `Không thể approve draft — thiếu attribution bắt buộc: ${missing.join("; ")}. ` +
-          "Revision Engine yêu cầu Post phải gắn đầy đủ strategyVersionId + dailyPlanId.",
+        `Không thể tạo Post — thiếu attribution bắt buộc: ${missing.join(", ")}.`,
       );
     }
 
-    // 5. Ghép finalText từ hook/body/ending (plain text).
-    const parts = [draft.hook, draft.body, draft.ending].filter(Boolean);
-    const finalText = parts.join("\n\n") || draft.contentMarkdown || "";
+    const structuredText = [draft.hook, draft.body, draft.ending]
+      .filter((value): value is string => Boolean(value?.trim()))
+      .join("\n\n");
+    const finalText = draft.contentMarkdown?.trim() || structuredText;
 
-    // 6. Tạo Post — mirror analytic dims từ draft.
     const post = await tx.post.create({
       data: {
         contentDraftId: draftId,
@@ -95,7 +136,6 @@ export async function approveDraft(draftId: string): Promise<ApproveDraftResult>
         finalText,
         platform: "facebook",
         status: "approved",
-        // mirror analytic dims
         objectiveKey: draft.objectiveKey,
         pillarId: draft.pillarId,
         hookStyle: draft.hookStyle,
@@ -118,12 +158,12 @@ export async function approveDraft(draftId: string): Promise<ApproveDraftResult>
       },
     });
 
-    // 7. Set draft status = "approved".
-    await tx.contentDraft.update({
-      where: { id: draftId },
-      data: { status: "approved" },
-    });
-
     return { postId: post.id, draftId };
   });
+}
+
+// Backward-compatible composition for callers that still want one-step behavior.
+export async function approveDraft(draftId: string): Promise<ApproveDraftResult> {
+  await approveDraftOnly(draftId);
+  return createPostFromApprovedDraft(draftId);
 }

@@ -81,6 +81,7 @@ export class PrismaApproval implements ApprovalPort {
           brandId: scope.brandId, runId: input.runId ?? null, actionType: input.actionType,
           targetRef: input.targetRef, targetType: input.target.type,
           requiredCapability: input.requiredCapability, payloadHash: fingerprint,
+          payloadSnapshot: input.payload as Prisma.InputJsonValue,
           requestedByUserIdentityId: actorId, expiresAt: input.expiresAt,
           oneTimeNonce: input.oneTimeNonce ?? null,
         },
@@ -113,7 +114,7 @@ export class PrismaApproval implements ApprovalPort {
       const now = this.clock.now();
       const changed = await tx.approvalRequest.updateMany({
         where: { id: approval.id, status: "PENDING" },
-        data: { status: decision, decidedByUserIdentityId: actorId, decidedAt: now },
+        data: { status: decision, decision, decidedByUserIdentityId: actorId, decidedAt: now },
       });
       if (changed.count !== 1) throw new Error("APPROVAL_DECISION_CONFLICT");
       await this.audit(tx, approval.organizationId, actorId, `APPROVAL_${decision}`, approval.id, approval.id);

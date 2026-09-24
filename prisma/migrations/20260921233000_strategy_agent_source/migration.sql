@@ -1,0 +1,3 @@
+-- No-op reconciliation migration.
+-- sourceAgentRunId and its unique index were already introduced by
+-- 20260921230000_strategy_agent_provenance.

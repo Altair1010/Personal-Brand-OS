@@ -8,6 +8,7 @@ import { OBJECTIVES, HOOK_STYLES, CTA_INTENSITY, FORMATS } from "@/lib/constants
 import { sanitizeExternal } from "@/lib/ai/sanitize";
 
 export const postWriterInputSchema = z.object({
+  contentBriefId: z.string().optional(),
   idea: z.string().min(1),
   objectiveKey: z.enum(OBJECTIVES),
   framework: z.string().optional(),
@@ -17,6 +18,9 @@ export const postWriterInputSchema = z.object({
   persona: z.record(z.string(), z.unknown()),
   brandDna: z.record(z.string(), z.unknown()),
   cta: z.string().optional(),
+  hookStyle: z.enum(HOOK_STYLES).optional(),
+  ctaIntensity: z.enum(CTA_INTENSITY).optional(),
+  format: z.enum(FORMATS).optional(),
 });
 
 export type PostWriterInput = z.infer<typeof postWriterInputSchema>;
@@ -64,7 +68,9 @@ Quy tắc bắt buộc:
 2. Không bịa con số hay số liệu thống kê không có trong input.
 3. Nếu objective="conversion" mà không có offer trong input, dùng ctaIntensity="soft".
 4. "body" phải có ít nhất 3 câu.
-5. "hashtags" tối đa 8 phần tử.
+5. "hashtags" tối đa 8 phần tử; mọi hashtag phải là tiếng Việt KHÔNG DẤU, không khoảng trắng, chỉ chữ/số/_ và không cần ký tự # ở đầu.
+6. Không bao giờ đưa nhãn/trạng thái giao diện như "bản nháp mới", "draft mới", "new draft" vào hook hoặc nội dung.
+7. Nếu input đã cung cấp hookStyle, ctaIntensity hoặc format thì PHẢI giữ đúng các giá trị đó trong output và viết nội dung phù hợp với chúng.
 
 ${SELF_CHECK}
 
@@ -110,11 +116,15 @@ export const postWriterModule: PromptModule<PostWriterInput, PostWriterOutput> =
       ? `\n- Template: ${input.template}`
       : "";
 
-    return `Viết bài Facebook theo thông tin sau:
+    return `Viết bài Facebook theo ContentBrief hiện tại:
+- ContentBrief ID: ${input.contentBriefId ?? "(legacy/no persisted brief)"}
 - Ý tưởng: ${sanitizeExternal(input.idea, "paste")}
 - Objective: ${input.objectiveKey}
 - Giọng điệu: ${input.tone}
 - Độ dài mục tiêu: ${input.length}${frameworkLine}${templateLine}${ctaLine}
+- Hook style đã chọn: ${input.hookStyle ?? "(AI tự chọn)"}
+- CTA intensity đã chọn: ${input.ctaIntensity ?? "(AI tự chọn)"}
+- Format đã chọn: ${input.format ?? "(AI tự chọn)"}
 - Persona: ${personaSummary || "(không có)"}
 - Brand DNA: ${dnaSummary || "(không có)"}
 

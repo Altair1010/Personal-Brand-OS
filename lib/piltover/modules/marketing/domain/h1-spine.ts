@@ -3,11 +3,36 @@ export type MarketingChannelMode = (typeof MARKETING_CHANNEL_MODES)[number];
 
 export const MARKETING_CAMPAIGN_STATES = [
   "DRAFT",
+  "PLANNING",
+  "READY",
   "ACTIVE",
+  "PAUSED",
   "COMPLETED",
   "ARCHIVED",
 ] as const;
 export type MarketingCampaignState = (typeof MARKETING_CAMPAIGN_STATES)[number];
+
+export const MARKETING_CAMPAIGN_TRANSITIONS: Record<
+  MarketingCampaignState,
+  readonly MarketingCampaignState[]
+> = {
+  DRAFT: ["PLANNING", "ARCHIVED"],
+  PLANNING: ["READY", "DRAFT", "ARCHIVED"],
+  READY: ["ACTIVE", "PLANNING", "ARCHIVED"],
+  ACTIVE: ["PAUSED", "COMPLETED"],
+  PAUSED: ["ACTIVE", "COMPLETED", "ARCHIVED"],
+  COMPLETED: ["ARCHIVED"],
+  ARCHIVED: [],
+};
+
+export function assertMarketingCampaignTransition(
+  current: MarketingCampaignState,
+  next: MarketingCampaignState,
+): void {
+  if (!MARKETING_CAMPAIGN_TRANSITIONS[current].includes(next)) {
+    throw new Error(`MARKETING_CAMPAIGN_TRANSITION_INVALID:${current}->${next}`);
+  }
+}
 
 export const DELIVERY_STATES = [
   "APPROVED",

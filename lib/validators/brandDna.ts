@@ -24,6 +24,7 @@ export const brandDnaSchema = z.object({
   offers: z.array(z.string().trim().min(1).max(200)).max(20).optional(),
   usp: trimmedString.optional(),
   region: trimmedString.optional(),
+  aiPositioning: trimmedString.optional(),
   // --- meta ---
   sourceFiles: z.array(z.string().max(300)).max(50).optional(),
 });
